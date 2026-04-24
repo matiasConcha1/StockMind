@@ -1,6 +1,6 @@
-import 'package:admin/controllers/menu_app_controller.dart';
-import 'package:admin/responsive.dart';
-import 'package:admin/screens/dashboard/dashboard_screen.dart';
+import 'package:stockmind/controllers/menu_app_controller.dart';
+import 'package:stockmind/responsive.dart';
+import 'package:stockmind/screens/dashboard/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
