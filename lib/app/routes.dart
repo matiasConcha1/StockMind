@@ -9,6 +9,7 @@ import 'package:stockmind/features/auth/presentation/screens/register_screen.dar
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/settings_screen.dart';
+import 'package:stockmind/features/locations/presentation/screens/locations_screen.dart';
 import 'package:stockmind/features/products/presentation/screens/products_screen.dart';
 
 final class AppRoutePaths {
@@ -19,6 +20,7 @@ final class AppRoutePaths {
   static const dashboard = '/dashboard';
   static const products = '/products';
   static const alerts = '/alerts';
+  static const locations = '/locations';
   static const settings = '/settings';
 }
 
@@ -30,6 +32,7 @@ final class AppRouteNames {
   static const dashboard = 'dashboard';
   static const products = 'products';
   static const alerts = 'alerts';
+  static const locations = 'locations';
   static const settings = 'settings';
 }
 
@@ -131,6 +134,16 @@ class AppRoutes {
                   name: AppRouteNames.alerts,
                   pageBuilder: (context, state) =>
                       _buildPage(state, const AlertsScreen()),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: AppRoutePaths.locations,
+                  name: AppRouteNames.locations,
+                  pageBuilder: (context, state) =>
+                      _buildPage(state, const LocationsScreen()),
                 ),
               ],
             ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/core/theme/app_theme.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/sidebar_item.dart';
-import 'package:stockmind/core/theme/app_theme.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
 class AppShell extends StatelessWidget {
@@ -24,6 +24,7 @@ class AppShell extends StatelessWidget {
       _ShellDestination(label: 'Dashboard', icon: Icons.space_dashboard_rounded),
       _ShellDestination(label: 'Productos', icon: Icons.inventory_2_rounded),
       _ShellDestination(label: 'Alertas', icon: Icons.warning_amber_rounded),
+      _ShellDestination(label: 'Ubicaciones', icon: Icons.place_rounded),
       _ShellDestination(label: 'Configuración', icon: Icons.tune_rounded),
     ];
 
@@ -83,9 +84,8 @@ class AppShell extends StatelessWidget {
                 CircleAvatar(
                   radius: 24,
                   backgroundColor: AppTheme.brand.withValues(alpha: 0.12),
-                  foregroundImage: user?.photoUrl != null
-                      ? NetworkImage(user!.photoUrl!)
-                      : null,
+                  foregroundImage:
+                      user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
                   child: Text(
                     (user?.displayName.isNotEmpty ?? false)
                         ? user!.displayName.characters.first.toUpperCase()
@@ -197,7 +197,7 @@ class _BrandBlock extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [
             AppTheme.brand,
             AppTheme.brandViolet,
