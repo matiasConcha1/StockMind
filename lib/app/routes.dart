@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:stockmind/core/widgets/app_shell.dart';
+import 'package:stockmind/core/widgets/loading_screen.dart';
 import 'package:stockmind/features/alerts/presentation/screens/alerts_screen.dart';
 import 'package:stockmind/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:stockmind/features/auth/presentation/screens/login_screen.dart';
@@ -11,6 +12,7 @@ import 'package:stockmind/features/dashboard/presentation/screens/settings_scree
 import 'package:stockmind/features/products/presentation/screens/products_screen.dart';
 
 final class AppRoutePaths {
+  static const loading = '/loading';
   static const login = '/login';
   static const register = '/register';
   static const forgotPassword = '/forgot-password';
@@ -21,6 +23,7 @@ final class AppRoutePaths {
 }
 
 final class AppRouteNames {
+  static const loading = 'loading';
   static const login = 'login';
   static const register = 'register';
   static const forgotPassword = 'forgot-password';
@@ -35,28 +38,50 @@ class AppRoutes {
 
   static GoRouter createRouter({required AuthProvider authProvider}) {
     return GoRouter(
-      initialLocation: AppRoutePaths.dashboard,
+      initialLocation: AppRoutePaths.loading,
       refreshListenable: authProvider,
       redirect: (context, state) {
-        if (!authProvider.initialized) return null;
-
+        final currentLocation = state.matchedLocation;
         final isAuthRoute = <String>{
           AppRoutePaths.login,
           AppRoutePaths.register,
           AppRoutePaths.forgotPassword,
-        }.contains(state.matchedLocation);
+        }.contains(currentLocation);
 
-        if (!authProvider.isAuthenticated && !isAuthRoute) {
+        debugPrint(
+          'AppRoutes.redirect: location=$currentLocation '
+          'loading=${authProvider.isLoading} '
+          'initialized=${authProvider.initialized} '
+          'authenticated=${authProvider.isAuthenticated}',
+        );
+
+        if (authProvider.isLoading) {
+          if (currentLocation == AppRoutePaths.loading) return null;
+          return AppRoutePaths.loading;
+        }
+
+        if (!authProvider.isAuthenticated) {
+          if (currentLocation == AppRoutePaths.login ||
+              currentLocation == AppRoutePaths.register ||
+              currentLocation == AppRoutePaths.forgotPassword) {
+            return null;
+          }
           return AppRoutePaths.login;
         }
 
-        if (authProvider.isAuthenticated && isAuthRoute) {
+        if (authProvider.isAuthenticated &&
+            (isAuthRoute || currentLocation == AppRoutePaths.loading)) {
           return AppRoutePaths.dashboard;
         }
 
         return null;
       },
       routes: [
+        GoRoute(
+          path: AppRoutePaths.loading,
+          name: AppRouteNames.loading,
+          pageBuilder: (context, state) => _buildPage(state, const LoadingScreen()),
+        ),
         GoRoute(
           path: AppRoutePaths.login,
           name: AppRouteNames.login,

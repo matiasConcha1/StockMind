@@ -13,10 +13,24 @@ import 'package:stockmind/features/products/providers/products_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  debugPrint('main: application startup');
 
-  final bootstrap = await FirebaseBootstrap.initialize();
+  late final FirebaseBootstrapResult bootstrap;
+  try {
+    debugPrint('main: initializing Firebase');
+    bootstrap = await FirebaseBootstrap.initialize();
+  } catch (error, stackTrace) {
+    debugPrint('main: unexpected Firebase initialization error -> $error');
+    debugPrint('$stackTrace');
+    bootstrap = FirebaseBootstrapResult(
+      isReady: false,
+      error: error.toString(),
+    );
+  }
+
   final themeProvider = ThemeProvider();
   await themeProvider.load();
+  debugPrint('main: theme loaded');
 
   final authProvider = AuthProvider(AuthService())..start();
   final productsProvider = ProductsProvider(
@@ -29,6 +43,7 @@ Future<void> main() async {
   );
   final alertsProvider = AlertsProvider(productsProvider: productsProvider);
 
+  debugPrint('main: running app');
   runApp(
     MultiProvider(
       providers: [
