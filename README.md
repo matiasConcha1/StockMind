@@ -1,27 +1,94 @@
-# Flutter Responsive Admin/Dashboard Template
+# StockMind
 
-## [Live Preview](https://abuanwar072.github.io/Flutter-Responsive-Admin-Panel-or-Dashboard/#/)
+StockMind es una aplicación Flutter para gestión de inventario con experiencia SaaS moderna, autenticación con Firebase y dashboard responsive para web, tablet y móvil.
 
-I've created a step-by-step video tutorial to guide you through the process of building this responsive admin panel. **[Watch it on YouTube](https://youtu.be/_uOgXpEHNbc)**
+## Qué incluye
 
-### Checkout [Serverpod.dev](https://cutt.ly/Per1Z7ri) - The Flutter Backend
+- Dashboard con métricas de stock, valor de inventario y salud operativa.
+- Gráficos con `fl_chart`.
+- CRUD de productos con búsqueda y filtros.
+- Alertas automáticas de bajo stock.
+- Firebase Auth con email/contraseña, Google Sign-In y recuperación de contraseña.
+- Persistencia de sesión.
+- Modo claro/oscuro persistente.
+- Navegación moderna con sidebar y mobile navigation.
 
-Flutter V2.\* has officially introduced web support on its stable branch. Today, I'm excited to present a Flutter-based Admin panel, often referred to as a dashboard UI. This Flutter dashboard template, which you can find on GitHub, is a comprehensive solution for your app's backend needs. It comes with a wide array of features including charts, tables, and neatly designed info cards.
+## Stack
 
-This flutter dashboard library is versatile; it's tailored to work seamlessly on the Web, macOS app, tablets, and both Android and iOS phones. The principle 'code once, run everywhere' truly comes to life with this.
+- Flutter 3.41+
+- Provider
+- GoRouter
+- Firebase Core
+- Firebase Auth
+- Cloud Firestore
+- Google Sign-In
+- Google Fonts
+- FL Chart
 
-**Packages we are using:**
+## Estructura
 
-- flutter_svg: [link](https://pub.dev/packages/flutter_svg)
-- google_fonts: [link](https://pub.dev/packages/google_fonts)
-- provider: [link](https://pub.dev/packages/provider)
+```text
+lib/
+  core/
+    router/
+    theme/
+  features/
+    app/
+    auth/
+    dashboard/
+    shell/
+  models/
+  providers/
+  services/
+    auth/
+    products/
+    stock/
+```
 
-**Fonts**
+## Capturas
 
-- Poppins [link](https://fonts.google.com/specimen/Poppins)
+Usa estos placeholders para capturas reales:
 
-### Responsive Admin Panel or Dashboard Final UI Preview
+- `docs/screenshots/login.png`
+- `docs/screenshots/dashboard.png`
+- `docs/screenshots/products.png`
+- `docs/screenshots/alerts.png`
 
-![Preview](/gif.gif)
+## Configuración Firebase
 
-![App UI](/ui.png)
+1. Ejecuta `flutterfire configure`.
+2. Habilita en Firebase Console:
+   - Authentication > Email/Password
+   - Authentication > Google
+   - Firestore Database
+3. Para Android, registra SHA-1/SHA-256.
+4. Para web, confirma dominios autorizados.
+
+## Instalación
+
+```bash
+flutter pub get
+flutter run -d chrome
+```
+
+## Modelo Firestore sugerido
+
+```text
+users/{uid}/products/{productId}
+```
+
+Campos por producto:
+
+- `name`
+- `category`
+- `sku`
+- `price`
+- `stock`
+- `minimumStock`
+- `createdAt`
+- `updatedAt`
+
+## Notas
+
+- Si el inventario está vacío, el dashboard incluye `Cargar demo`.
+- Si Firebase no está configurado, la app muestra una pantalla de setup con instrucciones.
