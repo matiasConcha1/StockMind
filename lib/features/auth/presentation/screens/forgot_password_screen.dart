@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/features/auth/presentation/widgets/auth_shell.dart';
-import 'package:stockmind/providers/auth_provider.dart';
+import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -71,7 +72,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             const SizedBox(height: 16),
             TextButton(
-              onPressed: () => context.go('/login'),
+              onPressed: () => context.go(AppRoutePaths.login),
               child: const Text('Volver al login'),
             ),
           ],
