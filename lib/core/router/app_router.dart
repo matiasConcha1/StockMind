@@ -1,32 +1,37 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:stockmind/controllers/auth_controller.dart';
-import 'package:stockmind/screens/auth/login_screen.dart';
-import 'package:stockmind/screens/auth/register_screen.dart';
-import 'package:stockmind/screens/dashboard/alerts_screen.dart';
-import 'package:stockmind/screens/dashboard/dashboard_overview_screen.dart';
-import 'package:stockmind/screens/dashboard/dashboard_shell.dart';
-import 'package:stockmind/screens/dashboard/products_screen.dart';
-import 'package:stockmind/screens/dashboard/settings_screen.dart';
+import 'package:stockmind/features/auth/presentation/screens/forgot_password_screen.dart';
+import 'package:stockmind/features/auth/presentation/screens/login_screen.dart';
+import 'package:stockmind/features/auth/presentation/screens/register_screen.dart';
+import 'package:stockmind/features/dashboard/presentation/screens/alerts_screen.dart';
+import 'package:stockmind/features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'package:stockmind/features/dashboard/presentation/screens/products_screen.dart';
+import 'package:stockmind/features/dashboard/presentation/screens/settings_screen.dart';
+import 'package:stockmind/features/shell/presentation/app_shell.dart';
+import 'package:stockmind/providers/auth_provider.dart';
 
 class AppRouter {
-  AppRouter({required AuthController authController})
-      : _authController = authController;
+  AppRouter({required AuthProvider authProvider}) : _authProvider = authProvider;
 
-  final AuthController _authController;
+  final AuthProvider _authProvider;
 
   late final GoRouter router = GoRouter(
-    initialLocation: '/login',
-    refreshListenable: _authController,
+    initialLocation: '/dashboard',
+    refreshListenable: _authProvider,
     redirect: (context, state) {
-      final isAuthenticated = _authController.isAuthenticated;
-      final authLocation = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register';
+      if (!_authProvider.initialized) return null;
 
-      if (!isAuthenticated && !authLocation) {
+      final isAuthRoute = {
+        '/login',
+        '/register',
+        '/forgot-password',
+      }.contains(state.matchedLocation);
+
+      if (!_authProvider.isAuthenticated && !isAuthRoute) {
         return '/login';
       }
 
-      if (isAuthenticated && authLocation) {
+      if (_authProvider.isAuthenticated && isAuthRoute) {
         return '/dashboard';
       }
 
@@ -35,22 +40,26 @@ class AppRouter {
     routes: [
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => _page(state, const LoginScreen()),
       ),
       GoRoute(
         path: '/register',
-        builder: (context, state) => const RegisterScreen(),
+        pageBuilder: (context, state) => _page(state, const RegisterScreen()),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        pageBuilder: (context, state) => _page(state, const ForgotPasswordScreen()),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
-          return DashboardShell(navigationShell: navigationShell);
+          return AppShell(navigationShell: navigationShell);
         },
         branches: [
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/dashboard',
-                builder: (context, state) => const DashboardOverviewScreen(),
+                pageBuilder: (context, state) => _page(state, const DashboardScreen()),
               ),
             ],
           ),
@@ -58,7 +67,7 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/products',
-                builder: (context, state) => const ProductsScreen(),
+                pageBuilder: (context, state) => _page(state, const ProductsScreen()),
               ),
             ],
           ),
@@ -66,7 +75,7 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/alerts',
-                builder: (context, state) => const AlertsScreen(),
+                pageBuilder: (context, state) => _page(state, const AlertsScreen()),
               ),
             ],
           ),
@@ -74,7 +83,7 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/settings',
-                builder: (context, state) => const SettingsScreen(),
+                pageBuilder: (context, state) => _page(state, const SettingsScreen()),
               ),
             ],
           ),
@@ -82,6 +91,25 @@ class AppRouter {
       ),
     ],
   );
+
+  CustomTransitionPage<void> _page(GoRouterState state, Widget child) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 320),
+      reverseTransitionDuration: const Duration(milliseconds: 220),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final slide = Tween<Offset>(
+          begin: const Offset(0.02, 0),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: slide, child: child),
+        );
+      },
+    );
+  }
 
   void dispose() {
     router.dispose();

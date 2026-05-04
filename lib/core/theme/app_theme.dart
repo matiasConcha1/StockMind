@@ -2,99 +2,139 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color _primary = Color(0xFF1D4ED8);
-  static const Color _secondary = Color(0xFF0F172A);
-  static const Color _surfaceLight = Color(0xFFF8FAFC);
-  static const Color _surfaceDark = Color(0xFF0F172A);
-  static const Color _cardLight = Colors.white;
-  static const Color _cardDark = Color(0xFF111827);
+  static const Color brand = Color(0xFF2563EB);
+  static const Color success = Color(0xFF059669);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color danger = Color(0xFFDC2626);
+  static const Color ink = Color(0xFF0F172A);
+  static const Color paper = Color(0xFFF4F7FB);
+  static const Color night = Color(0xFF09111F);
 
   static ThemeData get lightTheme => _buildTheme(Brightness.light);
-
   static ThemeData get darkTheme => _buildTheme(Brightness.dark);
 
   static ThemeData _buildTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: _primary,
+    final scheme = ColorScheme(
       brightness: brightness,
-      primary: _primary,
-      secondary: const Color(0xFF38BDF8),
-      surface: isDark ? _cardDark : _cardLight,
+      primary: brand,
+      onPrimary: Colors.white,
+      secondary: const Color(0xFF0EA5E9),
+      onSecondary: Colors.white,
+      error: danger,
+      onError: Colors.white,
+      surface: isDark ? const Color(0xFF121B2B) : Colors.white,
+      onSurface: isDark ? Colors.white : ink,
+      primaryContainer: isDark ? const Color(0xFF10213F) : const Color(0xFFDCEAFE),
+      onPrimaryContainer: isDark ? Colors.white : ink,
+      secondaryContainer: isDark ? const Color(0xFF0C2432) : const Color(0xFFE0F2FE),
+      onSecondaryContainer: isDark ? Colors.white : ink,
+      tertiary: success,
+      onTertiary: Colors.white,
+      tertiaryContainer: isDark ? const Color(0xFF0C2921) : const Color(0xFFDDF8EC),
+      onTertiaryContainer: isDark ? Colors.white : ink,
+      outline: isDark ? const Color(0xFF314158) : const Color(0xFFD7E1EE),
+      outlineVariant: isDark ? const Color(0xFF1B2940) : const Color(0xFFE8EEF7),
+      shadow: Colors.black,
+      scrim: Colors.black54,
+      inverseSurface: isDark ? Colors.white : ink,
+      onInverseSurface: isDark ? ink : Colors.white,
+      inversePrimary: const Color(0xFF7AB3FF),
+      surfaceTint: brand,
     );
 
-    final textTheme = GoogleFonts.interTextTheme().copyWith(
-      headlineLarge: GoogleFonts.inter(
-        fontSize: 30,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.8,
-      ),
-      headlineMedium: GoogleFonts.inter(
-        fontSize: 24,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.6,
-      ),
-      titleLarge: GoogleFonts.inter(
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-      ),
-      titleMedium: GoogleFonts.inter(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-      ),
-      bodyLarge: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500),
-      bodyMedium: GoogleFonts.inter(fontSize: 14),
-      labelLarge: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+    final baseText = GoogleFonts.plusJakartaSansTextTheme(
+      ThemeData(brightness: brightness).textTheme,
     );
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
-      colorScheme: colorScheme,
-      scaffoldBackgroundColor: isDark ? _surfaceDark : _surfaceLight,
-      textTheme: textTheme,
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.transparent,
-        foregroundColor: isDark ? Colors.white : _secondary,
-        elevation: 0,
-        centerTitle: false,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: isDark ? night : paper,
+      textTheme: baseText.copyWith(
+        headlineLarge: baseText.headlineLarge?.copyWith(
+          fontWeight: FontWeight.w800,
+          letterSpacing: -1.2,
+        ),
+        headlineMedium: baseText.headlineMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.8,
+        ),
+        titleLarge: baseText.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        titleMedium: baseText.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        bodyLarge: baseText.bodyLarge?.copyWith(height: 1.45),
+        bodyMedium: baseText.bodyMedium?.copyWith(height: 1.45),
+        labelLarge: baseText.labelLarge?.copyWith(fontWeight: FontWeight.w700),
       ),
       cardTheme: CardThemeData(
-        color: isDark ? _cardDark : _cardLight,
+        color: isDark ? const Color(0xFF121B2B) : Colors.white,
         elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+        },
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        fillColor: isDark ? const Color(0xFF101A2D) : Colors.white,
+        hintStyle: TextStyle(
+          color: isDark ? const Color(0xFF92A0B5) : const Color(0xFF64748B),
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(
-            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-          ),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: _primary, width: 1.2),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: brand, width: 1.4),
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 18,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: brand,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: scheme.outline),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        side: BorderSide(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+        side: BorderSide(color: scheme.outlineVariant),
+        backgroundColor: isDark ? const Color(0xFF101A2D) : Colors.white,
+        labelStyle: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w600),
       ),
-      dividerColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+      dividerTheme: DividerThemeData(
+        color: scheme.outlineVariant,
+        thickness: 1,
+        space: 1,
+      ),
     );
   }
 }
