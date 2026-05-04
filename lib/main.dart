@@ -6,6 +6,7 @@ import 'package:stockmind/core/utils/firebase_bootstrap.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/auth/data/services/auth_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/dashboard/data/services/stock_movement_service.dart';
 import 'package:stockmind/features/dashboard/data/services/stock_service.dart';
 import 'package:stockmind/features/dashboard/providers/dashboard_provider.dart';
 import 'package:stockmind/features/products/data/services/product_service.dart';
@@ -38,8 +39,10 @@ Future<void> main() async {
     productService: ProductService(),
   );
   final dashboardProvider = DashboardProvider(
+    authProvider: authProvider,
     productsProvider: productsProvider,
     stockService: StockService(),
+    stockMovementService: StockMovementService(),
   );
   final alertsProvider = AlertsProvider(productsProvider: productsProvider);
 
