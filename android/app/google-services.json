@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "464927983622",
+    "firebase_url": "https://ejemplofirebase-38f98-default-rtdb.firebaseio.com",
+    "project_id": "ejemplofirebase-38f98",
+    "storage_bucket": "ejemplofirebase-38f98.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464927983622:android:473f03f18847c018f21b87",
+        "android_client_info": {
+          "package_name": "com.example.myapplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvA0B72j81_7HqG_zxHFSGe_tYFFkItG4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464927983622:android:f623e4259f26a9dbf21b87",
+        "android_client_info": {
+          "package_name": "com.stockmind.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvA0B72j81_7HqG_zxHFSGe_tYFFkItG4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
