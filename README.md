@@ -1,81 +1,112 @@
-# StockMind
+#  StockMind
 
-StockMind es una aplicación de gestión de inventario desarrollada en **Flutter**, pensada para funcionar correctamente tanto en **Web/Desktop** como en **Mobile**.
+<p align="center">
+  <img src="assets/screenshots/banner.gif" alt="StockMind Banner" width="100%">
+</p>
 
-El proyecto incluye una interfaz moderna, responsive y profesional, con dashboard, gestión de productos, alertas de stock y una vista previa animada tipo demo/GIF.
+<p align="center">
+  Sistema moderno de gestión de inventario desarrollado en Flutter + Firebase.
+</p>
 
----
-
-## Características
-
-- Login y registro de usuarios
-- Dashboard con métricas principales
-- Gestión de productos e inventario
-- Alertas de bajo stock
-- Visualización de gráficos
-- Pantalla de configuración
-- Tema claro/oscuro
-- Diseño responsive para Web y Mobile
-- Animación tipo demo/GIF creada con widgets de Flutter
+<p align="center">
+  <img src="https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white">
+  <img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black">
+  <img src="https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white">
+  <img src="https://img.shields.io/badge/Responsive-Design-blueviolet?style=for-the-badge">
+</p>
 
 ---
 
-## Vista previa animada
+##  Descripción
 
-La página principal incluye una animación tipo **demo interactiva**, creada sin usar archivos GIF externos.
+**StockMind** es una aplicación administrativa tipo dashboard diseñada para gestionar productos, inventario y alertas de stock bajo de manera simple, rápida y profesional.
 
-Esta animación simula el funcionamiento de la aplicación mostrando:
-
-- Métricas del dashboard
-- Gráficos de stock
-- Tabla de productos
-- Alertas de bajo stock
-- Vista Web/Desktop y Mobile
+El sistema está pensado para negocios que necesitan controlar su inventario desde una interfaz moderna, responsive y fácil de usar.
 
 ---
 
-## Diseño Responsive
+##  Vista previa
 
-### Web / Desktop
+###  Login profesional
 
-- Layout tipo dashboard
-- Sidebar lateral
-- Header superior
-- Contenido distribuido en tarjetas
-- Tablas y gráficos adaptados al ancho de pantalla
-
-### Mobile
-
-- Navegación adaptada
-- Contenido en una sola columna
-- Componentes ajustados al tamaño de pantalla
-- Diseño sin errores de overflow
+<p align="center">
+  <img src="assets/screenshots/login.gif" alt="Login StockMind" width="800">
+</p>
 
 ---
 
-## Tecnologías utilizadas
+###  Dashboard principal
 
-- Flutter
-- Dart
-- Firebase
-- Provider
-- Material Design
+<p align="center">
+  <img src="assets/screenshots/dashboard.gif" alt="Dashboard StockMind" width="800">
+</p>
 
 ---
 
-## Estructura del proyecto
+###  Gestión de productos
 
-```txt
+<p align="center">
+  <img src="assets/screenshots/products.gif" alt="Productos StockMind" width="800">
+</p>
+
+---
+
+###  Modo oscuro
+
+<p align="center">
+  <img src="assets/screenshots/dark-mode.gif" alt="Modo oscuro StockMind" width="800">
+</p>
+
+---
+
+##  Funcionalidades principales
+
+-  Autenticación con Firebase
+-  Dashboard con métricas de inventario
+-  Gestión de productos
+-  Crear, editar y eliminar productos
+-  Alertas automáticas de stock bajo
+-  Búsqueda y filtrado de productos
+-  Modo claro y oscuro
+-  Diseño responsive para web, tablet y móvil
+-  Integración con Firestore
+-  Interfaz moderna tipo SaaS
+
+---
+
+##  Tecnologías utilizadas
+
+| Tecnología | Uso |
+|----------|-----|
+| Flutter | Desarrollo frontend multiplataforma |
+| Dart | Lenguaje principal |
+| Firebase Auth | Autenticación de usuarios |
+| Cloud Firestore | Base de datos |
+| Provider | Gestión de estado |
+| fl_chart | Gráficos del dashboard |
+| Google Fonts | Tipografía |
+| Flutter SVG | Íconos e ilustraciones |
+
+---
+
+##  Estructura del proyecto
+
+```bash
 lib/
+│
 ├── core/
-│   ├── router/
-│   └── theme/
+│   ├── constants/
+│   ├── theme/
+│   └── utils/
+│
 ├── features/
-│   ├── app/
 │   ├── auth/
 │   ├── dashboard/
-│   └── shell/
+│   ├── products/
+│   └── alerts/
+│
 ├── models/
 ├── providers/
 ├── services/
-└── widgets/
+├── router/
+└── main.dart
