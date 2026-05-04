@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static const Color brand = Color(0xFF2563EB);
+  static const Color brandViolet = Color(0xFF7C3AED);
   static const Color success = Color(0xFF059669);
   static const Color warning = Color(0xFFF59E0B);
   static const Color danger = Color(0xFFDC2626);
@@ -52,6 +53,7 @@ class AppTheme {
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: isDark ? night : paper,
+      shadowColor: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
       textTheme: baseText.copyWith(
         headlineLarge: baseText.headlineLarge?.copyWith(
           fontWeight: FontWeight.w800,
@@ -72,6 +74,18 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         margin: EdgeInsets.zero,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        indicatorColor: brand.withValues(alpha: 0.12),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            color: states.contains(WidgetState.selected)
+                ? brand
+                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
@@ -134,6 +148,12 @@ class AppTheme {
         color: scheme.outlineVariant,
         thickness: 1,
         space: 1,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isDark ? const Color(0xFF121B2B) : ink,
+        contentTextStyle: TextStyle(color: isDark ? Colors.white : Colors.white),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
     );
   }

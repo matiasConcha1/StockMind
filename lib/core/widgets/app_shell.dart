@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/core/widgets/section_card.dart';
+import 'package:stockmind/core/widgets/sidebar_item.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
@@ -22,43 +24,64 @@ class AppShell extends StatelessWidget {
       _ShellDestination(label: 'Dashboard', icon: Icons.space_dashboard_rounded),
       _ShellDestination(label: 'Productos', icon: Icons.inventory_2_rounded),
       _ShellDestination(label: 'Alertas', icon: Icons.warning_amber_rounded),
-      _ShellDestination(label: 'Ajustes', icon: Icons.tune_rounded),
+      _ShellDestination(label: 'Configuración', icon: Icons.tune_rounded),
     ];
 
-    final rail = Container(
-      width: 290,
+    final sidebar = Container(
+      width: 308,
       margin: const EdgeInsets.all(18),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _BrandBlock(),
-          const SizedBox(height: 26),
-          for (var index = 0; index < destinations.length; index++) ...[
-            _SidebarTile(
-              destination: destinations[index],
-              selected: navigationShell.currentIndex == index,
-              onTap: () => navigationShell.goBranch(index),
+          SectionCard(
+            padding: EdgeInsets.zero,
+            gradient: LinearGradient(
+              colors: [
+                theme.brightness == Brightness.dark
+                    ? const Color(0xFF0E1830)
+                    : Colors.white,
+                theme.brightness == Brightness.dark
+                    ? const Color(0xFF111C35)
+                    : const Color(0xFFF5F8FF),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            const SizedBox(height: 8),
-          ],
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.brightness == Brightness.dark
-                  ? const Color(0xFF101A2D)
-                  : const Color(0xFFF7FAFF),
-              borderRadius: BorderRadius.circular(24),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _BrandBlock(),
+                  const SizedBox(height: 24),
+                  for (var index = 0; index < destinations.length; index++) ...[
+                    SidebarItem(
+                      label: destinations[index].label,
+                      icon: destinations[index].icon,
+                      selected: navigationShell.currentIndex == index,
+                      onTap: () => navigationShell.goBranch(index),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  const SizedBox(height: 18),
+                  const Divider(),
+                  const SizedBox(height: 18),
+                  SidebarItem(
+                    label: 'Cerrar sesión',
+                    icon: Icons.logout_rounded,
+                    selected: false,
+                    isDestructive: true,
+                    onTap: () => context.read<AuthProvider>().signOut(),
+                  ),
+                ],
+              ),
             ),
+          ),
+          const SizedBox(height: 16),
+          SectionCard(
             child: Row(
               children: [
                 CircleAvatar(
+                  radius: 24,
                   backgroundColor: AppTheme.brand.withValues(alpha: 0.12),
                   foregroundImage: user?.photoUrl != null
                       ? NetworkImage(user!.photoUrl!)
@@ -81,6 +104,7 @@ class AppShell extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium,
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         user?.email ?? '',
                         maxLines: 1,
@@ -98,7 +122,7 @@ class AppShell extends StatelessWidget {
     );
 
     return Scaffold(
-      drawer: isCompact ? Drawer(child: SafeArea(child: rail)) : null,
+      drawer: isCompact ? Drawer(child: SafeArea(child: sidebar)) : null,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -106,7 +130,7 @@ class AppShell extends StatelessWidget {
               theme.scaffoldBackgroundColor,
               theme.brightness == Brightness.dark
                   ? const Color(0xFF050C17)
-                  : const Color(0xFFEFF4FF),
+                  : const Color(0xFFF1F4FF),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -115,16 +139,27 @@ class AppShell extends StatelessWidget {
         child: SafeArea(
           child: Row(
             children: [
-              if (!isCompact) rail,
+              if (!isCompact) sidebar,
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(0, 18, 18, isCompact ? 88 : 18),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(32),
-                    child: ColoredBox(
-                      color: theme.brightness == Brightness.dark
-                          ? const Color(0xFF08111F)
-                          : const Color(0xFFF8FBFF),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.brightness == Brightness.dark
+                                ? const Color(0xFF0A1324)
+                                : Colors.white,
+                            theme.brightness == Brightness.dark
+                                ? const Color(0xFF0C162A)
+                                : const Color(0xFFF8FBFF),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
                       child: navigationShell,
                     ),
                   ),
@@ -159,92 +194,47 @@ class _BrandBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
             AppTheme.brand,
-            theme.brightness == Brightness.dark
-                ? const Color(0xFF123171)
-                : const Color(0xFF0F172A),
+            AppTheme.brandViolet,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(26),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: Colors.white.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(Icons.insights_rounded, color: Colors.white),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 18),
           Text(
             'StockMind',
-            style: theme.textTheme.titleLarge?.copyWith(color: Colors.white),
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Controla inventario, alertas y valor de stock en una sola vista.',
+            'Dashboard de inventario con señales claras para operar mejor.',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.78),
+              color: Colors.white.withValues(alpha: 0.82),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SidebarTile extends StatelessWidget {
-  const _SidebarTile({
-    required this.destination,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final _ShellDestination destination;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: selected
-          ? AppTheme.brand.withValues(alpha: 0.12)
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Icon(
-                destination.icon,
-                color: selected
-                    ? AppTheme.brand
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                destination.label,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: selected ? AppTheme.brand : null,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
