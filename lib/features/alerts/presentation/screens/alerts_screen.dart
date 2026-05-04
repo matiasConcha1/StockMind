@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
+import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
-import 'package:stockmind/features/dashboard/presentation/widgets/low_stock_list.dart';
-import 'package:stockmind/providers/products_provider.dart';
 
 class AlertsScreen extends StatelessWidget {
   const AlertsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ProductsProvider>();
-    final lowStockProducts = provider.lowStockProducts;
+    final provider = context.watch<AlertsProvider>();
 
     return DashboardFrame(
       title: 'Alertas',
@@ -25,7 +24,7 @@ class AlertsScreen extends StatelessWidget {
                   Expanded(
                     child: _AlertMetric(
                       title: 'Alertas activas',
-                      value: lowStockProducts.length.toString(),
+                      value: provider.activeAlerts.toString(),
                       helper: 'SKUs por debajo del stock mínimo',
                     ),
                   ),
@@ -33,9 +32,7 @@ class AlertsScreen extends StatelessWidget {
                   Expanded(
                     child: _AlertMetric(
                       title: 'Cobertura actual',
-                      value: provider.products.isEmpty
-                          ? '0%'
-                          : '${(((provider.products.length - lowStockProducts.length) / provider.products.length) * 100).round()}%',
+                      value: '${provider.coveragePercentage}%',
                       helper: 'Productos dentro de nivel saludable',
                     ),
                   ),
@@ -44,7 +41,7 @@ class AlertsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          LowStockList(products: lowStockProducts),
+          LowStockList(products: provider.lowStockProducts),
         ],
       ),
     );

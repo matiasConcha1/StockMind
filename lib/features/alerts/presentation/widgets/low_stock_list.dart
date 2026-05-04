@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:stockmind/models/product.dart';
+import 'package:stockmind/features/products/models/product.dart';
 
 class LowStockList extends StatelessWidget {
   const LowStockList({
@@ -49,7 +49,10 @@ class LowStockList extends StatelessWidget {
                           color: Colors.orange.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                        child: const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.orange,
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(

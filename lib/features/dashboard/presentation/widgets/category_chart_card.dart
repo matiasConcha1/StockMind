@@ -2,7 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
-import 'package:stockmind/models/dashboard_snapshot.dart';
+import 'package:stockmind/features/dashboard/data/models/dashboard_snapshot.dart';
 
 class CategoryChartCard extends StatelessWidget {
   const CategoryChartCard({

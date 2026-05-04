@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
-import 'package:stockmind/models/product.dart';
+import 'package:stockmind/features/products/models/product.dart';
 
 class StockBarChartCard extends StatelessWidget {
   const StockBarChartCard({
