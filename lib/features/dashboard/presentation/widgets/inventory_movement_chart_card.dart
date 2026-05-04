@@ -32,7 +32,7 @@ class InventoryMovementChartCard extends StatelessWidget {
           Text('Movimiento de inventario', style: theme.textTheme.titleLarge),
           const SizedBox(height: 6),
           Text(
-            'Evolución reciente de unidades gestionadas.',
+            'Evolución reciente de unidades gestionadas por movimientos reales.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 24),
@@ -41,7 +41,8 @@ class InventoryMovementChartCard extends StatelessWidget {
               height: 280,
               child: EmptyState(
                 title: 'Sin actividad reciente',
-                subtitle: 'Aún no hay datos suficientes para graficar movimiento.',
+                subtitle:
+                    'Aún no hay movimientos suficientes para graficar el comportamiento del stock.',
                 icon: Icons.show_chart_rounded,
               ),
             )

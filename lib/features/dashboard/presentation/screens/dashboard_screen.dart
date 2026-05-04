@@ -7,9 +7,11 @@ import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/stat_card.dart';
 import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
+import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/category_chart_card.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/inventory_movement_chart_card.dart';
+import 'package:stockmind/features/dashboard/presentation/widgets/recent_stock_movements_card.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/stock_bar_chart_card.dart';
 import 'package:stockmind/features/dashboard/providers/dashboard_provider.dart';
 
@@ -23,42 +25,12 @@ class DashboardScreen extends StatelessWidget {
     final currency = NumberFormat.currency(symbol: '\$');
     final width = MediaQuery.sizeOf(context).width;
     final statCrossAxisCount = width < 720 ? 1 : width < 1180 ? 2 : 4;
-
-    final movementPoints = [
-      InventoryMovementPoint(
-        label: 'Lun',
-        value: (snapshot.totalUnits * 0.58).clamp(8, 120).toDouble(),
-      ),
-      InventoryMovementPoint(
-        label: 'Mar',
-        value: (snapshot.totalUnits * 0.72).clamp(12, 135).toDouble(),
-      ),
-      InventoryMovementPoint(
-        label: 'Mié',
-        value: (snapshot.totalUnits * 0.66).clamp(10, 128).toDouble(),
-      ),
-      InventoryMovementPoint(
-        label: 'Jue',
-        value: (snapshot.totalUnits * 0.84).clamp(18, 148).toDouble(),
-      ),
-      InventoryMovementPoint(
-        label: 'Vie',
-        value: (snapshot.totalUnits * 0.94).clamp(22, 158).toDouble(),
-      ),
-      InventoryMovementPoint(
-        label: 'Sáb',
-        value: (snapshot.totalUnits * 0.74).clamp(14, 138).toDouble(),
-      ),
-      InventoryMovementPoint(
-        label: 'Dom',
-        value: (snapshot.totalUnits * 0.62).clamp(9, 122).toDouble(),
-      ),
-    ];
+    final movementPoints = _buildMovementPoints(snapshot.recentMovements);
 
     return DashboardFrame(
       title: 'Dashboard',
       subtitle:
-          'Vista ejecutiva del inventario con datos reales, foco en salud operativa y decisiones rápidas.',
+          'Vista ejecutiva del inventario con datos reales, alertas y movimientos recientes.',
       actions: [
         FilledButton.tonalIcon(
           onPressed: () {},
@@ -86,7 +58,7 @@ class DashboardScreen extends StatelessWidget {
                 child: EmptyState(
                   title: 'Tu inventario está vacío',
                   subtitle:
-                      'Agrega productos desde el módulo Productos para comenzar a ver métricas reales en el dashboard.',
+                      'Agrega productos desde el módulo Productos para comenzar a ver métricas y alertas reales.',
                   icon: Icons.space_dashboard_outlined,
                 ),
               ),
@@ -122,7 +94,7 @@ class DashboardScreen extends StatelessWidget {
                   helper: 'Productos que requieren acción',
                   icon: Icons.warning_amber_rounded,
                   color: AppTheme.warning,
-                  trend: '${snapshot.lowStockProducts} alertas',
+                  trend: '${snapshot.criticalProducts} críticos',
                 ),
                 StatCard(
                   label: 'Valor del inventario',
@@ -130,7 +102,7 @@ class DashboardScreen extends StatelessWidget {
                   helper: 'Capital comprometido',
                   icon: Icons.attach_money_rounded,
                   color: AppTheme.success,
-                  trend: 'Actualizado',
+                  trend: '${snapshot.recentMovements.length} movimientos',
                 ),
               ],
             ),
@@ -156,18 +128,18 @@ class DashboardScreen extends StatelessWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     child: _ExecutiveKpi(
-                      title: 'Categorías activas',
-                      value: snapshot.categories.toString(),
-                      helper: 'Cobertura actual del portafolio',
+                      title: 'Alertas críticas',
+                      value: snapshot.criticalProducts.toString(),
+                      helper: 'Productos con stock igual a cero',
                     ),
                   ),
                   if (width > 920) ...[
                     const SizedBox(width: 16),
                     Expanded(
                       child: _ExecutiveKpi(
-                        title: 'Alertas abiertas',
-                        value: snapshot.lowStockProducts.toString(),
-                        helper: 'Reposiciones pendientes hoy',
+                        title: 'Últimos movimientos',
+                        value: snapshot.recentMovements.length.toString(),
+                        helper: 'Actividad reciente sobre el stock',
                       ),
                     ),
                   ],
@@ -178,7 +150,9 @@ class DashboardScreen extends StatelessWidget {
             if (width < 1100) ...[
               InventoryMovementChartCard(points: movementPoints),
               const SizedBox(height: 16),
-              StockBarChartCard(products: snapshot.topProducts),
+              RecentStockMovementsCard(movements: snapshot.recentMovements),
+              const SizedBox(height: 16),
+              StockBarChartCard(products: snapshot.lowestStockProducts),
               const SizedBox(height: 16),
               CategoryChartCard(categories: snapshot.topCategories),
               const SizedBox(height: 16),
@@ -196,7 +170,9 @@ class DashboardScreen extends StatelessWidget {
                       const SizedBox(width: 16),
                       Expanded(
                         flex: 5,
-                        child: LowStockList(products: provider.lowStockProducts),
+                        child: RecentStockMovementsCard(
+                          movements: snapshot.recentMovements,
+                        ),
                       ),
                     ],
                   ),
@@ -205,22 +181,59 @@ class DashboardScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        flex: 6,
-                        child: StockBarChartCard(products: snapshot.topProducts),
+                        flex: 5,
+                        child: LowStockList(products: provider.lowStockProducts),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        flex: 6,
-                        child: CategoryChartCard(categories: snapshot.topCategories),
+                        flex: 7,
+                        child: StockBarChartCard(
+                          products: snapshot.lowestStockProducts,
+                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  CategoryChartCard(categories: snapshot.topCategories),
                 ],
               ),
           ],
         ],
       ),
     );
+  }
+
+  List<InventoryMovementPoint> _buildMovementPoints(
+    List<StockMovement> movements,
+  ) {
+    if (movements.isEmpty) return const [];
+
+    final now = DateTime.now();
+    final dailyTotals = <DateTime, int>{};
+    for (var i = 6; i >= 0; i--) {
+      final date = DateTime(now.year, now.month, now.day - i);
+      dailyTotals[date] = 0;
+    }
+
+    for (final movement in movements) {
+      final day = DateTime(
+        movement.createdAt.year,
+        movement.createdAt.month,
+        movement.createdAt.day,
+      );
+      if (dailyTotals.containsKey(day)) {
+        dailyTotals[day] = dailyTotals[day]! + movement.quantity;
+      }
+    }
+
+    const labels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    return dailyTotals.entries.map((entry) {
+      final weekdayLabel = labels[entry.key.weekday - 1];
+      return InventoryMovementPoint(
+        label: weekdayLabel,
+        value: entry.value.toDouble(),
+      );
+    }).toList();
   }
 }
 

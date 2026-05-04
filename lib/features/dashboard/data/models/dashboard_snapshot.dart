@@ -1,3 +1,4 @@
+import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
 class DashboardSnapshot {
@@ -5,19 +6,23 @@ class DashboardSnapshot {
     required this.totalProducts,
     required this.totalUnits,
     required this.lowStockProducts,
+    required this.criticalProducts,
     required this.categories,
     required this.totalInventoryValue,
     required this.topCategories,
-    required this.topProducts,
+    required this.lowestStockProducts,
+    required this.recentMovements,
   });
 
   final int totalProducts;
   final int totalUnits;
   final int lowStockProducts;
+  final int criticalProducts;
   final int categories;
   final double totalInventoryValue;
   final List<CategorySlice> topCategories;
-  final List<Product> topProducts;
+  final List<Product> lowestStockProducts;
+  final List<StockMovement> recentMovements;
 
   double get stockHealthScore {
     if (totalProducts == 0) return 100;

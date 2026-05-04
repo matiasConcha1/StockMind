@@ -43,7 +43,8 @@ class CategoryChartCard extends StatelessWidget {
               height: 250,
               child: EmptyState(
                 title: 'Sin categorías',
-                subtitle: 'Agrega productos para visualizar la distribución.',
+                subtitle:
+                    'Agrega productos para visualizar la distribución de tu inventario.',
                 icon: Icons.pie_chart_rounded,
               ),
             )

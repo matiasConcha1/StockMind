@@ -20,10 +20,10 @@ class StockBarChartCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Stock por producto', style: theme.textTheme.titleLarge),
+          Text('Productos con menor stock', style: theme.textTheme.titleLarge),
           const SizedBox(height: 6),
           Text(
-            'Lectura rápida de disponibilidad actual por SKU líder.',
+            'Lectura rápida de los productos que requieren mayor atención.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 24),
@@ -32,7 +32,8 @@ class StockBarChartCard extends StatelessWidget {
               height: 280,
               child: EmptyState(
                 title: 'Sin productos',
-                subtitle: 'Agrega productos para ver su comportamiento de stock.',
+                subtitle:
+                    'Agrega productos para ver cuáles necesitan seguimiento de stock.',
                 icon: Icons.inventory_2_rounded,
               ),
             )
@@ -87,15 +88,20 @@ class StockBarChartCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                           width: 22,
                           gradient: LinearGradient(
-                            colors: product.isLowStock
+                            colors: product.isCriticalStock
                                 ? [
-                                    AppTheme.warning,
-                                    AppTheme.warning.withValues(alpha: 0.55),
+                                    const Color(0xFFEF4444),
+                                    const Color(0xFFF97316),
                                   ]
-                                : [
-                                    AppTheme.brand,
-                                    AppTheme.brandViolet,
-                                  ],
+                                : product.isLowStock
+                                    ? [
+                                        AppTheme.warning,
+                                        AppTheme.warning.withValues(alpha: 0.55),
+                                      ]
+                                    : [
+                                        AppTheme.brand,
+                                        AppTheme.brandViolet,
+                                      ],
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
                           ),
