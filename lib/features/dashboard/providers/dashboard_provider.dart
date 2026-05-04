@@ -29,9 +29,9 @@ class DashboardProvider extends ChangeNotifier {
 
   DashboardSnapshot get snapshot => _snapshot;
   List<Product> get lowStockProducts => _productsProvider.lowStockProducts;
-  bool get canSeedDemoData => _productsProvider.products.isEmpty;
-
-  Future<void> seedDemoProducts() => _productsProvider.seedDemoProducts();
+  bool get isLoading => _productsProvider.isLoading;
+  String? get error => _productsProvider.error;
+  bool get hasProducts => _productsProvider.hasProducts;
 
   void _syncFromProducts() {
     _snapshot = _stockService.buildSnapshot(_productsProvider.products);
