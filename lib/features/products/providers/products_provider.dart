@@ -34,6 +34,7 @@ class ProductsProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   String? get categoryFilter => _categoryFilter;
   ProductFilter get productFilter => _productFilter;
+  bool get hasProducts => _products.isNotEmpty;
 
   List<String> get categories {
     final values = _products.map((product) => product.category).toSet().toList();
@@ -47,7 +48,7 @@ class ProductsProvider extends ChangeNotifier {
       final matchesQuery = query.isEmpty ||
           product.name.toLowerCase().contains(query) ||
           product.category.toLowerCase().contains(query) ||
-          product.sku.toLowerCase().contains(query);
+          product.status.toLowerCase().contains(query);
       final matchesCategory =
           _categoryFilter == null || product.category == _categoryFilter;
       final matchesState =
@@ -77,26 +78,32 @@ class ProductsProvider extends ChangeNotifier {
 
   Future<void> createProduct(Product product) async {
     final userId = _authProvider.user?.id;
-    if (userId == null) return;
+    if (userId == null) {
+      _error = 'Debes iniciar sesión para crear productos.';
+      notifyListeners();
+      return;
+    }
     await _execute(() => _productService.createProduct(userId, product));
   }
 
   Future<void> updateProduct(Product product) async {
     final userId = _authProvider.user?.id;
-    if (userId == null) return;
+    if (userId == null) {
+      _error = 'Debes iniciar sesión para editar productos.';
+      notifyListeners();
+      return;
+    }
     await _execute(() => _productService.updateProduct(userId, product));
   }
 
   Future<void> deleteProduct(String productId) async {
     final userId = _authProvider.user?.id;
-    if (userId == null) return;
+    if (userId == null) {
+      _error = 'Debes iniciar sesión para eliminar productos.';
+      notifyListeners();
+      return;
+    }
     await _execute(() => _productService.deleteProduct(userId, productId));
-  }
-
-  Future<void> seedDemoProducts() async {
-    final userId = _authProvider.user?.id;
-    if (userId == null || _products.isNotEmpty) return;
-    await _execute(() => _productService.seedDemoProducts(userId));
   }
 
   Future<void> _execute(Future<void> Function() action) async {
@@ -105,7 +112,9 @@ class ProductsProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await action();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('ProductsProvider._execute error: $error');
+      debugPrint('$stackTrace');
       _error = 'No fue posible sincronizar los productos.';
     } finally {
       _loading = false;
@@ -114,11 +123,15 @@ class ProductsProvider extends ChangeNotifier {
   }
 
   void _handleAuthChanged() {
+    debugPrint(
+      'ProductsProvider._handleAuthChanged: user=${_authProvider.user?.id ?? 'null'}',
+    );
     _subscription?.cancel();
     _products = const [];
     _error = null;
     final userId = _authProvider.user?.id;
     if (userId == null) {
+      _loading = false;
       notifyListeners();
       return;
     }
@@ -127,12 +140,18 @@ class ProductsProvider extends ChangeNotifier {
     notifyListeners();
     _subscription = _productService.watchProducts(userId).listen(
       (items) {
+        debugPrint(
+          'ProductsProvider.watchProducts: received ${items.length} products',
+        );
         _products = items;
         _loading = false;
+        _error = null;
         notifyListeners();
       },
-      onError: (_) {
-        _error = 'No fue posible cargar el inventario.';
+      onError: (Object error, StackTrace stackTrace) {
+        debugPrint('ProductsProvider.watchProducts error: $error');
+        debugPrint('$stackTrace');
+        _error = 'No fue posible cargar tus productos.';
         _loading = false;
         notifyListeners();
       },

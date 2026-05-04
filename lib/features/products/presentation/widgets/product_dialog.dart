@@ -17,10 +17,9 @@ class _ProductDialogState extends State<ProductDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _categoryController;
-  late final TextEditingController _skuController;
   late final TextEditingController _priceController;
   late final TextEditingController _stockController;
-  late final TextEditingController _minimumController;
+  late final TextEditingController _minStockController;
 
   @override
   void initState() {
@@ -28,21 +27,24 @@ class _ProductDialogState extends State<ProductDialog> {
     final product = widget.product;
     _nameController = TextEditingController(text: product?.name ?? '');
     _categoryController = TextEditingController(text: product?.category ?? '');
-    _skuController = TextEditingController(text: product?.sku ?? '');
-    _priceController = TextEditingController(text: product?.price.toString() ?? '');
-    _stockController = TextEditingController(text: product?.stock.toString() ?? '');
-    _minimumController =
-        TextEditingController(text: product?.minimumStock.toString() ?? '');
+    _priceController = TextEditingController(
+      text: product?.price.toString() ?? '',
+    );
+    _stockController = TextEditingController(
+      text: product?.stock.toString() ?? '',
+    );
+    _minStockController = TextEditingController(
+      text: product?.minStock.toString() ?? '',
+    );
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _categoryController.dispose();
-    _skuController.dispose();
     _priceController.dispose();
     _stockController.dispose();
-    _minimumController.dispose();
+    _minStockController.dispose();
     super.dispose();
   }
 
@@ -74,20 +76,14 @@ class _ProductDialogState extends State<ProductDialog> {
                       : null,
                 ),
                 const SizedBox(height: 14),
-                TextFormField(
-                  controller: _skuController,
-                  decoration: const InputDecoration(labelText: 'SKU'),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Ingresa un SKU.'
-                      : null,
-                ),
-                const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
                       child: TextFormField(
                         controller: _priceController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         decoration: const InputDecoration(labelText: 'Precio'),
                         validator: (value) => double.tryParse(value ?? '') == null
                             ? 'Precio inválido.'
@@ -101,18 +97,22 @@ class _ProductDialogState extends State<ProductDialog> {
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(labelText: 'Stock'),
                         validator: (value) =>
-                            int.tryParse(value ?? '') == null ? 'Stock inválido.' : null,
+                            int.tryParse(value ?? '') == null
+                                ? 'Stock inválido.'
+                                : null,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
-                  controller: _minimumController,
+                  controller: _minStockController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Stock mínimo'),
                   validator: (value) =>
-                      int.tryParse(value ?? '') == null ? 'Valor inválido.' : null,
+                      int.tryParse(value ?? '') == null
+                          ? 'Valor inválido.'
+                          : null,
                 ),
               ],
             ),
@@ -135,14 +135,17 @@ class _ProductDialogState extends State<ProductDialog> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
     final now = DateTime.now();
+    final stock = int.parse(_stockController.text.trim());
+    final minStock = int.parse(_minStockController.text.trim());
+
     final product = Product(
       id: widget.product?.id ?? '',
       name: _nameController.text.trim(),
       category: _categoryController.text.trim(),
-      sku: _skuController.text.trim(),
       price: double.parse(_priceController.text.trim()),
-      stock: int.parse(_stockController.text.trim()),
-      minimumStock: int.parse(_minimumController.text.trim()),
+      stock: stock,
+      minStock: minStock,
+      status: stock <= minStock ? 'low' : 'ok',
       createdAt: widget.product?.createdAt ?? now,
       updatedAt: now,
     );

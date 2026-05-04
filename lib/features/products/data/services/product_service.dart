@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
 class ProductService {
@@ -12,6 +13,7 @@ class ProductService {
   }
 
   Stream<List<Product>> watchProducts(String userId) {
+    debugPrint('ProductService.watchProducts: userId=$userId');
     return _collection(userId)
         .orderBy('updatedAt', descending: true)
         .snapshots()
@@ -19,71 +21,25 @@ class ProductService {
   }
 
   Future<void> createProduct(String userId, Product product) async {
-    await _collection(userId).add(product.toMap());
+    final docRef = _collection(userId).doc();
+    final productToCreate = product.copyWith(id: docRef.id);
+    debugPrint(
+      'ProductService.createProduct: userId=$userId productId=${docRef.id}',
+    );
+    await docRef.set(productToCreate.toCreateMap());
   }
 
   Future<void> updateProduct(String userId, Product product) async {
-    await _collection(userId).doc(product.id).update(product.toMap());
+    debugPrint(
+      'ProductService.updateProduct: userId=$userId productId=${product.id}',
+    );
+    await _collection(userId).doc(product.id).update(product.toUpdateMap());
   }
 
   Future<void> deleteProduct(String userId, String productId) async {
+    debugPrint(
+      'ProductService.deleteProduct: userId=$userId productId=$productId',
+    );
     await _collection(userId).doc(productId).delete();
-  }
-
-  Future<void> seedDemoProducts(String userId) async {
-    final batch = _firestore.batch();
-    final now = DateTime.now();
-    final samples = <Product>[
-      Product(
-        id: '',
-        name: 'Aurora Keyboard Pro',
-        category: 'Periféricos',
-        sku: 'AUR-KB-01',
-        price: 89.99,
-        stock: 34,
-        minimumStock: 10,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Product(
-        id: '',
-        name: 'Pulse Headset X',
-        category: 'Audio',
-        sku: 'PUL-HS-04',
-        price: 124.50,
-        stock: 9,
-        minimumStock: 12,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Product(
-        id: '',
-        name: 'Nova Monitor 27"',
-        category: 'Pantallas',
-        sku: 'NOV-MN-27',
-        price: 329.0,
-        stock: 14,
-        minimumStock: 6,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Product(
-        id: '',
-        name: 'Dock USB-C Studio',
-        category: 'Accesorios',
-        sku: 'DOC-USB-C',
-        price: 59.90,
-        stock: 5,
-        minimumStock: 8,
-        createdAt: now,
-        updatedAt: now,
-      ),
-    ];
-
-    for (final product in samples) {
-      batch.set(_collection(userId).doc(), product.toMap());
-    }
-
-    await batch.commit();
   }
 }

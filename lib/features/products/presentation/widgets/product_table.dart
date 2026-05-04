@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
 class ProductTable extends StatelessWidget {
@@ -20,14 +21,14 @@ class ProductTable extends StatelessWidget {
     final currency = NumberFormat.currency(symbol: '\$');
 
     if (products.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Center(
-            child: Text(
-              'No hay productos que coincidan con los filtros actuales.',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
+      return const Card(
+        child: SizedBox(
+          height: 320,
+          child: EmptyState(
+            title: 'Sin productos todavía',
+            subtitle:
+                'Crea tu primer producto para comenzar a operar con inventario real.',
+            icon: Icons.inventory_2_outlined,
           ),
         ),
       );
@@ -56,10 +57,11 @@ class ProductTable extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Text('${product.category} · ${product.sku}'),
+                      Text(product.category),
                       const SizedBox(height: 6),
                       Text('Precio: ${currency.format(product.price)}'),
                       Text('Stock: ${product.stock}'),
+                      Text('Stock mínimo: ${product.minStock}'),
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -90,9 +92,9 @@ class ProductTable extends StatelessWidget {
           columns: const [
             DataColumn(label: Text('Producto')),
             DataColumn(label: Text('Categoría')),
-            DataColumn(label: Text('SKU')),
             DataColumn(label: Text('Precio')),
             DataColumn(label: Text('Stock')),
+            DataColumn(label: Text('Stock mínimo')),
             DataColumn(label: Text('Estado')),
             DataColumn(label: Text('Acciones')),
           ],
@@ -101,9 +103,9 @@ class ProductTable extends StatelessWidget {
               cells: [
                 DataCell(Text(product.name)),
                 DataCell(Text(product.category)),
-                DataCell(Text(product.sku)),
                 DataCell(Text(currency.format(product.price))),
                 DataCell(Text(product.stock.toString())),
+                DataCell(Text(product.minStock.toString())),
                 DataCell(_StockBadge(product: product)),
                 DataCell(
                   Wrap(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/products/models/product.dart';
 import 'package:stockmind/features/products/presentation/widgets/product_dialog.dart';
@@ -16,16 +17,20 @@ class ProductsScreen extends StatelessWidget {
 
     return DashboardFrame(
       title: 'Productos',
-      subtitle: 'Alta, edición, filtros y control fino del catálogo.',
+      subtitle: 'Gestiona tu catálogo real por usuario, con filtros y control de stock.',
       actions: [
         FilledButton.icon(
-          onPressed: () => _openDialog(context),
+          onPressed: provider.isLoading ? null : () => _openDialog(context),
           icon: const Icon(Icons.add_rounded),
           label: const Text('Nuevo producto'),
         ),
       ],
       child: Column(
         children: [
+          if (provider.error != null) ...[
+            _ProductsErrorBanner(message: provider.error!),
+            const SizedBox(height: 16),
+          ],
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -35,7 +40,7 @@ class ProductsScreen extends StatelessWidget {
                         TextField(
                           onChanged: provider.updateSearchQuery,
                           decoration: const InputDecoration(
-                            hintText: 'Buscar por nombre, categoría o SKU',
+                            hintText: 'Buscar por nombre, categoría o estado',
                             prefixIcon: Icon(Icons.search_rounded),
                           ),
                         ),
@@ -83,7 +88,7 @@ class ProductsScreen extends StatelessWidget {
                           child: TextField(
                             onChanged: provider.updateSearchQuery,
                             decoration: const InputDecoration(
-                              hintText: 'Buscar por nombre, categoría o SKU',
+                              hintText: 'Buscar por nombre, categoría o estado',
                               prefixIcon: Icon(Icons.search_rounded),
                             ),
                           ),
@@ -131,11 +136,47 @@ class ProductsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          ProductTable(
-            products: provider.filteredProducts,
-            onEdit: (product) => _openDialog(context, product: product),
-            onDelete: (product) => _confirmDelete(context, product),
-          ),
+          if (provider.isLoading && !provider.hasProducts)
+            const Card(
+              child: SizedBox(
+                height: 320,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            )
+          else if (!provider.isLoading &&
+              provider.hasProducts &&
+              provider.filteredProducts.isEmpty)
+            const Card(
+              child: SizedBox(
+                height: 320,
+                child: EmptyState(
+                  title: 'Sin coincidencias',
+                  subtitle:
+                      'No encontramos productos con los filtros actuales. Ajusta la búsqueda o la categoría.',
+                  icon: Icons.filter_alt_off_outlined,
+                ),
+              ),
+            )
+          else
+            Stack(
+              children: [
+                ProductTable(
+                  products: provider.filteredProducts,
+                  onEdit: (product) => _openDialog(context, product: product),
+                  onDelete: (product) => _confirmDelete(context, product),
+                ),
+                if (provider.isLoading && provider.hasProducts)
+                  const Positioned(
+                    top: 12,
+                    right: 12,
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.4),
+                    ),
+                  ),
+              ],
+            ),
         ],
       ),
     );
@@ -178,5 +219,30 @@ class ProductsScreen extends StatelessWidget {
     if (shouldDelete == true && context.mounted) {
       await context.read<ProductsProvider>().deleteProduct(product.id);
     }
+  }
+}
+
+class _ProductsErrorBanner extends StatelessWidget {
+  const _ProductsErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+      ),
+    );
   }
 }
