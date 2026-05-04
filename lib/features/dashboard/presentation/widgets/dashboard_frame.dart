@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:stockmind/core/widgets/app_header.dart';
 
 class DashboardFrame extends StatelessWidget {
   const DashboardFrame({
@@ -16,9 +18,6 @@ class DashboardFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isCompact = MediaQuery.sizeOf(context).width < 1000;
-
     return SafeArea(
       child: Builder(
         builder: (context) => SingleChildScrollView(
@@ -26,33 +25,14 @@ class DashboardFrame extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (isCompact)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: IconButton.filledTonal(
-                        onPressed: () => Scaffold.of(context).openDrawer(),
-                        icon: const Icon(Icons.menu_rounded),
-                      ),
-                    ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title, style: theme.textTheme.headlineMedium),
-                        const SizedBox(height: 6),
-                        Text(subtitle, style: theme.textTheme.bodyLarge),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Wrap(spacing: 12, runSpacing: 12, children: actions),
-                ],
+              AppHeader(
+                title: title,
+                subtitle: subtitle,
+                actions: actions,
+                onMenuPressed: () => Scaffold.of(context).openDrawer(),
               ),
               const SizedBox(height: 28),
-              child,
+              child.animate().fadeIn(duration: 320.ms),
             ],
           ),
         ),
