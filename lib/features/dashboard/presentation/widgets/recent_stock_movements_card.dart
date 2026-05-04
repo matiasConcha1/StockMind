@@ -64,7 +64,9 @@ class RecentStockMovementsCard extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  movement.reason,
+                                  movement.hasLocationContext
+                                      ? '${movement.locationName} · ${movement.reason}'
+                                      : movement.reason,
                                   style: theme.textTheme.bodySmall,
                                 ),
                               ],
@@ -80,7 +82,7 @@ class RecentStockMovementsCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${movement.previousStock} → ${movement.newStock}',
+                                '${movement.previousTotalStock} → ${movement.newTotalStock}',
                                 style: theme.textTheme.bodySmall,
                               ),
                               const SizedBox(height: 4),
