@@ -9,6 +9,8 @@ import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/dashboard/data/services/stock_movement_service.dart';
 import 'package:stockmind/features/dashboard/data/services/stock_service.dart';
 import 'package:stockmind/features/dashboard/providers/dashboard_provider.dart';
+import 'package:stockmind/features/locations/data/services/location_service.dart';
+import 'package:stockmind/features/locations/providers/locations_provider.dart';
 import 'package:stockmind/features/products/data/services/product_service.dart';
 import 'package:stockmind/features/products/providers/products_provider.dart';
 
@@ -38,6 +40,11 @@ Future<void> main() async {
     authProvider: authProvider,
     productService: ProductService(),
   );
+  final locationsProvider = LocationsProvider(
+    authProvider: authProvider,
+    productsProvider: productsProvider,
+    locationService: LocationService(),
+  );
   final dashboardProvider = DashboardProvider(
     authProvider: authProvider,
     productsProvider: productsProvider,
@@ -53,6 +60,7 @@ Future<void> main() async {
         ChangeNotifierProvider<ThemeProvider>(create: (_) => themeProvider),
         ChangeNotifierProvider<AuthProvider>(create: (_) => authProvider),
         ChangeNotifierProvider<ProductsProvider>(create: (_) => productsProvider),
+        ChangeNotifierProvider<LocationsProvider>(create: (_) => locationsProvider),
         ChangeNotifierProvider<DashboardProvider>(create: (_) => dashboardProvider),
         ChangeNotifierProvider<AlertsProvider>(create: (_) => alertsProvider),
       ],
