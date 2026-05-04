@@ -1,15 +1,13 @@
-enum UserType { hogar, negocio }
-
 class AppUser {
   const AppUser({
-    required this.name,
+    required this.id,
     required this.email,
-    required this.userType,
+    required this.displayName,
+    required this.photoUrl,
   });
 
-  final String name;
+  final String id;
   final String email;
-  final UserType userType;
-
-  String get userTypeLabel => userType == UserType.hogar ? 'Hogar' : 'Negocio';
+  final String displayName;
+  final String? photoUrl;
 }

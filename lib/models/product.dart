@@ -1,33 +1,87 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Product {
   const Product({
     required this.id,
     required this.name,
-    required this.quantity,
+    required this.category,
+    required this.sku,
+    required this.price,
+    required this.stock,
     required this.minimumStock,
+    required this.createdAt,
     required this.updatedAt,
   });
 
   final String id;
   final String name;
-  final int quantity;
+  final String category;
+  final String sku;
+  final double price;
+  final int stock;
   final int minimumStock;
+  final DateTime createdAt;
   final DateTime updatedAt;
 
-  bool get isLowStock => quantity <= minimumStock;
+  bool get isLowStock => stock <= minimumStock;
+  double get inventoryValue => price * stock;
 
   Product copyWith({
     String? id,
     String? name,
-    int? quantity,
+    String? category,
+    String? sku,
+    double? price,
+    int? stock,
     int? minimumStock,
+    DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return Product(
       id: id ?? this.id,
       name: name ?? this.name,
-      quantity: quantity ?? this.quantity,
+      category: category ?? this.category,
+      sku: sku ?? this.sku,
+      price: price ?? this.price,
+      stock: stock ?? this.stock,
       minimumStock: minimumStock ?? this.minimumStock,
+      createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'category': category,
+      'sku': sku,
+      'price': price,
+      'stock': stock,
+      'minimumStock': minimumStock,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
+  factory Product.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? <String, dynamic>{};
+    return Product(
+      id: doc.id,
+      name: (data['name'] ?? '') as String,
+      category: (data['category'] ?? 'General') as String,
+      sku: (data['sku'] ?? doc.id.substring(0, doc.id.length > 8 ? 8 : doc.id.length))
+          as String,
+      price: ((data['price'] ?? 0) as num).toDouble(),
+      stock: ((data['stock'] ?? 0) as num).toInt(),
+      minimumStock: ((data['minimumStock'] ?? 0) as num).toInt(),
+      createdAt: _toDate(data['createdAt']),
+      updatedAt: _toDate(data['updatedAt']),
+    );
+  }
+
+  static DateTime _toDate(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return DateTime.now();
   }
 }
