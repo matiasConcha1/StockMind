@@ -43,7 +43,10 @@ class FirebaseSetupScreen extends StatelessWidget {
                         color: AppTheme.brand.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: const Icon(Icons.cloud_sync_rounded, color: AppTheme.brand),
+                      child: const Icon(
+                        Icons.cloud_sync_rounded,
+                        color: AppTheme.brand,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -52,14 +55,19 @@ class FirebaseSetupScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'La aplicación ya quedó preparada para Firebase Auth y Firestore, pero este proyecto necesita tus credenciales reales antes de poder iniciar sesión y sincronizar inventario.',
+                      'La aplicación ya está preparada para Firebase Auth y Firestore, pero este proyecto necesita credenciales reales antes de iniciar sesión y sincronizar inventario.',
                       style: theme.textTheme.bodyLarge,
                     ),
                     const SizedBox(height: 20),
-                    Text('Pasos recomendados:', style: theme.textTheme.titleMedium),
+                    Text(
+                      'Pasos recomendados:',
+                      style: theme.textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 8),
                     const Text('1. Ejecuta `flutterfire configure`.'),
-                    const Text('2. Habilita Email/Password y Google en Firebase Authentication.'),
+                    const Text(
+                      '2. Habilita Email/Password y Google en Firebase Authentication.',
+                    ),
                     const Text('3. Crea la base de datos Cloud Firestore.'),
                     const Text('4. Vuelve a ejecutar la app.'),
                     if (errorMessage != null) ...[
