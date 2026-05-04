@@ -1,94 +1,55 @@
-# StockMind
+# 📦 StockMind
 
-StockMind es una aplicación Flutter para gestión de inventario con experiencia SaaS moderna, autenticación con Firebase y dashboard responsive para web, tablet y móvil.
+Sistema de gestión de inventario desarrollado en Flutter, enfocado en ofrecer una experiencia moderna, responsive y escalable para Web y Mobile.
 
-## Qué incluye
+## 🚀 Características
 
-- Dashboard con métricas de stock, valor de inventario y salud operativa.
-- Gráficos con `fl_chart`.
-- CRUD de productos con búsqueda y filtros.
-- Alertas automáticas de bajo stock.
-- Firebase Auth con email/contraseña, Google Sign-In y recuperación de contraseña.
-- Persistencia de sesión.
-- Modo claro/oscuro persistente.
-- Navegación moderna con sidebar y mobile navigation.
+- 🔐 Autenticación (login, registro)
+- 📊 Dashboard con métricas y gráficos
+- 📦 Gestión de productos e inventario
+- ⚠️ Alertas de bajo stock
+- ⚙️ Configuración de usuario
+- 🎨 Soporte para tema claro/oscuro
+- 📱 Diseño completamente responsive
 
-## Stack
+## 💻 Responsive Design
 
-- Flutter 3.41+
-- Provider
-- GoRouter
-- Firebase Core
-- Firebase Auth
-- Cloud Firestore
-- Google Sign-In
-- Google Fonts
-- FL Chart
+La aplicación está optimizada para múltiples dispositivos:
 
-## Estructura
+### 🖥️ Web / Desktop
+- Layout tipo dashboard
+- Sidebar fijo
+- Header superior
+- Visualización de métricas y tablas
 
-```text
-lib/
-  core/
-    router/
-    theme/
-  features/
-    app/
-    auth/
-    dashboard/
-    shell/
-  models/
-  providers/
-  services/
-    auth/
-    products/
-    stock/
-```
+### 📱 Mobile
+- Navegación adaptada (drawer)
+- Diseño en columna
+- Componentes ajustados a pantalla
+- Sin errores de overflow
 
-## Capturas
+## 🛠️ Tecnologías
 
-Usa estos placeholders para capturas reales:
+- Flutter
+- Dart
+- Firebase (configuración base)
+- Provider (gestión de estado)
 
-- `docs/screenshots/login.png`
-- `docs/screenshots/dashboard.png`
-- `docs/screenshots/products.png`
-- `docs/screenshots/alerts.png`
+## 📂 Estructura
 
-## Configuración Firebase
+- `core/` → configuración global (tema, rutas)
+- `features/` → módulos principales (auth, dashboard)
+- `services/` → lógica de negocio
+- `models/` → estructuras de datos
+- `widgets/` → componentes reutilizables
 
-1. Ejecuta `flutterfire configure`.
-2. Habilita en Firebase Console:
-   - Authentication > Email/Password
-   - Authentication > Google
-   - Firestore Database
-3. Para Android, registra SHA-1/SHA-256.
-4. Para web, confirma dominios autorizados.
+## 📦 Estado del proyecto
 
-## Instalación
+En desarrollo 🚧  
+Arquitectura escalable implementada y UI en mejora continua.
 
-```bash
-flutter pub get
-flutter run -d chrome
-```
+---
 
-## Modelo Firestore sugerido
+## 👨‍💻 Autor
 
-```text
-users/{uid}/products/{productId}
-```
-
-Campos por producto:
-
-- `name`
-- `category`
-- `sku`
-- `price`
-- `stock`
-- `minimumStock`
-- `createdAt`
-- `updatedAt`
-
-## Notas
-
-- Si el inventario está vacío, el dashboard incluye `Cargar demo`.
-- Si Firebase no está configurado, la app muestra una pantalla de setup con instrucciones.
+Matías Concha
