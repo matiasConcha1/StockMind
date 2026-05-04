@@ -1,5 +1,5 @@
 name: stockmind
-description: Dashboard profesional para gestión de inventario y alertas de stock.
+description: Professional Flutter inventory management dashboard with Firebase authentication and low-stock alerts.
 publish_to: "none"
 
 version: 1.0.0+1
@@ -11,13 +11,12 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
   cloud_firestore: ^6.1.3
+  cupertino_icons: ^1.0.8
   firebase_auth: ^6.1.1
   firebase_core: ^4.2.0
   fl_chart: ^1.2.0
   flutter_animate: ^4.5.2
-  flutter_svg: ^2.2.4
   go_router: ^17.2.3
   google_fonts: ^6.3.2
   google_sign_in: ^7.2.0
@@ -32,7 +31,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   assets:
-    - assets/images/
-    - assets/icons/
+    - assets/screenshots/
