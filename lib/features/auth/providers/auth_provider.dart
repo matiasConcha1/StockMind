@@ -54,7 +54,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void completeLoadingFallback() {
-    debugPrint('AuthProvider.completeLoadingFallback: forcing unauthenticated state');
+    debugPrint(
+      'AuthProvider.completeLoadingFallback: forcing unauthenticated state',
+    );
     _user = null;
     _initialized = true;
     _loading = false;
@@ -65,6 +67,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
+    debugPrint('AuthProvider.signInWithEmail: $email');
     return _run(
       () => _authService.signInWithEmail(email: email, password: password),
     );
@@ -75,6 +78,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
+    debugPrint('AuthProvider.register: $email');
     return _run(
       () => _authService.registerWithEmail(
         name: name,
@@ -85,10 +89,12 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> signInWithGoogle() async {
+    debugPrint('AuthProvider.signInWithGoogle: starting');
     return _run(_authService.signInWithGoogle);
   }
 
   Future<bool> sendResetEmail(String email) async {
+    debugPrint('AuthProvider.sendResetEmail: $email');
     return _run(() => _authService.sendPasswordResetEmail(email));
   }
 
@@ -118,6 +124,8 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await action();
+      _user = _authService.currentUser;
+      _initialized = true;
       debugPrint('AuthProvider._run: action completed');
       return true;
     } on FirebaseAuthException catch (error) {
@@ -138,16 +146,19 @@ class AuthProvider extends ChangeNotifier {
 
   String _mapFirebaseError(FirebaseAuthException error) {
     switch (error.code) {
-      case 'invalid-email':
-        return 'El correo no tiene un formato válido.';
-      case 'invalid-credential':
-      case 'wrong-password':
       case 'user-not-found':
-        return 'Credenciales incorrectas.';
+        return 'No existe una cuenta con este correo.';
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Correo o contraseña incorrectos.';
+      case 'invalid-email':
+        return 'Correo inválido.';
       case 'email-already-in-use':
-        return 'Ese correo ya está registrado.';
+        return 'Este correo ya está registrado.';
       case 'weak-password':
-        return 'La contraseña es demasiado débil.';
+        return 'La contraseña debe tener al menos 6 caracteres.';
+      case 'popup-closed-by-user':
+        return 'Inicio con Google cancelado.';
       case 'network-request-failed':
         return 'No hay conexión disponible.';
       default:
