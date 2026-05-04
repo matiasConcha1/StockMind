@@ -13,7 +13,7 @@ class AuthProvider extends ChangeNotifier {
   StreamSubscription<AppUser?>? _subscription;
   AppUser? _user;
   bool _initialized = false;
-  bool _loading = false;
+  bool _loading = true;
   String? _error;
 
   AppUser? get user => _user;
@@ -23,11 +23,42 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
 
   void start() {
-    _subscription ??= _authService.authStateChanges().listen((user) {
-      _user = user;
-      _initialized = true;
-      notifyListeners();
-    });
+    if (_subscription != null) return;
+
+    debugPrint('AuthProvider.start: subscribing to authStateChanges');
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    _subscription = _authService.authStateChanges().listen(
+      (user) {
+        debugPrint(
+          'AuthProvider.authStateChanges: user=${user?.email ?? 'null'}',
+        );
+        _user = user;
+        _initialized = true;
+        _loading = false;
+        _error = null;
+        notifyListeners();
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        debugPrint('AuthProvider.authStateChanges error: $error');
+        debugPrint('$stackTrace');
+        _user = null;
+        _initialized = true;
+        _loading = false;
+        _error = 'No fue posible verificar la sesión.';
+        notifyListeners();
+      },
+    );
+  }
+
+  void completeLoadingFallback() {
+    debugPrint('AuthProvider.completeLoadingFallback: forcing unauthenticated state');
+    _user = null;
+    _initialized = true;
+    _loading = false;
+    notifyListeners();
   }
 
   Future<bool> signInWithEmail({
@@ -62,26 +93,46 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    await _authService.signOut();
+    debugPrint('AuthProvider.signOut: starting');
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _authService.signOut();
+      debugPrint('AuthProvider.signOut: success');
+    } catch (error, stackTrace) {
+      debugPrint('AuthProvider.signOut error: $error');
+      debugPrint('$stackTrace');
+      _error = 'No fue posible cerrar la sesión.';
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   Future<bool> _run(Future<void> Function() action) async {
     _loading = true;
     _error = null;
     notifyListeners();
+    debugPrint('AuthProvider._run: action started');
 
     try {
       await action();
+      debugPrint('AuthProvider._run: action completed');
       return true;
     } on FirebaseAuthException catch (error) {
+      debugPrint('AuthProvider._run FirebaseAuthException: ${error.code}');
       _error = _mapFirebaseError(error);
       return false;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('AuthProvider._run error: $error');
+      debugPrint('$stackTrace');
       _error = 'No fue posible completar la operación.';
       return false;
     } finally {
       _loading = false;
       notifyListeners();
+      debugPrint('AuthProvider._run: loading finished');
     }
   }
 
