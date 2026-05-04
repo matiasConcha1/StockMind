@@ -217,7 +217,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleGoogleLogin() async {
-    await context.read<AuthProvider>().signInWithGoogle();
+    await context.read<AuthProvider>().signInWithGoogle(
+          rememberSession: true,
+        );
   }
 }
 

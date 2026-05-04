@@ -23,8 +23,10 @@ class AuthService {
   Future<void> signInWithEmail({
     required String email,
     required String password,
+    required bool rememberSession,
   }) async {
     debugPrint('AuthService.signInWithEmail: signing in $email');
+    await _configureSessionPersistence(rememberSession: rememberSession);
     final credential = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
@@ -65,8 +67,11 @@ class AuthService {
     await _auth.sendPasswordResetEmail(email: email);
   }
 
-  Future<void> signInWithGoogle() async {
+  Future<void> signInWithGoogle({
+    required bool rememberSession,
+  }) async {
     debugPrint('AuthService.signInWithGoogle: starting');
+    await _configureSessionPersistence(rememberSession: rememberSession);
     if (kIsWeb) {
       final credential = await _auth.signInWithPopup(GoogleAuthProvider());
       if (credential.user != null) {
@@ -108,6 +113,24 @@ class AuthService {
       displayName: user.displayName ?? 'Administrador',
       photoUrl: user.photoURL,
     );
+  }
+
+  Future<void> _configureSessionPersistence({
+    required bool rememberSession,
+  }) async {
+    if (!kIsWeb) return;
+    try {
+      await _auth.setPersistence(
+        rememberSession ? Persistence.LOCAL : Persistence.SESSION,
+      );
+    } catch (error, stackTrace) {
+      debugPrint('AuthService._configureSessionPersistence error: $error');
+      debugPrint('$stackTrace');
+      throw FirebaseAuthException(
+        code: 'session-persistence-failed',
+        message: 'No se pudo configurar la persistencia de sesión.',
+      );
+    }
   }
 
   Future<void> _upsertUserDocument({

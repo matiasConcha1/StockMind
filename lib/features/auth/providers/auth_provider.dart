@@ -66,10 +66,15 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> signInWithEmail({
     required String email,
     required String password,
+    required bool rememberSession,
   }) async {
     debugPrint('AuthProvider.signInWithEmail: $email');
     return _run(
-      () => _authService.signInWithEmail(email: email, password: password),
+      () => _authService.signInWithEmail(
+        email: email,
+        password: password,
+        rememberSession: rememberSession,
+      ),
     );
   }
 
@@ -88,9 +93,13 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-  Future<bool> signInWithGoogle() async {
+  Future<bool> signInWithGoogle({required bool rememberSession}) async {
     debugPrint('AuthProvider.signInWithGoogle: starting');
-    return _run(_authService.signInWithGoogle);
+    return _run(
+      () => _authService.signInWithGoogle(
+        rememberSession: rememberSession,
+      ),
+    );
   }
 
   Future<bool> sendResetEmail(String email) async {
@@ -161,6 +170,8 @@ class AuthProvider extends ChangeNotifier {
         return 'Inicio con Google cancelado.';
       case 'network-request-failed':
         return 'No hay conexión disponible.';
+      case 'session-persistence-failed':
+        return 'No se pudo configurar la persistencia de sesión.';
       default:
         return 'No fue posible completar la operación.';
     }

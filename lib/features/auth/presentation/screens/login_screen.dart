@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _rememberSession = true;
 
   @override
   void dispose() {
@@ -29,6 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final theme = Theme.of(context);
 
     return AuthShell(
       title: 'Inicia sesión',
@@ -41,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             Text(
               'Correo electrónico',
-              style: Theme.of(context).textTheme.labelLarge,
+              style: theme.textTheme.labelLarge,
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -61,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 18),
             Text(
               'Contraseña',
-              style: Theme.of(context).textTheme.labelLarge,
+              style: theme.textTheme.labelLarge,
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -90,7 +92,36 @@ class _LoginScreenState extends State<LoginScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.28 : 0.45,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
+                ),
+              ),
+              child: CheckboxListTile(
+                value: _rememberSession,
+                onChanged: auth.isLoading
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _rememberSession = value ?? true;
+                        });
+                      },
+                title: const Text('Recordar sesión'),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 2,
+                ),
+                dense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -128,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2.2,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Theme.of(context).colorScheme.primary,
+                            theme.colorScheme.primary,
                           ),
                         ),
                       )
@@ -137,9 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: 26,
                         height: 26,
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withValues(
-                                alpha: 0.12,
-                              ),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         alignment: Alignment.center,
@@ -167,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 Text(
                   '¿No tienes cuenta?',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: theme.textTheme.bodyMedium,
                 ),
                 TextButton(
                   onPressed: () => context.go(AppRoutePaths.register),
@@ -186,11 +215,14 @@ class _LoginScreenState extends State<LoginScreen> {
     await context.read<AuthProvider>().signInWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
+          rememberSession: _rememberSession,
         );
   }
 
   Future<void> _handleGoogleLogin() async {
-    await context.read<AuthProvider>().signInWithGoogle();
+    await context.read<AuthProvider>().signInWithGoogle(
+          rememberSession: _rememberSession,
+        );
   }
 }
 
