@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
@@ -16,6 +17,10 @@ class AlertsScreen extends StatelessWidget {
       subtitle: 'Monitorea automáticamente productos críticos y reposición pendiente.',
       child: Column(
         children: [
+          if (provider.error != null) ...[
+            _AlertsErrorBanner(message: provider.error!),
+            const SizedBox(height: 16),
+          ],
           Card(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -25,7 +30,7 @@ class AlertsScreen extends StatelessWidget {
                     child: _AlertMetric(
                       title: 'Alertas activas',
                       value: provider.activeAlerts.toString(),
-                      helper: 'SKUs por debajo del stock mínimo',
+                      helper: 'Productos por debajo del stock mínimo',
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -41,7 +46,27 @@ class AlertsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          LowStockList(products: provider.lowStockProducts),
+          if (provider.isLoading && !provider.hasProducts)
+            const Card(
+              child: SizedBox(
+                height: 320,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            )
+          else if (!provider.isLoading && !provider.hasProducts)
+            const Card(
+              child: SizedBox(
+                height: 320,
+                child: EmptyState(
+                  title: 'Sin alertas todavía',
+                  subtitle:
+                      'Cuando agregues productos con stock mínimo configurado, verás aquí las reposiciones pendientes.',
+                  icon: Icons.notifications_none_rounded,
+                ),
+              ),
+            )
+          else
+            LowStockList(products: provider.lowStockProducts),
         ],
       ),
     );
@@ -78,6 +103,31 @@ class _AlertMetric extends StatelessWidget {
           const SizedBox(height: 6),
           Text(helper, style: theme.textTheme.bodyMedium),
         ],
+      ),
+    );
+  }
+}
+
+class _AlertsErrorBanner extends StatelessWidget {
+  const _AlertsErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
       ),
     );
   }

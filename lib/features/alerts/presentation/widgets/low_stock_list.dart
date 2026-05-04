@@ -54,17 +54,23 @@ class LowStockList extends StatelessWidget {
                         color: Colors.orange.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                      child: const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orange,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(products[entry.key].name, style: theme.textTheme.titleMedium),
+                          Text(
+                            products[entry.key].name,
+                            style: theme.textTheme.titleMedium,
+                          ),
                           const SizedBox(height: 4),
                           Text(
-                            'Stock actual ${products[entry.key].stock} · mínimo ${products[entry.key].minimumStock}',
+                            'Stock actual ${products[entry.key].stock} · mínimo ${products[entry.key].minStock}',
                             style: theme.textTheme.bodySmall,
                           ),
                         ],
@@ -72,7 +78,10 @@ class LowStockList extends StatelessWidget {
                     ),
                   ],
                 ),
-              ).animate().fadeIn(duration: 260.ms, delay: (entry.key * 40).ms),
+              ).animate().fadeIn(
+                    duration: 260.ms,
+                    delay: (entry.key * 40).ms,
+                  ),
             ),
         ],
       ),

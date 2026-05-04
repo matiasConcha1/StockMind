@@ -13,6 +13,9 @@ class AlertsProvider extends ChangeNotifier {
 
   List<Product> get lowStockProducts => _productsProvider.lowStockProducts;
   int get totalProducts => _productsProvider.products.length;
+  bool get isLoading => _productsProvider.isLoading;
+  String? get error => _productsProvider.error;
+  bool get hasProducts => _productsProvider.hasProducts;
 
   int get activeAlerts => lowStockProducts.length;
 
