@@ -1,159 +1,72 @@
-<h1 align="center">StockMind</h1>
+# StockMind
 
-<p align="center">
-  <img src="assets/screenshots/cover-placeholder.png" alt="StockMind Cover" width="100%" />
-</p>
+StockMind es una aplicación Flutter para gestión de inventario con autenticación Firebase, dashboard administrativo responsive, alertas de stock bajo y soporte de tema claro/oscuro.
 
-<p align="center">
-  Sistema de gestión de inventario construido con <strong>Flutter + Firebase</strong>, diseñado con enfoque SaaS para ofrecer una experiencia moderna, responsive y profesional.
-</p>
+## Vista Previa
 
-<p align="center">
-  <a href="https://flutter.dev/">
-    <img src="https://img.shields.io/badge/Flutter-3.41+-02569B?logo=flutter&logoColor=white" alt="Flutter" />
-  </a>
-  <a href="https://dart.dev/">
-    <img src="https://img.shields.io/badge/Dart-3.11+-0175C2?logo=dart&logoColor=white" alt="Dart" />
-  </a>
-  <a href="https://firebase.google.com/">
-    <img src="https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore-FFCA28?logo=firebase&logoColor=black" alt="Firebase" />
-  </a>
-  <a href="https://pub.dev/packages/provider">
-    <img src="https://img.shields.io/badge/State%20Management-Provider-7B61FF" alt="Provider" />
-  </a>
-  <a href="https://pub.dev/packages/go_router">
-    <img src="https://img.shields.io/badge/Routing-go__router-5E5CE6" alt="GoRouter" />
-  </a>
-</p>
+![Vista general de StockMind](assets/screenshots/cover-placeholder.png)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Status-En%20desarrollo-22C55E" alt="Estado del proyecto" />
-  <img src="https://img.shields.io/badge/UI-Responsive-0EA5E9" alt="Responsive UI" />
-  <img src="https://img.shields.io/badge/Theme-Light%20%26%20Dark-111827" alt="Theme support" />
-</p>
-
----
+![Demo de StockMind](assets/screenshots/preview.gif)
 
 ## Descripción
 
-**StockMind** es una aplicación de gestión de inventario enfocada en negocios que necesitan controlar productos, monitorear stock, visualizar métricas operativas y responder rápidamente a alertas de reposición.
+StockMind está pensado como una base profesional para un sistema de inventario moderno. El proyecto combina una estructura escalable por features con Firebase Auth, Cloud Firestore y una interfaz orientada a dashboard SaaS.
 
-El proyecto fue diseñado como un dashboard moderno tipo SaaS, con una arquitectura organizada, autenticación integrada con Firebase y experiencia adaptativa para **web, tablet y móvil**.
+El objetivo es servir tanto como proyecto de portafolio como base real para evolucionar a un producto comercial.
 
-## Vista General
-
-- Gestión centralizada de productos e inventario.
-- Dashboard con métricas y gráficos accionables.
-- Alertas automáticas de bajo stock.
-- Login con Firebase Auth y persistencia de sesión.
-- Diseño limpio y profesional con modo claro/oscuro.
-- Base sólida para evolucionar a producto real o de portafolio.
-
-## Funcionalidades Principales
-
-### Dashboard Administrativo
-
-- Métricas clave del inventario.
-- Indicadores de stock total y productos críticos.
-- Visualización de datos con `fl_chart`.
-- Resumen visual del estado operativo.
-
-### Gestión de Productos
-
-- Crear productos.
-- Editar productos.
-- Eliminar productos.
-- Buscar por nombre, categoría o SKU.
-- Filtrar por categoría y estado de stock.
-
-### Alertas Inteligentes
-
-- Detección automática de bajo stock.
-- Vista dedicada para productos críticos.
-- Preparado para futuras notificaciones o automatizaciones.
+## Funcionalidades
 
 ### Autenticación
 
-- Inicio de sesión con email y contraseña.
-- Registro de nuevos usuarios.
-- Recuperación de contraseña.
-- Google Sign-In.
-- Sesión persistente mediante Firebase Auth.
-
-### Experiencia de Usuario
-
-- Diseño responsive.
-- Sidebar en escritorio.
-- Navegación adaptada en móvil.
-- Modo claro y oscuro persistente.
-- Transiciones suaves entre pantallas.
-
-## Tecnologías Usadas
-
-| Tecnología | Uso |
-|---|---|
-| Flutter | Desarrollo multiplataforma |
-| Dart | Lenguaje principal |
-| Firebase Core | Inicialización de Firebase |
-| Firebase Auth | Autenticación |
-| Cloud Firestore | Base de datos |
-| Provider | Manejo de estado |
-| GoRouter | Navegación declarativa |
-| Google Fonts | Tipografía |
-| FL Chart | Gráficos |
-| Shared Preferences | Persistencia de preferencias |
-
-## Estructura del Proyecto
-
-```text
-lib/
-  core/
-    router/
-    theme/
-  features/
-    app/
-    auth/
-      presentation/
-        screens/
-        widgets/
-    dashboard/
-      presentation/
-        screens/
-        widgets/
-    shell/
-      presentation/
-  models/
-  providers/
-  services/
-    auth/
-    products/
-    stock/
-test/
-assets/
-  screenshots/
-```
-
-## Capturas
-
-Las siguientes imágenes son placeholders. Reemplázalas por capturas reales de la aplicación dentro de `assets/screenshots/`.
-
-### Login
-
-![Login](assets/screenshots/login-placeholder.png)
+- Inicio de sesión con correo y contraseña
+- Registro de usuarios
+- Recuperación de contraseña
+- Google Sign-In
+- Persistencia de sesión
 
 ### Dashboard
 
-![Dashboard](assets/screenshots/dashboard-placeholder.png)
+- Métricas principales del inventario
+- Resumen de productos y stock
+- Visualización de datos con gráficos
+- Indicadores de productos con bajo stock
 
-### Productos
+### Gestión de productos
 
-![Productos](assets/screenshots/products-placeholder.png)
+- Crear productos
+- Editar productos
+- Eliminar productos
+- Buscar por nombre, categoría o SKU
+- Filtrar por categoría
+- Filtrar por estado de stock
 
 ### Alertas
 
-![Alertas](assets/screenshots/alerts-placeholder.png)
+- Detección automática de productos críticos
+- Vista dedicada de alertas
+- Cobertura de stock saludable
 
-## Instalación Paso a Paso
+### Experiencia de usuario
+
+- Interfaz responsive para web, tablet y móvil
+- Sidebar de navegación
+- Navegación sin recarga completa
+- Tema claro y oscuro persistente
+
+## Tecnologías
+
+- Flutter
+- Dart
+- Firebase Core
+- Firebase Authentication
+- Cloud Firestore
+- Provider
+- GoRouter
+- Google Fonts
+- FL Chart
+- Shared Preferences
+
+## Instalación
 
 ### 1. Clonar el repositorio
 
@@ -170,68 +83,73 @@ flutter pub get
 
 ### 3. Configurar Firebase
 
-Ejecuta el asistente oficial de FlutterFire:
+Ejecuta FlutterFire CLI:
 
 ```bash
 flutterfire configure
 ```
 
-Después, en Firebase Console habilita:
+Después habilita en Firebase Console:
 
 - `Authentication > Email/Password`
 - `Authentication > Google`
 - `Firestore Database`
 
-Configuración recomendada adicional:
+Configuración recomendada:
 
-- Android: registra `SHA-1` y `SHA-256`.
-- Web: agrega tu dominio a los dominios autorizados.
+- Android: registrar `SHA-1` y `SHA-256`
+- Web: agregar dominio autorizado
 
-### 4. Ejecutar la app
+### 4. Ejecutar el proyecto
 
 ```bash
 flutter run -d chrome
 ```
 
-También puedes ejecutarla en Android, iOS, Windows o macOS según tu entorno.
-
-## Modelo de Datos Sugerido
+## Estructura del Proyecto
 
 ```text
-users/{uid}/products/{productId}
+lib/
+├── app/
+│   ├── app.dart
+│   └── routes.dart
+├── core/
+│   ├── constants/
+│   ├── theme/
+│   ├── utils/
+│   └── widgets/
+├── features/
+│   ├── alerts/
+│   ├── auth/
+│   ├── dashboard/
+│   └── products/
+├── firebase_options.dart
+└── main.dart
 ```
 
-Campos principales por producto:
+## Capturas
 
-- `name`
-- `category`
-- `sku`
-- `price`
-- `stock`
-- `minimumStock`
-- `createdAt`
-- `updatedAt`
+### Login
+
+![Pantalla de login](assets/screenshots/login-placeholder.png)
+
+### Dashboard
+
+![Dashboard administrativo](assets/screenshots/dashboard-placeholder.png)
+
+### Productos
+
+![Gestión de productos](assets/screenshots/products-placeholder.png)
+
+### Alertas
+
+![Alertas de stock](assets/screenshots/alerts-placeholder.png)
 
 ## Estado del Proyecto
 
-**Estado actual:** en desarrollo activo.
+Estado actual: en desarrollo activo.
 
-StockMind ya cuenta con:
-
-- Base visual moderna tipo SaaS.
-- Autenticación con Firebase.
-- Dashboard responsive.
-- CRUD de productos.
-- Alertas de bajo stock.
-- Soporte de tema claro y oscuro.
-
-Próximas mejoras posibles:
-
-- Movimientos de inventario.
-- Exportación CSV/PDF.
-- Roles y permisos.
-- Historial de actividad.
-- Reportes avanzados.
+La base del proyecto ya incluye arquitectura por features, autenticación, productos, alertas, dashboard responsive y configuración de tema. Los siguientes pasos naturales serían movimientos de inventario, reportes y roles/permisos.
 
 ## Autor
 
@@ -239,13 +157,3 @@ Próximas mejoras posibles:
 
 - GitHub: [matiasConcha1](https://github.com/matiasConcha1)
 - Correo: [matiasconcha.2025@gmail.com](mailto:matiasconcha.2025@gmail.com)
-
-## Contacto
-
-Si quieres colaborar, reportar una mejora o usar este proyecto como base, puedes contactarme directamente desde GitHub o por correo.
-
----
-
-<p align="center">
-  Hecho con Flutter, Firebase y enfoque de producto real.
-</p>
