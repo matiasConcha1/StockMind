@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
+import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/category_chart_card.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
-import 'package:stockmind/features/dashboard/presentation/widgets/low_stock_list.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/stat_card.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/stock_bar_chart_card.dart';
-import 'package:stockmind/providers/products_provider.dart';
+import 'package:stockmind/features/dashboard/providers/dashboard_provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final products = context.watch<ProductsProvider>();
-    final snapshot = products.dashboardSnapshot;
+    final provider = context.watch<DashboardProvider>();
+    final snapshot = provider.snapshot;
     final currency = NumberFormat.currency(symbol: '\$');
     final width = MediaQuery.sizeOf(context).width;
     final statCrossAxisCount = width < 720 ? 1 : width < 1180 ? 2 : 4;
@@ -25,7 +25,7 @@ class DashboardScreen extends StatelessWidget {
       subtitle: 'Control operativo del inventario, salud de stock y valor financiero.',
       actions: [
         OutlinedButton.icon(
-          onPressed: products.products.isEmpty ? products.seedDemoProducts : null,
+          onPressed: provider.canSeedDemoData ? provider.seedDemoProducts : null,
           icon: const Icon(Icons.auto_awesome_rounded),
           label: const Text('Cargar demo'),
         ),
@@ -101,7 +101,7 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 16),
             CategoryChartCard(categories: snapshot.topCategories),
             const SizedBox(height: 16),
-            LowStockList(products: products.lowStockProducts),
+            LowStockList(products: provider.lowStockProducts),
           ] else
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,7 +119,7 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   flex: 4,
-                  child: LowStockList(products: products.lowStockProducts),
+                  child: LowStockList(products: provider.lowStockProducts),
                 ),
               ],
             ),

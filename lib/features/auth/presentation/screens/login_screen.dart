@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/features/auth/presentation/widgets/auth_shell.dart';
-import 'package:stockmind/providers/auth_provider.dart';
+import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -67,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () => context.go('/forgot-password'),
+                onPressed: () => context.go(AppRoutePaths.forgotPassword),
                 child: const Text('Recuperar contraseña'),
               ),
             ),
@@ -101,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const Text('¿No tienes cuenta?'),
                 TextButton(
-                  onPressed: () => context.go('/register'),
+                  onPressed: () => context.go(AppRoutePaths.register),
                   child: const Text('Crear cuenta'),
                 ),
               ],
