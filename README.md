@@ -1,55 +1,81 @@
-# 📦 StockMind
+# StockMind
 
-Sistema de gestión de inventario desarrollado en Flutter, enfocado en ofrecer una experiencia moderna, responsive y escalable para Web y Mobile.
+StockMind es una aplicación de gestión de inventario desarrollada en **Flutter**, pensada para funcionar correctamente tanto en **Web/Desktop** como en **Mobile**.
 
-## 🚀 Características
-
-- 🔐 Autenticación (login, registro)
-- 📊 Dashboard con métricas y gráficos
-- 📦 Gestión de productos e inventario
-- ⚠️ Alertas de bajo stock
-- ⚙️ Configuración de usuario
-- 🎨 Soporte para tema claro/oscuro
-- 📱 Diseño completamente responsive
-
-## 💻 Responsive Design
-
-La aplicación está optimizada para múltiples dispositivos:
-
-### 🖥️ Web / Desktop
-- Layout tipo dashboard
-- Sidebar fijo
-- Header superior
-- Visualización de métricas y tablas
-
-### 📱 Mobile
-- Navegación adaptada (drawer)
-- Diseño en columna
-- Componentes ajustados a pantalla
-- Sin errores de overflow
-
-## 🛠️ Tecnologías
-
-- Flutter
-- Dart
-- Firebase (configuración base)
-- Provider (gestión de estado)
-
-## 📂 Estructura
-
-- `core/` → configuración global (tema, rutas)
-- `features/` → módulos principales (auth, dashboard)
-- `services/` → lógica de negocio
-- `models/` → estructuras de datos
-- `widgets/` → componentes reutilizables
-
-## 📦 Estado del proyecto
-
-En desarrollo 🚧  
-Arquitectura escalable implementada y UI en mejora continua.
+El proyecto incluye una interfaz moderna, responsive y profesional, con dashboard, gestión de productos, alertas de stock y una vista previa animada tipo demo/GIF.
 
 ---
 
-## 👨‍💻 Autor
+## Características
 
-Matías Concha
+- Login y registro de usuarios
+- Dashboard con métricas principales
+- Gestión de productos e inventario
+- Alertas de bajo stock
+- Visualización de gráficos
+- Pantalla de configuración
+- Tema claro/oscuro
+- Diseño responsive para Web y Mobile
+- Animación tipo demo/GIF creada con widgets de Flutter
+
+---
+
+## Vista previa animada
+
+La página principal incluye una animación tipo **demo interactiva**, creada sin usar archivos GIF externos.
+
+Esta animación simula el funcionamiento de la aplicación mostrando:
+
+- Métricas del dashboard
+- Gráficos de stock
+- Tabla de productos
+- Alertas de bajo stock
+- Vista Web/Desktop y Mobile
+
+---
+
+## Diseño Responsive
+
+### Web / Desktop
+
+- Layout tipo dashboard
+- Sidebar lateral
+- Header superior
+- Contenido distribuido en tarjetas
+- Tablas y gráficos adaptados al ancho de pantalla
+
+### Mobile
+
+- Navegación adaptada
+- Contenido en una sola columna
+- Componentes ajustados al tamaño de pantalla
+- Diseño sin errores de overflow
+
+---
+
+## Tecnologías utilizadas
+
+- Flutter
+- Dart
+- Firebase
+- Provider
+- Material Design
+
+---
+
+## Estructura del proyecto
+
+```txt
+lib/
+├── core/
+│   ├── router/
+│   └── theme/
+├── features/
+│   ├── app/
+│   ├── auth/
+│   ├── dashboard/
+│   └── shell/
+├── models/
+├── providers/
+├── services/
+└── widgets/
