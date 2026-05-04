@@ -11,39 +11,48 @@ class AlertsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AlertsProvider>();
+    final width = MediaQuery.sizeOf(context).width;
+    final crossAxisCount = width < 760 ? 1 : width < 1180 ? 2 : 4;
 
     return DashboardFrame(
       title: 'Alertas',
-      subtitle: 'Monitorea automáticamente productos críticos y reposición pendiente.',
+      subtitle:
+          'Monitorea automáticamente productos críticos y reposición pendiente.',
       child: Column(
         children: [
           if (provider.error != null) ...[
             _AlertsErrorBanner(message: provider.error!),
             const SizedBox(height: 16),
           ],
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _AlertMetric(
-                      title: 'Alertas activas',
-                      value: provider.activeAlerts.toString(),
-                      helper: 'Productos por debajo del stock mínimo',
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _AlertMetric(
-                      title: 'Cobertura actual',
-                      value: '${provider.coveragePercentage}%',
-                      helper: 'Productos dentro de nivel saludable',
-                    ),
-                  ),
-                ],
+          GridView.count(
+            crossAxisCount: crossAxisCount,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: width < 760 ? 2.3 : 1.45,
+            children: [
+              _AlertMetric(
+                title: 'Alertas activas',
+                value: provider.activeAlerts.toString(),
+                helper: 'Productos por debajo del stock mínimo',
               ),
-            ),
+              _AlertMetric(
+                title: 'Críticas',
+                value: provider.criticalAlerts.toString(),
+                helper: 'Productos sin stock disponible',
+              ),
+              _AlertMetric(
+                title: 'Bajas',
+                value: provider.lowPriorityAlerts.toString(),
+                helper: 'Productos cerca del mínimo',
+              ),
+              _AlertMetric(
+                title: 'Cobertura actual',
+                value: '${provider.coveragePercentage}%',
+                helper: 'Productos dentro de nivel saludable',
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           if (provider.isLoading && !provider.hasProducts)

@@ -18,6 +18,10 @@ class AlertsProvider extends ChangeNotifier {
   bool get hasProducts => _productsProvider.hasProducts;
 
   int get activeAlerts => lowStockProducts.length;
+  int get criticalAlerts =>
+      lowStockProducts.where((product) => product.isCriticalStock).length;
+  int get lowPriorityAlerts =>
+      lowStockProducts.where((product) => !product.isCriticalStock).length;
 
   int get coveragePercentage {
     if (totalProducts == 0) return 0;

@@ -51,12 +51,16 @@ class LowStockList extends StatelessWidget {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.12),
+                        color: _priorityColor(products[entry.key]).withValues(
+                          alpha: 0.12,
+                        ),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(
-                        Icons.warning_amber_rounded,
-                        color: Colors.orange,
+                      child: Icon(
+                        products[entry.key].isCriticalStock
+                            ? Icons.report_gmailerrorred_rounded
+                            : Icons.warning_amber_rounded,
+                        color: _priorityColor(products[entry.key]),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -76,6 +80,8 @@ class LowStockList extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    _PriorityBadge(product: products[entry.key]),
                   ],
                 ),
               ).animate().fadeIn(
@@ -84,6 +90,37 @@ class LowStockList extends StatelessWidget {
                   ),
             ),
         ],
+      ),
+    );
+  }
+
+  Color _priorityColor(Product product) {
+    return product.isCriticalStock ? const Color(0xFFEF4444) : Colors.orange;
+  }
+}
+
+class _PriorityBadge extends StatelessWidget {
+  const _PriorityBadge({required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = product.isCriticalStock
+        ? const Color(0xFFEF4444)
+        : Colors.orange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        product.isCriticalStock ? 'Crítico' : 'Bajo',
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
