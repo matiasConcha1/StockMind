@@ -183,7 +183,7 @@ class ProductsScreen extends StatelessWidget {
   }
 
   Future<void> _openDialog(BuildContext context, {Product? product}) async {
-    final result = await showDialog<Product>(
+    final result = await showDialog<ProductDialogResult>(
       context: context,
       builder: (_) => ProductDialog(product: product),
     );
@@ -191,9 +191,12 @@ class ProductsScreen extends StatelessWidget {
     if (result == null || !context.mounted) return;
     final provider = context.read<ProductsProvider>();
     if (product == null) {
-      await provider.createProduct(result);
+      await provider.createProduct(result.product);
     } else {
-      await provider.updateProduct(result);
+      await provider.updateProduct(
+        result.product,
+        stockChangeReason: result.stockChangeReason,
+      );
     }
   }
 

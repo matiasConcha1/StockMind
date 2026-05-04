@@ -24,6 +24,7 @@ class Product {
   final DateTime updatedAt;
 
   bool get isLowStock => stock <= minStock;
+  bool get isCriticalStock => stock == 0;
   double get inventoryValue => price * stock;
 
   Product copyWith({
@@ -101,7 +102,9 @@ class Product {
     required int stock,
     required int minStock,
   }) {
-    return stock <= minStock ? 'low' : 'ok';
+    if (stock == 0) return 'critical';
+    if (stock <= minStock) return 'low';
+    return 'ok';
   }
 
   static DateTime _toDate(dynamic value) {

@@ -139,16 +139,30 @@ class _StockBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final low = product.isLowStock;
+    final critical = product.isCriticalStock;
+    final backgroundColor = critical
+        ? const Color(0xFFEF4444)
+        : low
+            ? Colors.orange
+            : Colors.green;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: (low ? Colors.orange : Colors.green).withValues(alpha: 0.12),
+        color: backgroundColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        low ? 'Bajo stock' : 'Estable',
+        critical
+            ? 'Crítico'
+            : low
+                ? 'Bajo stock'
+                : 'Estable',
         style: TextStyle(
-          color: low ? Colors.orange.shade800 : Colors.green.shade800,
+          color: critical
+              ? const Color(0xFFB91C1C)
+              : low
+                  ? Colors.orange.shade800
+                  : Colors.green.shade800,
           fontWeight: FontWeight.w700,
         ),
       ),

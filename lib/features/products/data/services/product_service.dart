@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
 class ProductService {
@@ -29,11 +30,45 @@ class ProductService {
     await docRef.set(productToCreate.toCreateMap());
   }
 
-  Future<void> updateProduct(String userId, Product product) async {
+  Future<void> updateProduct(
+    String userId,
+    Product product, {
+    Product? previousProduct,
+    String? stockChangeReason,
+  }) async {
     debugPrint(
       'ProductService.updateProduct: userId=$userId productId=${product.id}',
     );
-    await _collection(userId).doc(product.id).update(product.toUpdateMap());
+    final productRef = _collection(userId).doc(product.id);
+
+    if (previousProduct == null || previousProduct.stock == product.stock) {
+      await productRef.update(product.toUpdateMap());
+      return;
+    }
+
+    final movementRef = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('stock_movements')
+        .doc();
+    final movement = StockMovement(
+      id: movementRef.id,
+      productId: product.id,
+      productName: product.name,
+      type: product.stock > previousProduct.stock ? 'entrada' : 'salida',
+      quantity: (product.stock - previousProduct.stock).abs(),
+      previousStock: previousProduct.stock,
+      newStock: product.stock,
+      reason: (stockChangeReason?.trim().isNotEmpty ?? false)
+          ? stockChangeReason!.trim()
+          : 'Ajuste manual de stock',
+      createdAt: DateTime.now(),
+    );
+
+    final batch = _firestore.batch();
+    batch.update(productRef, product.toUpdateMap());
+    batch.set(movementRef, movement.toMap());
+    await batch.commit();
   }
 
   Future<void> deleteProduct(String userId, String productId) async {

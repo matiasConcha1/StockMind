@@ -86,14 +86,28 @@ class ProductsProvider extends ChangeNotifier {
     await _execute(() => _productService.createProduct(userId, product));
   }
 
-  Future<void> updateProduct(Product product) async {
+  Future<void> updateProduct(Product product, {String? stockChangeReason}) async {
     final userId = _authProvider.user?.id;
     if (userId == null) {
       _error = 'Debes iniciar sesión para editar productos.';
       notifyListeners();
       return;
     }
-    await _execute(() => _productService.updateProduct(userId, product));
+    Product? previousProduct;
+    for (final item in _products) {
+      if (item.id == product.id) {
+        previousProduct = item;
+        break;
+      }
+    }
+    await _execute(
+      () => _productService.updateProduct(
+        userId,
+        product,
+        previousProduct: previousProduct,
+        stockChangeReason: stockChangeReason,
+      ),
+    );
   }
 
   Future<void> deleteProduct(String productId) async {

@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
+class ProductDialogResult {
+  const ProductDialogResult({
+    required this.product,
+    this.stockChangeReason,
+  });
+
+  final Product product;
+  final String? stockChangeReason;
+}
+
 class ProductDialog extends StatefulWidget {
   const ProductDialog({
     this.product,
@@ -20,6 +30,7 @@ class _ProductDialogState extends State<ProductDialog> {
   late final TextEditingController _priceController;
   late final TextEditingController _stockController;
   late final TextEditingController _minStockController;
+  late final TextEditingController _reasonController;
 
   @override
   void initState() {
@@ -36,6 +47,7 @@ class _ProductDialogState extends State<ProductDialog> {
     _minStockController = TextEditingController(
       text: product?.minStock.toString() ?? '',
     );
+    _reasonController = TextEditingController();
   }
 
   @override
@@ -45,6 +57,7 @@ class _ProductDialogState extends State<ProductDialog> {
     _priceController.dispose();
     _stockController.dispose();
     _minStockController.dispose();
+    _reasonController.dispose();
     super.dispose();
   }
 
@@ -114,6 +127,16 @@ class _ProductDialogState extends State<ProductDialog> {
                           ? 'Valor inválido.'
                           : null,
                 ),
+                if (widget.product != null) ...[
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _reasonController,
+                    decoration: const InputDecoration(
+                      labelText: 'Motivo del ajuste',
+                      hintText: 'Ej. reposición de bodega o corrección manual',
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -145,10 +168,20 @@ class _ProductDialogState extends State<ProductDialog> {
       price: double.parse(_priceController.text.trim()),
       stock: stock,
       minStock: minStock,
-      status: stock <= minStock ? 'low' : 'ok',
+      status: stock == 0
+          ? 'critical'
+          : stock <= minStock
+              ? 'low'
+              : 'ok',
       createdAt: widget.product?.createdAt ?? now,
       updatedAt: now,
     );
-    Navigator.of(context).pop(product);
+
+    Navigator.of(context).pop(
+      ProductDialogResult(
+        product: product,
+        stockChangeReason: _reasonController.text.trim(),
+      ),
+    );
   }
 }
