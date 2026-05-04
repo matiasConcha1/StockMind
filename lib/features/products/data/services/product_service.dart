@@ -41,33 +41,39 @@ class ProductService {
     );
     final productRef = _collection(userId).doc(product.id);
 
-    if (previousProduct == null || previousProduct.stock == product.stock) {
+    if (previousProduct == null) {
       await productRef.update(product.toUpdateMap());
       return;
     }
 
-    final movementRef = _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('stock_movements')
-        .doc();
-    final movement = StockMovement(
-      id: movementRef.id,
-      productId: product.id,
-      productName: product.name,
-      type: product.stock > previousProduct.stock ? 'entrada' : 'salida',
-      quantity: (product.stock - previousProduct.stock).abs(),
-      previousStock: previousProduct.stock,
-      newStock: product.stock,
-      reason: (stockChangeReason?.trim().isNotEmpty ?? false)
-          ? stockChangeReason!.trim()
-          : 'Ajuste manual de stock',
-      createdAt: DateTime.now(),
+    final stockChanged = previousProduct.totalStock != product.totalStock;
+    final locationChanged = !_sameLocationQuantities(
+      previousProduct.locationQuantities,
+      product.locationQuantities,
+    );
+
+    if (!stockChanged && !locationChanged) {
+      await productRef.update(product.toUpdateMap());
+      return;
+    }
+
+    final movements = _buildMovements(
+      userId: userId,
+      product: product,
+      previousProduct: previousProduct,
+      stockChangeReason: stockChangeReason,
     );
 
     final batch = _firestore.batch();
     batch.update(productRef, product.toUpdateMap());
-    batch.set(movementRef, movement.toMap());
+    for (final movement in movements) {
+      final ref = _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('stock_movements')
+          .doc(movement.id);
+      batch.set(ref, movement.toMap());
+    }
     await batch.commit();
   }
 
@@ -76,5 +82,103 @@ class ProductService {
       'ProductService.deleteProduct: userId=$userId productId=$productId',
     );
     await _collection(userId).doc(productId).delete();
+  }
+
+  List<StockMovement> _buildMovements({
+    required String userId,
+    required Product product,
+    required Product previousProduct,
+    String? stockChangeReason,
+  }) {
+    final movementCollection = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('stock_movements');
+    final movements = <StockMovement>[];
+
+    final keys = <String>{
+      ...previousProduct.locationQuantities.keys,
+      ...product.locationQuantities.keys,
+    };
+
+    for (final key in keys) {
+      final previousItem = previousProduct.locationQuantities[key];
+      final nextItem = product.locationQuantities[key];
+      final previousQuantity = previousItem?.quantity ?? 0;
+      final newQuantity = nextItem?.quantity ?? 0;
+      if (previousQuantity == newQuantity) continue;
+
+      final ref = movementCollection.doc();
+      movements.add(
+        StockMovement(
+          id: ref.id,
+          productId: product.id,
+          productName: product.name,
+          type: newQuantity > previousQuantity ? 'entrada' : 'salida',
+          quantity: (newQuantity - previousQuantity).abs(),
+          previousStock: previousProduct.totalStock,
+          newStock: product.totalStock,
+          reason: _resolveReason(stockChangeReason),
+          locationId: key,
+          locationName:
+              nextItem?.locationName ?? previousItem?.locationName ?? 'Ubicación',
+          previousQuantityInLocation: previousQuantity,
+          newQuantityInLocation: newQuantity,
+          previousTotalStock: previousProduct.totalStock,
+          newTotalStock: product.totalStock,
+          createdAt: DateTime.now(),
+        ),
+      );
+    }
+
+    if (movements.isEmpty && previousProduct.totalStock != product.totalStock) {
+      final ref = movementCollection.doc();
+      movements.add(
+        StockMovement(
+          id: ref.id,
+          productId: product.id,
+          productName: product.name,
+          type: product.totalStock > previousProduct.totalStock
+              ? 'entrada'
+              : 'salida',
+          quantity: (product.totalStock - previousProduct.totalStock).abs(),
+          previousStock: previousProduct.totalStock,
+          newStock: product.totalStock,
+          reason: _resolveReason(stockChangeReason),
+          locationId: '',
+          locationName: 'Sin ubicación asignada',
+          previousQuantityInLocation: previousProduct.totalStock,
+          newQuantityInLocation: product.totalStock,
+          previousTotalStock: previousProduct.totalStock,
+          newTotalStock: product.totalStock,
+          createdAt: DateTime.now(),
+        ),
+      );
+    }
+
+    return movements;
+  }
+
+  bool _sameLocationQuantities(
+    Map<String, ProductLocationQuantity> previous,
+    Map<String, ProductLocationQuantity> next,
+  ) {
+    if (previous.length != next.length) return false;
+    for (final entry in previous.entries) {
+      final other = next[entry.key];
+      if (other == null) return false;
+      if (other.quantity != entry.value.quantity ||
+          other.locationName != entry.value.locationName) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  String _resolveReason(String? stockChangeReason) {
+    if (stockChangeReason == null || stockChangeReason.trim().isEmpty) {
+      return 'Ajuste manual de stock';
+    }
+    return stockChangeReason.trim();
   }
 }

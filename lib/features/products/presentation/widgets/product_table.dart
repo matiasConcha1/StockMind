@@ -60,8 +60,13 @@ class ProductTable extends StatelessWidget {
                       Text(product.category),
                       const SizedBox(height: 6),
                       Text('Precio: ${currency.format(product.price)}'),
-                      Text('Stock: ${product.stock}'),
+                      Text('Stock total: ${product.totalStock}'),
                       Text('Stock mínimo: ${product.minStock}'),
+                      Text(
+                        product.hasLocationAssignments
+                            ? '${product.locationQuantities.length} ubicaciones asignadas'
+                            : 'Sin ubicaciones asignadas',
+                      ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -93,7 +98,8 @@ class ProductTable extends StatelessWidget {
             DataColumn(label: Text('Producto')),
             DataColumn(label: Text('Categoría')),
             DataColumn(label: Text('Precio')),
-            DataColumn(label: Text('Stock')),
+            DataColumn(label: Text('Stock total')),
+            DataColumn(label: Text('Ubicaciones')),
             DataColumn(label: Text('Stock mínimo')),
             DataColumn(label: Text('Estado')),
             DataColumn(label: Text('Acciones')),
@@ -104,7 +110,14 @@ class ProductTable extends StatelessWidget {
                 DataCell(Text(product.name)),
                 DataCell(Text(product.category)),
                 DataCell(Text(currency.format(product.price))),
-                DataCell(Text(product.stock.toString())),
+                DataCell(Text(product.totalStock.toString())),
+                DataCell(
+                  Text(
+                    product.hasLocationAssignments
+                        ? product.locationQuantities.length.toString()
+                        : '0',
+                  ),
+                ),
                 DataCell(Text(product.minStock.toString())),
                 DataCell(_StockBadge(product: product)),
                 DataCell(
