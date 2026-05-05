@@ -105,31 +105,13 @@ Permite gestionar productos, ubicaciones físicas, imágenes, alertas de stock b
 | Material Icons | Iconografía |
 
 ---
-
-## Estructura del proyecto
-
-```bash
-lib/
-├── app/
-├── core/
-├── features/
-│   ├── auth/
-│   ├── dashboard/
-│   ├── products/
-│   ├── locations/
-│   ├── alerts/
-│   └── settings/
-├── services/
-├── firebase_options.dart
-└── main.dart
------
-## Instalación local
-
-```bash
+Instalación local
 git clone https://github.com/matiasConcha1/StockMind.git
 cd StockMind
 flutter pub get
 flutter run -d chrome
+
+Configuración Firebase
 
 Para ejecutar el proyecto con Firebase real:
 
@@ -175,3 +157,20 @@ Estado
 ✅ Deploy web activo
 ✅ PWA instalable
 🔥 Nivel SaaS / Portafolio profesional
+
+## Estructura del proyecto
+
+```bash
+lib/
+├── app/
+├── core/
+├── features/
+│   ├── auth/
+│   ├── dashboard/
+│   ├── products/
+│   ├── locations/
+│   ├── alerts/
+│   └── settings/
+├── services/
+├── firebase_options.dart
+└── main.dart
