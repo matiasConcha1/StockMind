@@ -104,59 +104,6 @@ Permite gestionar productos, ubicaciones físicas, imágenes, alertas de stock b
 | Google Fonts | Tipografía |
 | Material Icons | Iconografía |
 
----
-Instalación local
-git clone https://github.com/matiasConcha1/StockMind.git
-cd StockMind
-flutter pub get
-flutter run -d chrome
-
-Configuración Firebase
-
-Para ejecutar el proyecto con Firebase real:
-
-Crear un proyecto en Firebase
-Activar Authentication:
-Email/Password
-Google
-Crear Cloud Firestore
-Activar Firebase Storage
-
-Luego ejecutar:
-
-flutterfire configure
-Build y deploy
-flutter build web --release
-firebase deploy
-Demo
-
-🌐 https://ejemplofirebase-38f98.web.app
-
-Roadmap
-Multiempresa
-Roles de usuario
-Historial avanzado de movimientos
-Notificaciones push
-Suscripciones
-Reportes avanzados
-Autor
-
-Matías Concha
-Ingeniero en Informática
-
-GitHub: https://github.com/matiasConcha1
-Email: matyconcha12@gmail.com
-Licencia
-
-Proyecto desarrollado con fines profesionales y de portafolio.
-Para colaboración o uso comercial, contactar al autor.
-
-Estado
-✅ MVP funcional
-✅ Firebase integrado
-✅ Deploy web activo
-✅ PWA instalable
-🔥 Nivel SaaS / Portafolio profesional
 
 ## Estructura del proyecto
 
