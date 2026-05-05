@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 final class StockMindBrandAssets {
-  static const fullLogo = 'assets/images/logo_stockmind.png';
+  static const fullLogo = 'assets/images/logo_Stockmind.png';
   static const iconLogo = 'assets/images/logo_icon.png';
 
   const StockMindBrandAssets._();
@@ -48,6 +48,9 @@ class StockMindLogo extends StatelessWidget {
         StockMindBrandAssets.fullLogo,
         width: width,
         fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return _LogoFallback(width: width);
+        },
       ),
     );
 
@@ -62,6 +65,7 @@ class StockMindIconMark extends StatelessWidget {
     this.framed = false,
     this.framePadding = 8,
     this.frameRadius = 14,
+    this.assetScale = 1.78,
     super.key,
   });
 
@@ -69,15 +73,24 @@ class StockMindIconMark extends StatelessWidget {
   final bool framed;
   final double framePadding;
   final double frameRadius;
+  final double assetScale;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final icon = Image.asset(
-      StockMindBrandAssets.iconLogo,
-      width: size,
-      height: size,
-      fit: BoxFit.contain,
+    final icon = Center(
+      child: Transform.scale(
+        scale: assetScale,
+        child: Image.asset(
+          StockMindBrandAssets.iconLogo,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return _IconFallback(size: size);
+          },
+        ),
+      ),
     );
 
     if (!framed) return icon;
@@ -100,7 +113,73 @@ class StockMindIconMark extends StatelessWidget {
               ]
             : const [],
       ),
-      child: icon,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(frameRadius - 2),
+        child: icon,
+      ),
+    );
+  }
+}
+
+class _LogoFallback extends StatelessWidget {
+  const _LogoFallback({required this.width});
+
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(minWidth: width, minHeight: width * 0.28),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _IconFallback(size: width.clamp(28, 46).toDouble()),
+          const SizedBox(width: 12),
+          Text(
+            'StockMind',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IconFallback extends StatelessWidget {
+  const _IconFallback({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.primary,
+            colorScheme.secondary,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(size * 0.28),
+      ),
+      child: Icon(
+        Icons.inventory_2_outlined,
+        color: colorScheme.onPrimary,
+        size: size * 0.55,
+      ),
     );
   }
 }

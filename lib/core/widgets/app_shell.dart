@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
+import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/sidebar_item.dart';
 import 'package:stockmind/core/widgets/stockmind_brand.dart';
@@ -72,7 +73,7 @@ class AppShell extends StatelessWidget {
                     icon: Icons.logout_rounded,
                     selected: false,
                     isDestructive: true,
-                    onTap: () => context.read<AuthProvider>().signOut(),
+                    onTap: () => _handleSidebarSignOut(context),
                   ),
                 ],
               ),
@@ -143,9 +144,11 @@ class AppShell extends StatelessWidget {
               if (!isCompact) sidebar,
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(0, 18, 18, isCompact ? 88 : 18),
+                  padding: isCompact
+                      ? EdgeInsets.zero
+                      : const EdgeInsets.fromLTRB(0, 18, 18, 18),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(32),
+                    borderRadius: BorderRadius.circular(isCompact ? 0 : 32),
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -211,10 +214,11 @@ class _BrandBlock extends StatelessWidget {
       child: Row(
         children: [
           const StockMindIconMark(
-            size: 30,
+            size: 44,
             framed: true,
-            framePadding: 8,
-            frameRadius: 16,
+            framePadding: 12,
+            frameRadius: 18,
+            assetScale: 1.92,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -252,4 +256,25 @@ class _ShellDestination {
 
   final String label;
   final IconData icon;
+}
+
+Future<void> _handleSidebarSignOut(BuildContext context) async {
+  final confirmed = await showAppConfirmDialog(
+    context,
+    title: '¿Seguro que quieres cerrar sesión?',
+    message: 'Tu sesión actual se cerrará en este dispositivo.',
+    confirmLabel: 'Cerrar sesión',
+    cancelLabel: 'Cancelar',
+  );
+  if (!confirmed || !context.mounted) return;
+
+  final auth = context.read<AuthProvider>();
+  await auth.signOut();
+  if (!context.mounted || auth.error == null) return;
+  await showAppAlertDialog(
+    context,
+    type: AppAlertType.error,
+    title: 'No se pudo cerrar sesión',
+    message: auth.error!,
+  );
 }
