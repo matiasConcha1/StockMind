@@ -6,7 +6,9 @@ import 'package:stockmind/core/theme/app_theme.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/stat_card.dart';
+import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
+import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/category_chart_card.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
@@ -21,16 +23,17 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<DashboardProvider>();
+    final alertsProvider = context.watch<AlertsProvider>();
     final snapshot = provider.snapshot;
     final currency = NumberFormat.currency(symbol: '\$');
     final width = MediaQuery.sizeOf(context).width;
-    final statCrossAxisCount = width < 720 ? 1 : width < 1180 ? 2 : 4;
+    final statCrossAxisCount = width < 720 ? 1 : width < 1180 ? 2 : 3;
     final movementPoints = _buildMovementPoints(snapshot.recentMovements);
 
     return DashboardFrame(
       title: 'Dashboard',
       subtitle:
-          'Vista ejecutiva del inventario con datos reales, alertas y movimientos recientes.',
+          'Vista ejecutiva del inventario con estados inteligentes, alertas persistidas y movimientos recientes.',
       actions: [
         FilledButton.tonalIcon(
           onPressed: () {},
@@ -48,7 +51,15 @@ class DashboardScreen extends StatelessWidget {
             const Card(
               child: SizedBox(
                 height: 340,
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: StockMindLoadingPanel(
+                      compact: true,
+                      statusMessage: 'Verificando sesión...',
+                    ),
+                  ),
+                ),
               ),
             )
           else if (!provider.isLoading && !provider.hasProducts)
@@ -73,35 +84,59 @@ class DashboardScreen extends StatelessWidget {
               childAspectRatio: 1.35,
               children: [
                 StatCard(
-                  label: 'Total productos',
-                  value: snapshot.totalProducts.toString(),
-                  helper: 'Productos activos en catálogo',
-                  icon: Icons.inventory_2_rounded,
-                  color: AppTheme.brand,
-                  trend: '${snapshot.categories} categorías',
+                  label: 'Sin stock',
+                  value: snapshot.outOfStockProducts.toString(),
+                  helper: 'Productos que ya no tienen unidades',
+                  icon: Icons.cancel_rounded,
+                  color: AppTheme.danger,
+                  trend: '${snapshot.activeAlerts} alertas activas',
                 ),
                 StatCard(
-                  label: 'Stock total',
-                  value: snapshot.totalUnits.toString(),
-                  helper: 'Unidades disponibles',
-                  icon: Icons.layers_rounded,
-                  color: AppTheme.brandViolet,
-                  trend: 'Tiempo real',
-                ),
-                StatCard(
-                  label: 'Stock bajo',
+                  label: 'Bajo stock',
                   value: snapshot.lowStockProducts.toString(),
-                  helper: 'Productos que requieren acción',
+                  helper: 'Entre 1 y 4 unidades disponibles',
                   icon: Icons.warning_amber_rounded,
                   color: AppTheme.warning,
-                  trend: '${snapshot.criticalProducts} críticos',
+                  trend: '${snapshot.mediumStockProducts} en stock medio',
                 ),
                 StatCard(
-                  label: 'Valor del inventario',
+                  label: 'Stock medio',
+                  value: snapshot.mediumStockProducts.toString(),
+                  helper: 'Entre 5 y 14 unidades disponibles',
+                  icon: Icons.timeline_rounded,
+                  color: const Color(0xFFEAB308),
+                  trend: '${snapshot.highStockProducts} en stock alto',
+                ),
+                StatCard(
+                  label: 'Stock alto',
+                  value: snapshot.highStockProducts.toString(),
+                  helper: '15 o más unidades disponibles',
+                  icon: Icons.check_circle_outline_rounded,
+                  color: AppTheme.success,
+                  trend: '${snapshot.totalProducts} productos totales',
+                ),
+                StatCard(
+                  label: 'Alertas activas',
+                  value: snapshot.activeAlerts.toString(),
+                  helper: 'Incidencias abiertas en Firebase',
+                  icon: Icons.notifications_active_outlined,
+                  color: AppTheme.brandViolet,
+                  trend: '${alertsProvider.unreadAlertsCount} sin leer',
+                ),
+                StatCard(
+                  label: 'Próximos a vencer',
+                  value: snapshot.expiringSoonProducts.toString(),
+                  helper: 'Vencen dentro de 15 días',
+                  icon: Icons.event_available_outlined,
+                  color: const Color(0xFFF97316),
+                  trend: '${snapshot.expiredProducts} vencidos',
+                ),
+                StatCard(
+                  label: 'Valor inventario',
                   value: currency.format(snapshot.totalInventoryValue),
                   helper: 'Capital comprometido',
                   icon: Icons.attach_money_rounded,
-                  color: AppTheme.success,
+                  color: AppTheme.brand,
                   trend: '${snapshot.recentMovements.length} movimientos',
                 ),
               ],
@@ -122,24 +157,24 @@ class DashboardScreen extends StatelessWidget {
                     child: _ExecutiveKpi(
                       title: 'Stock health score',
                       value: '${snapshot.stockHealthScore.toStringAsFixed(0)}%',
-                      helper: 'Porcentaje de catálogo fuera de riesgo',
+                      helper: 'Cobertura saludable del catálogo',
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: _ExecutiveKpi(
-                      title: 'Alertas críticas',
-                      value: snapshot.criticalProducts.toString(),
-                      helper: 'Productos con stock igual a cero',
+                      title: 'Alertas sin leer',
+                      value: alertsProvider.unreadAlertsCount.toString(),
+                      helper: 'Pendientes de revisión del equipo',
                     ),
                   ),
                   if (width > 920) ...[
                     const SizedBox(width: 16),
                     Expanded(
                       child: _ExecutiveKpi(
-                        title: 'Últimos movimientos',
-                        value: snapshot.recentMovements.length.toString(),
-                        helper: 'Actividad reciente sobre el stock',
+                        title: 'Productos vencidos',
+                        value: snapshot.expiredProducts.toString(),
+                        helper: 'Requieren revisión inmediata',
                       ),
                     ),
                   ],
@@ -156,7 +191,11 @@ class DashboardScreen extends StatelessWidget {
               const SizedBox(height: 16),
               CategoryChartCard(categories: snapshot.topCategories),
               const SizedBox(height: 16),
-              LowStockList(products: provider.lowStockProducts),
+              LowStockList(
+                alerts: alertsProvider.activeAlerts.take(6).toList(),
+                onMarkAsRead: (alert) => alertsProvider.markAsRead(alert.id),
+                onResolve: (alert) => alertsProvider.resolveAlert(alert.id),
+              ),
             ] else
               Column(
                 children: [
@@ -182,7 +221,13 @@ class DashboardScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         flex: 5,
-                        child: LowStockList(products: provider.lowStockProducts),
+                        child: LowStockList(
+                          alerts: alertsProvider.activeAlerts.take(6).toList(),
+                          onMarkAsRead: (alert) =>
+                              alertsProvider.markAsRead(alert.id),
+                          onResolve: (alert) =>
+                              alertsProvider.resolveAlert(alert.id),
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(

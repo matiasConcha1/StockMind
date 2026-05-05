@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
+import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/features/auth/presentation/widgets/auth_shell.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
@@ -208,18 +209,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
-    if (!_formKey.currentState!.validate()) return;
-    await context.read<AuthProvider>().register(
+    if (!_formKey.currentState!.validate()) {
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.warning,
+        title: 'Registro incompleto',
+        message:
+            'Debes ingresar nombre, correo y una contraseña válida antes de crear la cuenta.',
+      );
+      return;
+    }
+    final auth = context.read<AuthProvider>();
+    final success = await auth.register(
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+    if (!mounted) return;
+    if (success) {
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.success,
+        title: 'Cuenta creada',
+        message: 'Tu cuenta fue creada correctamente.',
+      );
+      return;
+    }
+    await showAppAlertDialog(
+      context,
+      type: AppAlertType.error,
+      title: 'No se pudo crear la cuenta',
+      message:
+          auth.error ?? 'No pudimos completar la operación. Inténtalo nuevamente.',
+    );
   }
 
   Future<void> _handleGoogleLogin() async {
-    await context.read<AuthProvider>().signInWithGoogle(
+    final auth = context.read<AuthProvider>();
+    final success = await auth.signInWithGoogle(
           rememberSession: true,
         );
+    if (!mounted || success) return;
+    await showAppAlertDialog(
+      context,
+      type: AppAlertType.error,
+      title: 'No se pudo crear la cuenta',
+      message:
+          auth.error ?? 'No pudimos completar la operación. Inténtalo nuevamente.',
+    );
   }
 }
 

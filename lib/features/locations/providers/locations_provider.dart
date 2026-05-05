@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
@@ -90,6 +91,9 @@ class LocationsProvider extends ChangeNotifier {
     PickedImageFile? imageFile,
   }) async {
     final userId = _authProvider.user?.id;
+    debugPrint(
+      'LocationsProvider.createLocation: userId=${userId ?? 'null'} name=${location.name}',
+    );
     if (userId == null) {
       _error = 'Debes iniciar sesión para crear ubicaciones.';
       notifyListeners();
@@ -111,7 +115,7 @@ class LocationsProvider extends ChangeNotifier {
         userId,
         location.copyWith(id: locationId, imageUrl: imageUrl),
       );
-      await _saveCustomTypeIfNeeded(userId, location.type);
+      await _saveCustomTypeIfNeededBestEffort(userId, location.type);
     });
   }
 
@@ -121,6 +125,9 @@ class LocationsProvider extends ChangeNotifier {
     bool removeImage = false,
   }) async {
     final userId = _authProvider.user?.id;
+    debugPrint(
+      'LocationsProvider.updateLocation: userId=${userId ?? 'null'} locationId=${location.id}',
+    );
     if (userId == null) {
       _error = 'Debes iniciar sesión para editar ubicaciones.';
       notifyListeners();
@@ -144,12 +151,15 @@ class LocationsProvider extends ChangeNotifier {
         userId,
         location.copyWith(imageUrl: imageUrl),
       );
-      await _saveCustomTypeIfNeeded(userId, location.type);
+      await _saveCustomTypeIfNeededBestEffort(userId, location.type);
     });
   }
 
   Future<bool> deleteLocation(String locationId) async {
     final userId = _authProvider.user?.id;
+    debugPrint(
+      'LocationsProvider.deleteLocation: userId=${userId ?? 'null'} locationId=$locationId',
+    );
     if (userId == null) {
       _error = 'Debes iniciar sesión para eliminar ubicaciones.';
       notifyListeners();
@@ -206,6 +216,12 @@ class LocationsProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await action();
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint(
+        'LocationsProvider._execute FirebaseException: code=${error.code} message=${error.message}',
+      );
+      debugPrint('$stackTrace');
+      _error = _mapFirebaseError(error);
     } on StorageServiceException catch (error, stackTrace) {
       debugPrint('LocationsProvider._execute storage error: ${error.message}');
       debugPrint('$stackTrace');
@@ -220,6 +236,22 @@ class LocationsProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _saveCustomTypeIfNeededBestEffort(String userId, String type) async {
+    try {
+      await _saveCustomTypeIfNeeded(userId, type);
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint(
+        'LocationsProvider._saveCustomTypeIfNeededBestEffort FirebaseException: code=${error.code} message=${error.message}',
+      );
+      debugPrint('$stackTrace');
+    } catch (error, stackTrace) {
+      debugPrint(
+        'LocationsProvider._saveCustomTypeIfNeededBestEffort error: $error',
+      );
+      debugPrint('$stackTrace');
+    }
+  }
+
   Future<void> _saveCustomTypeIfNeeded(String userId, String type) async {
     final normalized = type.trim();
     if (normalized.isEmpty) return;
@@ -230,6 +262,23 @@ class LocationsProvider extends ChangeNotifier {
       return;
     }
     await _locationService.saveLocationTypeIfMissing(userId, normalized);
+  }
+
+  String _mapFirebaseError(FirebaseException error) {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'No tienes permisos para guardar esta información. Revisa las reglas de Firestore.';
+      case 'unavailable':
+        return 'Firebase no está disponible en este momento. Intenta nuevamente.';
+      case 'not-found':
+        return 'No encontramos el recurso solicitado en Firestore.';
+      case 'failed-precondition':
+        return 'Firestore requiere una configuración adicional para completar la operación.';
+      default:
+        return error.message?.trim().isNotEmpty == true
+            ? error.message!.trim()
+            : 'Ocurrió un error inesperado al guardar.';
+    }
   }
 
   InventoryLocation? _locationById(String locationId) {

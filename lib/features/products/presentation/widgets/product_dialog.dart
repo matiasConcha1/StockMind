@@ -1,12 +1,15 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/services/storage_service.dart';
+import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
-import 'package:stockmind/features/locations/presentation/widgets/location_dialog.dart';
 import 'package:stockmind/features/locations/providers/locations_provider.dart';
+import 'package:stockmind/features/products/helpers/stock_status_helper.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
 class ProductDialogResult {
@@ -43,6 +46,7 @@ class _ProductDialogState extends State<ProductDialog> {
   late final TextEditingController _minStockController;
   late final TextEditingController _reasonController;
   final Map<String, TextEditingController> _locationControllers = {};
+  DateTime? _expiryDate;
 
   PickedImageFile? _pickedImage;
   bool _removeExistingImage = false;
@@ -59,6 +63,7 @@ class _ProductDialogState extends State<ProductDialog> {
       text: product?.minStock.toString() ?? '',
     );
     _reasonController = TextEditingController();
+    _expiryDate = product?.expiryDate;
   }
 
   @override
@@ -127,7 +132,6 @@ class _ProductDialogState extends State<ProductDialog> {
                   const SizedBox(height: 20),
                   _buildDistributionSection(
                     context: context,
-                    locationsProvider: locationsProvider,
                     locations: locations,
                     hasLocations: hasLocations,
                     inheritedUnassignedStock: inheritedUnassignedStock,
@@ -193,6 +197,8 @@ class _ProductDialogState extends State<ProductDialog> {
                   ? 'Ingresa una categoría.'
                   : null,
             ),
+            const SizedBox(height: 14),
+            _buildExpiryField(context),
             const SizedBox(height: 14),
             if (useSingleColumn) ...[
               _buildPriceField(),
@@ -324,9 +330,46 @@ class _ProductDialogState extends State<ProductDialog> {
     );
   }
 
+  Widget _buildExpiryField(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final label = _expiryDate == null
+        ? 'Sin fecha de vencimiento'
+        : '${_expiryDate!.day.toString().padLeft(2, '0')}/${_expiryDate!.month.toString().padLeft(2, '0')}/${_expiryDate!.year}';
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => _pickExpiryDate(context),
+      child: InputDecorator(
+        decoration: const InputDecoration(
+          labelText: 'Fecha de vencimiento',
+          prefixIcon: Icon(Icons.event_available_outlined),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: _expiryDate == null
+                      ? colorScheme.onSurface.withValues(alpha: 0.68)
+                      : colorScheme.onSurface,
+                ),
+              ),
+            ),
+            if (_expiryDate != null)
+              IconButton(
+                onPressed: () => setState(() => _expiryDate = null),
+                icon: const Icon(Icons.close_rounded),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDistributionSection({
     required BuildContext context,
-    required LocationsProvider locationsProvider,
     required List<InventoryLocation> locations,
     required bool hasLocations,
     required int inheritedUnassignedStock,
@@ -398,17 +441,6 @@ class _ProductDialogState extends State<ProductDialog> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: locationsProvider.isLoading
-                  ? null
-                  : () => _openCreateLocationDialog(context),
-              icon: const Icon(Icons.add_location_alt_outlined, size: 18),
-              label: const Text('Crear ubicación'),
-            ),
-          ),
           const SizedBox(height: 8),
           if (!hasLocations)
             _buildEmptyLocationsState(context)
@@ -472,21 +504,24 @@ class _ProductDialogState extends State<ProductDialog> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Primero crea una ubicación para repartir el stock.',
+            'Primero debes crear una ubicación desde la sección Ubicaciones.',
             style: theme.textTheme.titleSmall,
           ),
           const SizedBox(height: 6),
           Text(
-            'Luego podrás indicar cuántas unidades hay en cada refrigerador, caja o bodega.',
+            'Cuando exista al menos una ubicación, podrás asignar cantidades a este producto y calcular su stock total automáticamente.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurface.withValues(alpha: 0.72),
             ),
           ),
           const SizedBox(height: 14),
           FilledButton.tonalIcon(
-            onPressed: () => _openCreateLocationDialog(context),
-            icon: const Icon(Icons.add_location_alt_outlined),
-            label: const Text('Crear ubicación'),
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.go(AppRoutePaths.locations);
+            },
+            icon: const Icon(Icons.location_on_outlined),
+            label: const Text('Ir a Ubicaciones'),
           ),
         ],
       ),
@@ -723,20 +758,6 @@ class _ProductDialogState extends State<ProductDialog> {
     );
   }
 
-  Future<void> _openCreateLocationDialog(BuildContext context) async {
-    final result = await showDialog<LocationDialogResult>(
-      context: context,
-      builder: (_) => const LocationDialog(),
-    );
-
-    if (result == null || !context.mounted) return;
-    await context.read<LocationsProvider>().createLocation(
-          result.location,
-          imageFile: result.imageFile,
-        );
-    if (mounted) setState(() {});
-  }
-
   Future<void> _pickImage(BuildContext context) async {
     final storageService = context.read<StorageService>();
     setState(() => _isPickingImage = true);
@@ -749,8 +770,11 @@ class _ProductDialogState extends State<ProductDialog> {
       });
     } on StorageServiceException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.error,
+        title: 'Error al cargar imagen',
+        message: error.message,
       );
     } finally {
       if (mounted) {
@@ -789,7 +813,16 @@ class _ProductDialogState extends State<ProductDialog> {
   }
 
   void _submit(List<InventoryLocation> locations) {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      showAppAlertDialog(
+        context,
+        type: AppAlertType.warning,
+        title: 'Faltan datos del producto',
+        message:
+            'Debes ingresar el nombre, precio, stock y stock mínimo antes de guardar.',
+      );
+      return;
+    }
 
     final locationQuantities = <String, ProductLocationQuantity>{};
     for (final location in locations) {
@@ -805,12 +838,12 @@ class _ProductDialogState extends State<ProductDialog> {
     }
 
     if (locationQuantities.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Debe existir al menos una ubicación con cantidad mayor a 0.',
-          ),
-        ),
+      showAppAlertDialog(
+        context,
+        type: AppAlertType.warning,
+        title: 'Distribución incompleta',
+        message:
+            'Debes asignar al menos una ubicación con cantidad mayor a 0 antes de guardar.',
       );
       return;
     }
@@ -829,15 +862,15 @@ class _ProductDialogState extends State<ProductDialog> {
       price: double.parse(_priceController.text.trim()),
       totalStock: totalStock,
       minStock: minStock,
-      status: totalStock == 0
-          ? 'critical'
-          : totalStock <= minStock
-              ? 'low'
-              : 'ok',
+      status: resolveStockStatus(
+        stockActual: totalStock,
+        stockMinimo: minStock,
+      ).code,
       locationQuantities: locationQuantities,
       createdAt: widget.product?.createdAt ?? now,
       updatedAt: now,
       imageUrl: _removeExistingImage ? null : widget.product?.imageUrl,
+      expiryDate: _expiryDate,
     );
 
     Navigator.of(context).pop(
@@ -863,6 +896,20 @@ class _ProductDialogState extends State<ProductDialog> {
       default:
         return Icons.place_outlined;
     }
+  }
+
+  Future<void> _pickExpiryDate(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _expiryDate ?? now,
+      firstDate: DateTime(now.year - 2),
+      lastDate: DateTime(now.year + 10),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _expiryDate = DateTime(picked.year, picked.month, picked.day);
+    });
   }
 }
 

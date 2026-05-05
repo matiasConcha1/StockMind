@@ -37,14 +37,23 @@ class LocationService {
         ? _collection(userId).doc()
         : _collection(userId).doc(location.id);
     final item = location.copyWith(id: docRef.id);
+    debugPrint(
+      'LocationService.createLocation: userId=$userId locationId=${docRef.id}',
+    );
     await docRef.set(item.toCreateMap());
   }
 
   Future<void> updateLocation(String userId, InventoryLocation location) async {
+    debugPrint(
+      'LocationService.updateLocation: userId=$userId locationId=${location.id}',
+    );
     await _collection(userId).doc(location.id).update(location.toUpdateMap());
   }
 
   Future<void> deleteLocation(String userId, String locationId) async {
+    debugPrint(
+      'LocationService.deleteLocation: userId=$userId locationId=$locationId',
+    );
     await _collection(userId).doc(locationId).delete();
   }
 

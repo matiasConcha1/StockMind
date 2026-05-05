@@ -6,6 +6,7 @@ class StockService {
   DashboardSnapshot buildSnapshot(
     List<Product> products,
     List<StockMovement> recentMovements,
+    int activeAlerts,
   ) {
     final byCategory = <String, double>{};
     for (final product in products) {
@@ -20,10 +21,10 @@ class StockService {
       ..sort((a, b) => b.value.compareTo(a.value));
     final lowestStockProducts = [...products]
       ..sort((a, b) {
-        final lowPriorityA = a.isLowStock ? 0 : 1;
-        final lowPriorityB = b.isLowStock ? 0 : 1;
-        if (lowPriorityA != lowPriorityB) {
-          return lowPriorityA.compareTo(lowPriorityB);
+        final priorityA = a.stockStatus.priority;
+        final priorityB = b.stockStatus.priority;
+        if (priorityA != priorityB) {
+          return priorityA.compareTo(priorityB);
         }
         return a.stock.compareTo(b.stock);
       });
@@ -31,8 +32,22 @@ class StockService {
     return DashboardSnapshot(
       totalProducts: products.length,
       totalUnits: products.fold(0, (sum, item) => sum + item.stock),
-      lowStockProducts: products.where((product) => product.isLowStock).length,
+      outOfStockProducts:
+          products.where((product) => product.isCriticalStock).length,
+      lowStockProducts: products
+          .where((product) => product.stockStatus.isLowStock)
+          .length,
+      mediumStockProducts: products
+          .where((product) => product.stockStatus.isMediumStock)
+          .length,
+      highStockProducts:
+          products.where((product) => product.stockStatus.isHighStock).length,
       criticalProducts: products.where((product) => product.isCriticalStock).length,
+      activeAlerts: activeAlerts,
+      expiringSoonProducts: products
+          .where((product) => !product.isExpired && product.expiresWithin15Days)
+          .length,
+      expiredProducts: products.where((product) => product.isExpired).length,
       categories: products.map((item) => item.category).toSet().length,
       totalInventoryValue:
           products.fold(0, (sum, item) => sum + item.inventoryValue),

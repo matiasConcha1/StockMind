@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
-import 'package:stockmind/core/widgets/stockmind_brand.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
 class StockMindLoadingScreen extends StatefulWidget {
@@ -18,7 +17,7 @@ class StockMindLoadingScreen extends StatefulWidget {
 
 class _StockMindLoadingScreenState extends State<StockMindLoadingScreen> {
   static const _statusMessages = [
-    'Verificando sesión...',
+    'Verificando sesion...',
     'Conectando con Firebase...',
     'Preparando tu inventario...',
   ];
@@ -53,7 +52,6 @@ class _StockMindLoadingScreenState extends State<StockMindLoadingScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-    final theme = Theme.of(context);
     final statusMessage = authProvider.error ??
         (!authProvider.isLoading
             ? authProvider.isAuthenticated
@@ -99,136 +97,269 @@ class _StockMindLoadingScreenState extends State<StockMindLoadingScreen> {
               child: Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 36,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(36),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.10),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.20),
-                            blurRadius: 52,
-                            spreadRadius: -18,
-                            offset: const Offset(0, 28),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const StockMindIconMark(
-                            size: 84,
-                            framed: true,
-                            framePadding: 12,
-                            frameRadius: 26,
-                          ).animate().fadeIn(duration: 280.ms).scale(),
-                          const SizedBox(height: 22),
-                          Text(
-                            'StockMind',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Preparando tu inventario...',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.82),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: 26,
-                            height: 26,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.6,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white.withValues(alpha: 0.92),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 220),
-                            transitionBuilder: (child, animation) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(0, 0.08),
-                                    end: Offset.zero,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: Text(
-                              statusMessage,
-                              key: ValueKey(statusMessage),
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: authProvider.error != null
-                                    ? const Color(0xFFFCA5A5)
-                                    : Colors.white.withValues(alpha: 0.74),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(999),
-                            child: LinearProgressIndicator(
-                              minHeight: 5,
-                              backgroundColor:
-                                  Colors.white.withValues(alpha: 0.10),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white.withValues(alpha: 0.88),
-                              ),
-                            ),
-                          ),
-                          if (_showFallback) ...[
-                            const SizedBox(height: 24),
-                            Text(
-                              'Esto está tardando más de lo normal',
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.84),
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            FilledButton.tonal(
-                              onPressed: () {
-                                context
-                                    .read<AuthProvider>()
-                                    .completeLoadingFallback();
-                                context.go(AppRoutePaths.login);
-                              },
-                              style: FilledButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor:
-                                    Colors.white.withValues(alpha: 0.12),
-                              ),
-                              child: const Text('Ir al login'),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.04, end: 0),
-                  ),
+                  child: StockMindLoadingPanel(
+                    statusMessage: statusMessage,
+                    showFallback: _showFallback,
+                    onFallbackPressed: () {
+                      context.read<AuthProvider>().completeLoadingFallback();
+                      context.go(AppRoutePaths.login);
+                    },
+                  ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.04, end: 0),
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class StockMindLoadingPanel extends StatelessWidget {
+  const StockMindLoadingPanel({
+    required this.statusMessage,
+    this.primaryMessage = 'Preparando tu inventario...',
+    this.secondaryMessage =
+        'Sincronizando acceso, tema y sesion para abrir tu panel.',
+    this.showFallback = false,
+    this.onFallbackPressed,
+    this.compact = false,
+    super.key,
+  });
+
+  final String statusMessage;
+  final String primaryMessage;
+  final String secondaryMessage;
+  final bool showFallback;
+  final VoidCallback? onFallbackPressed;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final panel = Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 24 : 32,
+        vertical: compact ? 28 : 36,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(compact ? 28 : 36),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.10),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.20),
+            blurRadius: 52,
+            spreadRadius: -18,
+            offset: const Offset(0, 28),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox.square(
+            dimension: compact ? 90 : 100,
+            child: Center(
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Center(
+                  child: Image.asset(
+                    'assets/images/logo_icon.png',
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.inventory_2,
+                        size: 40,
+                        color: Colors.white,
+                      );
+                    },
+                  ),
+                ),
+              ).animate().fadeIn(duration: 280.ms).scale(
+                    begin: const Offset(0.92, 0.92),
+                  ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'StockMind',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 8,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Text(
+              primaryMessage,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.86),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          if (!compact) ...[
+            const SizedBox(height: 18),
+            Text(
+              secondaryMessage,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.74),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          const _LoadingIndicatorRow(),
+          const SizedBox(height: 18),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Text(
+              statusMessage,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.80),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          const _LoadingProgressBar(),
+          if (showFallback) ...[
+            const SizedBox(height: 24),
+            Text(
+              'Esto esta tardando mas de lo normal',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.84),
+              ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.tonal(
+              onPressed: onFallbackPressed,
+              style: FilledButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.white.withValues(alpha: 0.12),
+              ),
+              child: const Text('Ir al login'),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    if (compact) return panel;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 540),
+      child: panel,
+    );
+  }
+}
+
+class _LoadingIndicatorRow extends StatelessWidget {
+  const _LoadingIndicatorRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.4,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Colors.white.withValues(alpha: 0.92),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        _PulseDot(opacity: 0.48, delay: Duration.zero),
+        const SizedBox(width: 8),
+        _PulseDot(opacity: 0.36, delay: Duration(milliseconds: 180)),
+        const SizedBox(width: 8),
+        _PulseDot(opacity: 0.26, delay: Duration(milliseconds: 360)),
+      ],
+    );
+  }
+}
+
+class _PulseDot extends StatelessWidget {
+  const _PulseDot({
+    required this.opacity,
+    required this.delay,
+  });
+
+  final double opacity;
+  final Duration delay;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: opacity),
+        shape: BoxShape.circle,
+      ),
+    )
+        .animate(
+          delay: delay,
+          onPlay: (controller) => controller.repeat(),
+        )
+        .fadeIn(duration: 700.ms)
+        .then()
+        .fadeOut(duration: 700.ms);
+  }
+}
+
+class _LoadingProgressBar extends StatelessWidget {
+  const _LoadingProgressBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: LinearProgressIndicator(
+        minHeight: 5,
+        backgroundColor: Colors.white.withValues(alpha: 0.10),
+        valueColor: AlwaysStoppedAnimation<Color>(
+          Colors.white.withValues(alpha: 0.88),
         ),
       ),
     );

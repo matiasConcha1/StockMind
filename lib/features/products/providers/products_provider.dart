@@ -1,21 +1,25 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:stockmind/core/services/storage_service.dart';
+import 'package:stockmind/features/alerts/data/services/stock_alert_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/products/data/services/product_service.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
-enum ProductFilter { all, lowStock }
+enum ProductFilter { all, atRisk, healthy }
 
 class ProductsProvider extends ChangeNotifier {
   ProductsProvider({
     required AuthProvider authProvider,
     required ProductService productService,
     required StorageService storageService,
+    required StockAlertService stockAlertService,
   })  : _authProvider = authProvider,
         _productService = productService,
-        _storageService = storageService {
+        _storageService = storageService,
+        _stockAlertService = stockAlertService {
     _authProvider.addListener(_handleAuthChanged);
     _handleAuthChanged();
   }
@@ -23,6 +27,7 @@ class ProductsProvider extends ChangeNotifier {
   final AuthProvider _authProvider;
   final ProductService _productService;
   final StorageService _storageService;
+  final StockAlertService _stockAlertService;
 
   StreamSubscription<List<Product>>? _subscription;
   List<Product> _products = const [];
@@ -52,11 +57,15 @@ class ProductsProvider extends ChangeNotifier {
       final matchesQuery = query.isEmpty ||
           product.name.toLowerCase().contains(query) ||
           product.category.toLowerCase().contains(query) ||
-          product.status.toLowerCase().contains(query);
+          product.status.toLowerCase().contains(query) ||
+          product.stockStatus.label.toLowerCase().contains(query);
       final matchesCategory =
           _categoryFilter == null || product.category == _categoryFilter;
-      final matchesState =
-          _productFilter == ProductFilter.all || product.isLowStock;
+      final matchesState = switch (_productFilter) {
+        ProductFilter.all => true,
+        ProductFilter.atRisk => !product.isHighStock,
+        ProductFilter.healthy => product.isHighStock,
+      };
       return matchesQuery && matchesCategory && matchesState;
     }).toList();
   }
@@ -85,6 +94,9 @@ class ProductsProvider extends ChangeNotifier {
     PickedImageFile? imageFile,
   }) async {
     final userId = _authProvider.user?.id;
+    debugPrint(
+      'ProductsProvider.createProduct: userId=${userId ?? 'null'} name=${product.name}',
+    );
     if (userId == null) {
       _error = 'Debes iniciar sesión para crear productos.';
       notifyListeners();
@@ -102,10 +114,13 @@ class ProductsProvider extends ChangeNotifier {
           file: imageFile,
         );
       }
+      final productToCreate =
+          product.copyWith(id: productId, imageUrl: imageUrl);
       await _productService.createProduct(
         userId,
-        product.copyWith(id: productId, imageUrl: imageUrl),
+        productToCreate,
       );
+      await _syncProductAlertBestEffort(userId, productToCreate);
     });
   }
 
@@ -116,6 +131,9 @@ class ProductsProvider extends ChangeNotifier {
     bool removeImage = false,
   }) async {
     final userId = _authProvider.user?.id;
+    debugPrint(
+      'ProductsProvider.updateProduct: userId=${userId ?? 'null'} productId=${product.id}',
+    );
     if (userId == null) {
       _error = 'Debes iniciar sesión para editar productos.';
       notifyListeners();
@@ -141,17 +159,22 @@ class ProductsProvider extends ChangeNotifier {
           file: imageFile,
         );
       }
+      final productToUpdate = product.copyWith(imageUrl: imageUrl);
       await _productService.updateProduct(
         userId,
-        product.copyWith(imageUrl: imageUrl),
+        productToUpdate,
         previousProduct: previousProduct,
         stockChangeReason: stockChangeReason,
       );
+      await _syncProductAlertBestEffort(userId, productToUpdate);
     });
   }
 
   Future<void> deleteProduct(String productId) async {
     final userId = _authProvider.user?.id;
+    debugPrint(
+      'ProductsProvider.deleteProduct: userId=${userId ?? 'null'} productId=$productId',
+    );
     if (userId == null) {
       _error = 'Debes iniciar sesión para eliminar productos.';
       notifyListeners();
@@ -166,6 +189,7 @@ class ProductsProvider extends ChangeNotifier {
     }
     await _execute(() async {
       await _productService.deleteProduct(userId, productId);
+      await _stockAlertService.deleteAlertsForProduct(userId, productId);
       await _storageService.deleteImageByUrl(previous?.imageUrl);
     });
   }
@@ -176,6 +200,12 @@ class ProductsProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await action();
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint(
+        'ProductsProvider._execute FirebaseException: code=${error.code} message=${error.message}',
+      );
+      debugPrint('$stackTrace');
+      _error = _mapFirebaseError(error);
     } on StorageServiceException catch (error, stackTrace) {
       debugPrint('ProductsProvider._execute storage error: ${error.message}');
       debugPrint('$stackTrace');
@@ -187,6 +217,20 @@ class ProductsProvider extends ChangeNotifier {
     } finally {
       _loading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _syncProductAlertBestEffort(String userId, Product product) async {
+    try {
+      await _stockAlertService.syncProductAlerts(userId, product);
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint(
+        'ProductsProvider._syncProductAlertBestEffort FirebaseException: code=${error.code} message=${error.message}',
+      );
+      debugPrint('$stackTrace');
+    } catch (error, stackTrace) {
+      debugPrint('ProductsProvider._syncProductAlertBestEffort error: $error');
+      debugPrint('$stackTrace');
     }
   }
 
@@ -215,6 +259,7 @@ class ProductsProvider extends ChangeNotifier {
         _loading = false;
         _error = null;
         notifyListeners();
+        unawaited(_syncAlertsForSnapshot(userId, items));
       },
       onError: (Object error, StackTrace stackTrace) {
         debugPrint('ProductsProvider.watchProducts error: $error');
@@ -224,6 +269,29 @@ class ProductsProvider extends ChangeNotifier {
         notifyListeners();
       },
     );
+  }
+
+  Future<void> _syncAlertsForSnapshot(String userId, List<Product> items) async {
+    for (final product in items) {
+      await _syncProductAlertBestEffort(userId, product);
+    }
+  }
+
+  String _mapFirebaseError(FirebaseException error) {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'No tienes permisos para guardar esta información. Revisa las reglas de Firestore.';
+      case 'unavailable':
+        return 'Firebase no está disponible en este momento. Intenta nuevamente.';
+      case 'not-found':
+        return 'No encontramos el recurso solicitado en Firestore.';
+      case 'failed-precondition':
+        return 'Firestore requiere una configuración adicional para completar la operación.';
+      default:
+        return error.message?.trim().isNotEmpty == true
+            ? error.message!.trim()
+            : 'Ocurrió un error inesperado al guardar.';
+    }
   }
 
   @override

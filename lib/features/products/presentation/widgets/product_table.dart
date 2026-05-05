@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/features/products/models/product.dart';
+import 'package:stockmind/features/products/presentation/widgets/stock_status_badge.dart';
 
 class ProductTable extends StatelessWidget {
   const ProductTable({
@@ -18,7 +19,6 @@ class ProductTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCompact = MediaQuery.sizeOf(context).width < 920;
     final currency = NumberFormat.currency(symbol: '\$');
 
     if (products.isEmpty) {
@@ -26,7 +26,7 @@ class ProductTable extends StatelessWidget {
         child: SizedBox(
           height: 320,
           child: EmptyState(
-            title: 'Sin productos todavía',
+            title: 'Sin productos todavia',
             subtitle:
                 'Crea tu primer producto para comenzar a operar con inventario real.',
             icon: Icons.inventory_2_outlined,
@@ -35,38 +35,44 @@ class ProductTable extends StatelessWidget {
       );
     }
 
-    if (isCompact) {
-      return Column(
-        children: products
-            .map(
-              (product) => _CompactProductCard(
-                product: product,
-                currency: currency,
-                onEdit: () => onEdit(product),
-                onDelete: () => onDelete(product),
-              ),
-            )
-            .toList(),
-      );
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 1180;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
-            const _DesktopTableHeader(),
-            const SizedBox(height: 8),
-            for (final product in products)
-              _DesktopProductRow(
-                product: product,
-                currency: currency,
-                onEdit: () => onEdit(product),
-                onDelete: () => onDelete(product),
-              ),
-          ],
-        ),
-      ),
+        if (isCompact) {
+          return Column(
+            children: products
+                .map(
+                  (product) => _CompactProductCard(
+                    product: product,
+                    currency: currency,
+                    onEdit: () => onEdit(product),
+                    onDelete: () => onDelete(product),
+                  ),
+                )
+                .toList(),
+          );
+        }
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              children: [
+                const _DesktopTableHeader(),
+                const SizedBox(height: 8),
+                for (final product in products)
+                  _DesktopProductRow(
+                    product: product,
+                    currency: currency,
+                    onEdit: () => onEdit(product),
+                    onDelete: () => onDelete(product),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -122,7 +128,10 @@ class _HeaderCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       flex: flex,
-      child: Text(label),
+      child: Text(
+        label,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 }
@@ -166,7 +175,9 @@ class _DesktopProductRowState extends State<_DesktopProductRow> {
               : colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: _hovered ? colorScheme.primary.withValues(alpha: 0.22) : colorScheme.outlineVariant,
+            color: _hovered
+                ? colorScheme.primary.withValues(alpha: 0.22)
+                : colorScheme.outlineVariant,
           ),
         ),
         child: Row(
@@ -180,6 +191,7 @@ class _DesktopProductRowState extends State<_DesktopProductRow> {
               child: Text(
                 widget.currency.format(product.price),
                 style: theme.textTheme.titleSmall,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             Expanded(
@@ -190,14 +202,32 @@ class _DesktopProductRowState extends State<_DesktopProductRow> {
                   Text(
                     '${product.totalStock} unid.',
                     style: theme.textTheme.titleSmall,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Mínimo ${product.minStock}',
+                    'Minimo ${product.minStock}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurface.withValues(alpha: 0.68),
                     ),
                   ),
+                  if (product.expiryDate != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      product.isExpired
+                          ? 'Vencido'
+                          : 'Vence ${DateFormat('dd/MM').format(product.expiryDate!)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: product.isExpired
+                            ? colorScheme.error
+                            : colorScheme.onSurface.withValues(alpha: 0.68),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -207,26 +237,32 @@ class _DesktopProductRowState extends State<_DesktopProductRow> {
                 product.hasLocationAssignments
                     ? '${product.locationQuantities.length} zonas'
                     : 'Sin asignar',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium,
               ),
             ),
             Expanded(
               flex: 2,
-              child: _StockBadge(product: product),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: StockStatusBadge(product: product),
+              ),
             ),
             Expanded(
               flex: 3,
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: 10,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     OutlinedButton.icon(
                       onPressed: widget.onEdit,
                       icon: const Icon(Icons.edit_outlined, size: 18),
                       label: const Text('Editar'),
                     ),
+                    const SizedBox(height: 8),
                     TextButton.icon(
                       onPressed: widget.onDelete,
                       icon: Icon(
@@ -308,16 +344,26 @@ class _CompactProductCard extends StatelessWidget {
               children: [
                 _InfoPill(label: currency.format(product.price)),
                 _InfoPill(label: '${product.totalStock} unidades'),
-                _InfoPill(label: '${product.locationQuantities.length} ubicaciones'),
+                _InfoPill(
+                  label: '${product.locationQuantities.length} ubicaciones',
+                ),
+                if (product.expiryDate != null)
+                  _InfoPill(
+                    label: product.isExpired
+                        ? 'Vencido'
+                        : 'Vence ${DateFormat('dd/MM').format(product.expiryDate!)}',
+                  ),
               ],
             ),
             const SizedBox(height: 14),
             Row(
               children: [
-                _StockBadge(product: product),
-                const Spacer(),
+                Expanded(
+                  child: StockStatusBadge(product: product, compact: true),
+                ),
+                const SizedBox(width: 10),
                 Text(
-                  'Mínimo ${product.minStock}',
+                  'Minimo ${product.minStock}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurface.withValues(alpha: 0.68),
                   ),
@@ -393,48 +439,6 @@ class _InfoPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(label),
-    );
-  }
-}
-
-class _StockBadge extends StatelessWidget {
-  const _StockBadge({required this.product});
-
-  final Product product;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final low = product.isLowStock;
-    final critical = product.isCriticalStock;
-    final backgroundColor = critical
-        ? colorScheme.error
-        : low
-            ? colorScheme.secondary
-            : colorScheme.primary;
-    final foregroundColor = critical
-        ? colorScheme.error
-        : low
-            ? colorScheme.secondary
-            : colorScheme.primary;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: backgroundColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        critical
-            ? 'Crítico'
-            : low
-                ? 'Bajo stock'
-                : 'Estable',
-        style: TextStyle(
-          color: foregroundColor,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
     );
   }
 }

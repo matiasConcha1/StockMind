@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/core/services/storage_service.dart';
+import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
 import 'package:stockmind/features/locations/providers/locations_provider.dart';
@@ -305,8 +306,11 @@ class _LocationDialogState extends State<LocationDialog>
       });
     } on StorageServiceException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.error,
+        title: 'Error al cargar imagen',
+        message: error.message,
       );
     } finally {
       if (mounted) {
@@ -325,7 +329,16 @@ class _LocationDialogState extends State<LocationDialog>
   }
 
   void _submit() {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      showAppAlertDialog(
+        context,
+        type: AppAlertType.warning,
+        title: 'Faltan datos de la ubicación',
+        message:
+            'Debes ingresar el nombre y el tipo de ubicación antes de guardar.',
+      );
+      return;
+    }
     final now = DateTime.now();
     final resolvedType = _isCustomType ? _customTypeController.text.trim() : _type;
 

@@ -5,8 +5,14 @@ class DashboardSnapshot {
   const DashboardSnapshot({
     required this.totalProducts,
     required this.totalUnits,
+    required this.outOfStockProducts,
     required this.lowStockProducts,
+    required this.mediumStockProducts,
+    required this.highStockProducts,
     required this.criticalProducts,
+    required this.activeAlerts,
+    required this.expiringSoonProducts,
+    required this.expiredProducts,
     required this.categories,
     required this.totalInventoryValue,
     required this.topCategories,
@@ -16,8 +22,14 @@ class DashboardSnapshot {
 
   final int totalProducts;
   final int totalUnits;
+  final int outOfStockProducts;
   final int lowStockProducts;
+  final int mediumStockProducts;
+  final int highStockProducts;
   final int criticalProducts;
+  final int activeAlerts;
+  final int expiringSoonProducts;
+  final int expiredProducts;
   final int categories;
   final double totalInventoryValue;
   final List<CategorySlice> topCategories;
@@ -26,7 +38,8 @@ class DashboardSnapshot {
 
   double get stockHealthScore {
     if (totalProducts == 0) return 100;
-    final ratio = lowStockProducts / totalProducts;
+    final ratio = (outOfStockProducts + lowStockProducts + mediumStockProducts) /
+        totalProducts;
     return ((1 - ratio) * 100).clamp(0, 100);
   }
 }
