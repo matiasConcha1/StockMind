@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
+import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
 import 'package:stockmind/features/locations/presentation/widgets/location_detail_dialog.dart';
@@ -38,7 +40,15 @@ class LocationsScreen extends StatelessWidget {
             const Card(
               child: SizedBox(
                 height: 320,
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: StockMindLoadingPanel(
+                      compact: true,
+                      statusMessage: 'Cargando ubicaciones...',
+                    ),
+                  ),
+                ),
               ),
             )
           else if (!provider.isLoading && !provider.hasLocations)
@@ -99,13 +109,36 @@ class LocationsScreen extends StatelessWidget {
         result.location,
         imageFile: result.imageFile,
       );
-    } else {
-      await provider.updateLocation(
-        result.location,
-        imageFile: result.imageFile,
-        removeImage: result.removeImage,
+      if (!context.mounted) return;
+      await showAppAlertDialog(
+        context,
+        type: provider.error == null ? AppAlertType.success : AppAlertType.error,
+        title: provider.error == null
+            ? 'Ubicación creada'
+            : 'No se pudo crear la ubicación',
+        message: provider.error == null
+            ? 'La ubicación fue creada correctamente.'
+            : provider.error!,
       );
+      return;
     }
+
+    await provider.updateLocation(
+      result.location,
+      imageFile: result.imageFile,
+      removeImage: result.removeImage,
+    );
+    if (!context.mounted) return;
+    await showAppAlertDialog(
+      context,
+      type: provider.error == null ? AppAlertType.success : AppAlertType.error,
+      title: provider.error == null
+          ? 'Ubicación actualizada'
+          : 'No se pudo actualizar la ubicación',
+      message: provider.error == null
+          ? 'Los cambios fueron guardados correctamente.'
+          : provider.error!,
+    );
   }
 
   Future<void> _openDetail(
@@ -123,27 +156,28 @@ class LocationsScreen extends StatelessWidget {
     BuildContext context,
     InventoryLocation location,
   ) async {
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar ubicación'),
-        content: Text('¿Deseas eliminar "${location.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+    final shouldDelete = await showAppConfirmDialog(
+      context,
+      title: '¿Eliminar ubicación?',
+      message:
+          'Esta acción eliminará la ubicación del sistema. Si aún tiene productos asignados, la operación será bloqueada.',
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
     );
 
-    if (shouldDelete == true && context.mounted) {
-      await context.read<LocationsProvider>().deleteLocation(location.id);
-    }
+    if (!shouldDelete || !context.mounted) return;
+    final provider = context.read<LocationsProvider>();
+    final success = await provider.deleteLocation(location.id);
+    if (!context.mounted) return;
+    await showAppAlertDialog(
+      context,
+      type: success ? AppAlertType.success : AppAlertType.error,
+      title: success ? 'Ubicación eliminada' : 'No se pudo eliminar',
+      message: success
+          ? 'La ubicación fue eliminada correctamente.'
+          : (provider.error ??
+              'No pudimos completar la operación. Inténtalo nuevamente.'),
+    );
   }
 }
 
