@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:stockmind/core/widgets/app_shell.dart';
-import 'package:stockmind/core/widgets/loading_screen.dart';
+import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/alerts/presentation/screens/alerts_screen.dart';
 import 'package:stockmind/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:stockmind/features/auth/presentation/screens/login_screen.dart';
@@ -83,7 +83,8 @@ class AppRoutes {
         GoRoute(
           path: AppRoutePaths.loading,
           name: AppRouteNames.loading,
-          pageBuilder: (context, state) => _buildPage(state, const LoadingScreen()),
+          pageBuilder: (context, state) =>
+              _buildPage(state, const StockMindLoadingScreen()),
         ),
         GoRoute(
           path: AppRoutePaths.login,

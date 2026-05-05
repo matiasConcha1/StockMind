@@ -1,249 +1,289 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    Fore more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-  -->
-    <!-- <base href="/"> -->
     <base href="$FLUTTER_BASE_HREF" />
 
     <meta charset="UTF-8" />
     <meta content="IE=Edge" http-equiv="X-UA-Compatible" />
-    <meta name="description" content="StockMind, sistema moderno de gestión de inventario." />
+    <meta
+      name="description"
+      content="StockMind, sistema moderno de gestión de inventario."
+    />
 
-    <!-- iOS meta tags & icons -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="StockMind" />
     <link rel="apple-touch-icon" href="icons/Icon-192.png" />
 
-    <!-- Favicon -->
     <link rel="icon" type="image/png" href="favicon.png" />
 
     <title>StockMind</title>
     <link rel="manifest" href="manifest.json" />
-    <!-- Styling for loading indicator -->
+
     <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
       body {
-        background: #000;
+        width: 100%;
+        height: 100%;
+        margin: 0;
       }
 
-      #load {
-        position: absolute;
-        width: 600px;
-        height: 36px;
-        left: 50%;
-        top: 40%;
-        margin-left: -300px;
-        overflow: visible;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-        cursor: default;
+      body {
+        overflow: hidden;
+        font-family:
+          "Inter",
+          "Segoe UI",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background:
+          radial-gradient(circle at top right, rgba(124, 58, 237, 0.34), transparent 28%),
+          radial-gradient(circle at bottom left, rgba(37, 99, 235, 0.28), transparent 24%),
+          linear-gradient(135deg, #07111f 0%, #0f1c34 42%, #1d4ed8 72%, #7c3aed 100%);
       }
 
-      #load div {
-        position: absolute;
-        width: 20px;
-        height: 36px;
+      #stockmind-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 9999;
+        transition:
+          opacity 0.35s ease,
+          visibility 0.35s ease;
+      }
+
+      #stockmind-loader.is-hidden {
         opacity: 0;
-        font-family: Helvetica, Arial, sans-serif;
-        animation: move 2s linear infinite;
-        -o-animation: move 2s linear infinite;
-        -moz-animation: move 2s linear infinite;
-        -webkit-animation: move 2s linear infinite;
-        transform: rotate(180deg);
-        -o-transform: rotate(180deg);
-        -moz-transform: rotate(180deg);
-        -webkit-transform: rotate(180deg);
-        color: #35c4f0;
+        visibility: hidden;
+        pointer-events: none;
       }
 
-      #load div:nth-child(2) {
-        animation-delay: 0.2s;
-        -o-animation-delay: 0.2s;
-        -moz-animation-delay: 0.2s;
-        -webkit-animation-delay: 0.2s;
-      }
-      #load div:nth-child(3) {
-        animation-delay: 0.4s;
-        -o-animation-delay: 0.4s;
-        -webkit-animation-delay: 0.4s;
-        -webkit-animation-delay: 0.4s;
-      }
-      #load div:nth-child(4) {
-        animation-delay: 0.6s;
-        -o-animation-delay: 0.6s;
-        -moz-animation-delay: 0.6s;
-        -webkit-animation-delay: 0.6s;
-      }
-      #load div:nth-child(5) {
-        animation-delay: 0.8s;
-        -o-animation-delay: 0.8s;
-        -moz-animation-delay: 0.8s;
-        -webkit-animation-delay: 0.8s;
-      }
-      #load div:nth-child(6) {
-        animation-delay: 1s;
-        -o-animation-delay: 1s;
-        -moz-animation-delay: 1s;
-        -webkit-animation-delay: 1s;
-      }
-      #load div:nth-child(7) {
-        animation-delay: 1.2s;
-        -o-animation-delay: 1.2s;
-        -moz-animation-delay: 1.2s;
-        -webkit-animation-delay: 1.2s;
+      .loader-shell {
+        width: min(100%, 520px);
+        padding: 36px 32px;
+        border-radius: 36px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 28px 52px -18px rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        text-align: center;
+        color: #fff;
+        transform: translateY(10px) scale(0.985);
+        opacity: 0;
+        animation: loader-enter 0.45s ease forwards;
       }
 
-      @keyframes move {
+      .loader-logo {
+        width: 78px;
+        height: 78px;
+        margin: 0 auto;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.14);
+        display: grid;
+        place-items: center;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      }
+
+      .loader-logo svg {
+        width: 38px;
+        height: 38px;
+        fill: #fff;
+      }
+
+      .loader-title {
+        margin: 22px 0 8px;
+        font-size: clamp(32px, 4vw, 38px);
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .loader-subtitle,
+      .loader-status,
+      .loader-fallback {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.82);
+      }
+
+      .loader-subtitle {
+        font-size: 16px;
+      }
+
+      .loader-spinner {
+        width: 26px;
+        height: 26px;
+        margin: 24px auto 20px;
+        border-radius: 50%;
+        border: 2.6px solid rgba(255, 255, 255, 0.22);
+        border-top-color: rgba(255, 255, 255, 0.92);
+        animation: spin 0.95s linear infinite;
+      }
+
+      .loader-status {
+        min-height: 22px;
+        font-size: 15px;
+        transition: opacity 0.2s ease;
+      }
+
+      .loader-progress {
+        position: relative;
+        width: 100%;
+        height: 5px;
+        margin-top: 18px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .loader-progress::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        width: 42%;
+        border-radius: inherit;
+        background: rgba(255, 255, 255, 0.9);
+        animation: progress-slide 1.35s ease-in-out infinite;
+      }
+
+      .loader-fallback-wrap {
+        display: none;
+        margin-top: 24px;
+      }
+
+      .loader-fallback-wrap.is-visible {
+        display: block;
+      }
+
+      .loader-fallback {
+        margin-bottom: 14px;
+        color: rgba(255, 255, 255, 0.86);
+      }
+
+      .loader-button {
+        border: 0;
+        border-radius: 16px;
+        padding: 12px 18px;
+        color: #fff;
+        background: rgba(255, 255, 255, 0.12);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      @keyframes loader-enter {
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes progress-slide {
         0% {
-          left: 0;
-          opacity: 0;
-        }
-        35% {
-          left: 41%;
-          -moz-transform: rotate(0deg);
-          -webkit-transform: rotate(0deg);
-          -o-transform: rotate(0deg);
-          transform: rotate(0deg);
-          opacity: 1;
-        }
-        65% {
-          left: 59%;
-          -moz-transform: rotate(0deg);
-          -webkit-transform: rotate(0deg);
-          -o-transform: rotate(0deg);
-          transform: rotate(0deg);
-          opacity: 1;
+          transform: translateX(-120%);
         }
         100% {
-          left: 100%;
-          -moz-transform: rotate(-180deg);
-          -webkit-transform: rotate(-180deg);
-          -o-transform: rotate(-180deg);
-          transform: rotate(-180deg);
-          opacity: 0;
+          transform: translateX(340%);
         }
       }
 
-      @-moz-keyframes move {
-        0% {
-          left: 0;
-          opacity: 0;
+      @media (max-width: 640px) {
+        .loader-shell {
+          padding: 30px 22px;
+          border-radius: 28px;
         }
-        35% {
-          left: 41%;
-          -moz-transform: rotate(0deg);
-          transform: rotate(0deg);
-          opacity: 1;
-        }
-        65% {
-          left: 59%;
-          -moz-transform: rotate(0deg);
-          transform: rotate(0deg);
-          opacity: 1;
-        }
-        100% {
-          left: 100%;
-          -moz-transform: rotate(-180deg);
-          transform: rotate(-180deg);
-          opacity: 0;
-        }
-      }
 
-      @-webkit-keyframes move {
-        0% {
-          left: 0;
-          opacity: 0;
-        }
-        35% {
-          left: 41%;
-          -webkit-transform: rotate(0deg);
-          transform: rotate(0deg);
-          opacity: 1;
-        }
-        65% {
-          left: 59%;
-          -webkit-transform: rotate(0deg);
-          transform: rotate(0deg);
-          opacity: 1;
-        }
-        100% {
-          left: 100%;
-          -webkit-transform: rotate(-180deg);
-          transform: rotate(-180deg);
-          opacity: 0;
-        }
-      }
-
-      @-o-keyframes move {
-        0% {
-          left: 0;
-          opacity: 0;
-        }
-        35% {
-          left: 41%;
-          -o-transform: rotate(0deg);
-          transform: rotate(0deg);
-          opacity: 1;
-        }
-        65% {
-          left: 59%;
-          -o-transform: rotate(0deg);
-          transform: rotate(0deg);
-          opacity: 1;
-        }
-        100% {
-          left: 100%;
-          -o-transform: rotate(-180deg);
-          transform: rotate(-180deg);
-          opacity: 0;
+        .loader-title {
+          margin-top: 18px;
         }
       }
     </style>
   </head>
 
   <body>
-    <!-- Loading Indicator -->
-    <div id="load">
-      <div>G</div>
-      <div>N</div>
-      <div>I</div>
-      <div>D</div>
-      <div>A</div>
-      <div>O</div>
-      <div>L</div>
+    <div id="stockmind-loader" aria-live="polite">
+      <div class="loader-shell">
+        <div class="loader-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M4 17.5V19h1.5l4.6-4.6-1.5-1.5L4 17.5Zm7-7 1.5 1.5 2.8-2.8 2 2 4.2-4.2-1.4-1.4-2.8 2.8-2-2L11 10.5Zm1.6-4.8 1.1-2.2 2.2-1.1-2.2-1.1-1.1-2.2-1.1 2.2-2.2 1.1 2.2 1.1 1.1 2.2Zm6 3 1.1-2.2 2.2-1.1-2.2-1.1-1.1-2.2-1.1 2.2-2.2 1.1 2.2 1.1 1.1 2.2Z"
+            />
+          </svg>
+        </div>
+        <h1 class="loader-title">StockMind</h1>
+        <p class="loader-subtitle">Preparando tu inventario...</p>
+        <div class="loader-spinner" aria-hidden="true"></div>
+        <p class="loader-status" id="loader-status">Verificando sesión...</p>
+        <div class="loader-progress" aria-hidden="true"></div>
+        <div class="loader-fallback-wrap" id="loader-fallback">
+          <p class="loader-fallback">Esto está tardando más de lo normal</p>
+          <button class="loader-button" type="button" onclick="window.location.reload()">
+            Reintentar
+          </button>
+        </div>
+      </div>
     </div>
-    <!-- This script installs service_worker.js to provide PWA functionality to
-       application. For more information, see:
-       https://developers.google.com/web/fundamentals/primers/service-workers -->
+
     <script>
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("flutter-first-frame", function () {
-          navigator.serviceWorker.register("flutter_service_worker.js");
-        });
-      }
+      (function () {
+        const statusEl = document.getElementById("loader-status");
+        const fallbackEl = document.getElementById("loader-fallback");
+        const loaderEl = document.getElementById("stockmind-loader");
+        const messages = [
+          "Verificando sesión...",
+          "Conectando con Firebase...",
+          "Preparando tu inventario...",
+        ];
+
+        let messageIndex = 0;
+        const messageTimer = window.setInterval(() => {
+          messageIndex = (messageIndex + 1) % messages.length;
+          if (statusEl) {
+            statusEl.textContent = messages[messageIndex];
+          }
+        }, 2000);
+
+        const fallbackTimer = window.setTimeout(() => {
+          if (fallbackEl) {
+            fallbackEl.classList.add("is-visible");
+          }
+        }, 8000);
+
+        function hideLoader() {
+          window.clearInterval(messageTimer);
+          window.clearTimeout(fallbackTimer);
+          if (loaderEl) {
+            loaderEl.classList.add("is-hidden");
+            window.setTimeout(() => loaderEl.remove(), 380);
+          }
+        }
+
+        window.addEventListener("flutter-first-frame", hideLoader);
+
+        if ("serviceWorker" in navigator) {
+          window.addEventListener("flutter-first-frame", function () {
+            navigator.serviceWorker.register("flutter_service_worker.js");
+          });
+        }
+      })();
     </script>
     <script src="main.dart.js" type="application/javascript"></script>
-    <!-- Removes the loading indicator after 10 seconds -->
-    <script>
-      window.onload = function () {
-        setTimeout(function () {
-          var loadingIndicator = document.getElementById("loading_container");
-          if (loadingIndicator) {
-            loadingIndicator.remove();
-          }
-        }, 10000);
-      };
-    </script>
   </body>
 </html>

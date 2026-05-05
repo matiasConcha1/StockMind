@@ -8,14 +8,14 @@ import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
-class LoadingScreen extends StatefulWidget {
-  const LoadingScreen({super.key});
+class StockMindLoadingScreen extends StatefulWidget {
+  const StockMindLoadingScreen({super.key});
 
   @override
-  State<LoadingScreen> createState() => _LoadingScreenState();
+  State<StockMindLoadingScreen> createState() => _StockMindLoadingScreenState();
 }
 
-class _LoadingScreenState extends State<LoadingScreen> {
+class _StockMindLoadingScreenState extends State<StockMindLoadingScreen> {
   static const _statusMessages = [
     'Verificando sesión...',
     'Conectando con Firebase...',
