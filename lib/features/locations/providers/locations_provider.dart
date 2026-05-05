@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/locations/data/services/location_service.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
@@ -24,9 +25,11 @@ class LocationsProvider extends ChangeNotifier {
     required AuthProvider authProvider,
     required ProductsProvider productsProvider,
     required LocationService locationService,
+    required StorageService storageService,
   })  : _authProvider = authProvider,
         _productsProvider = productsProvider,
-        _locationService = locationService {
+        _locationService = locationService,
+        _storageService = storageService {
     _authProvider.addListener(_handleAuthChanged);
     _productsProvider.addListener(notifyListeners);
     _handleAuthChanged();
@@ -44,6 +47,7 @@ class LocationsProvider extends ChangeNotifier {
   final AuthProvider _authProvider;
   final ProductsProvider _productsProvider;
   final LocationService _locationService;
+  final StorageService _storageService;
 
   StreamSubscription<List<InventoryLocation>>? _locationsSubscription;
   StreamSubscription<List<String>>? _typesSubscription;
@@ -81,7 +85,10 @@ class LocationsProvider extends ChangeNotifier {
     return [...items, otherLocationType];
   }
 
-  Future<void> createLocation(InventoryLocation location) async {
+  Future<void> createLocation(
+    InventoryLocation location, {
+    PickedImageFile? imageFile,
+  }) async {
     final userId = _authProvider.user?.id;
     if (userId == null) {
       _error = 'Debes iniciar sesión para crear ubicaciones.';
@@ -89,12 +96,30 @@ class LocationsProvider extends ChangeNotifier {
       return;
     }
     await _execute(() async {
-      await _locationService.createLocation(userId, location);
+      final locationId = location.id.isEmpty
+          ? _locationService.createLocationId(userId)
+          : location.id;
+      String? imageUrl = location.imageUrl;
+      if (imageFile != null) {
+        imageUrl = await _storageService.uploadLocationImage(
+          uid: userId,
+          locationId: locationId,
+          file: imageFile,
+        );
+      }
+      await _locationService.createLocation(
+        userId,
+        location.copyWith(id: locationId, imageUrl: imageUrl),
+      );
       await _saveCustomTypeIfNeeded(userId, location.type);
     });
   }
 
-  Future<void> updateLocation(InventoryLocation location) async {
+  Future<void> updateLocation(
+    InventoryLocation location, {
+    PickedImageFile? imageFile,
+    bool removeImage = false,
+  }) async {
     final userId = _authProvider.user?.id;
     if (userId == null) {
       _error = 'Debes iniciar sesión para editar ubicaciones.';
@@ -102,7 +127,23 @@ class LocationsProvider extends ChangeNotifier {
       return;
     }
     await _execute(() async {
-      await _locationService.updateLocation(userId, location);
+      String? imageUrl = location.imageUrl;
+      if (removeImage) {
+        final current = _locationById(location.id);
+        await _storageService.deleteImageByUrl(current?.imageUrl);
+        imageUrl = null;
+      }
+      if (imageFile != null) {
+        imageUrl = await _storageService.uploadLocationImage(
+          uid: userId,
+          locationId: location.id,
+          file: imageFile,
+        );
+      }
+      await _locationService.updateLocation(
+        userId,
+        location.copyWith(imageUrl: imageUrl),
+      );
       await _saveCustomTypeIfNeeded(userId, location.type);
     });
   }
@@ -120,7 +161,11 @@ class LocationsProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-    await _execute(() => _locationService.deleteLocation(userId, locationId));
+    final existing = _locationById(locationId);
+    await _execute(() async {
+      await _locationService.deleteLocation(userId, locationId);
+      await _storageService.deleteImageByUrl(existing?.imageUrl);
+    });
     return _error == null;
   }
 
@@ -161,6 +206,10 @@ class LocationsProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await action();
+    } on StorageServiceException catch (error, stackTrace) {
+      debugPrint('LocationsProvider._execute storage error: ${error.message}');
+      debugPrint('$stackTrace');
+      _error = error.message;
     } catch (error, stackTrace) {
       debugPrint('LocationsProvider._execute error: $error');
       debugPrint('$stackTrace');
@@ -181,6 +230,13 @@ class LocationsProvider extends ChangeNotifier {
       return;
     }
     await _locationService.saveLocationTypeIfMissing(userId, normalized);
+  }
+
+  InventoryLocation? _locationById(String locationId) {
+    for (final item in _locations) {
+      if (item.id == locationId) return item;
+    }
+    return null;
   }
 
   void _handleAuthChanged() {

@@ -13,6 +13,8 @@ class ProductService {
     return _firestore.collection('users').doc(userId).collection('products');
   }
 
+  String createProductId(String userId) => _collection(userId).doc().id;
+
   Stream<List<Product>> watchProducts(String userId) {
     debugPrint('ProductService.watchProducts: userId=$userId');
     return _collection(userId)
@@ -22,7 +24,8 @@ class ProductService {
   }
 
   Future<void> createProduct(String userId, Product product) async {
-    final docRef = _collection(userId).doc();
+    final docRef =
+        product.id.isEmpty ? _collection(userId).doc() : _collection(userId).doc(product.id);
     final productToCreate = product.copyWith(id: docRef.id);
     debugPrint(
       'ProductService.createProduct: userId=$userId productId=${docRef.id}',

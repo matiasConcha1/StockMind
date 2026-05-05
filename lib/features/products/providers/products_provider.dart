@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/products/data/services/product_service.dart';
 import 'package:stockmind/features/products/models/product.dart';
@@ -11,14 +12,17 @@ class ProductsProvider extends ChangeNotifier {
   ProductsProvider({
     required AuthProvider authProvider,
     required ProductService productService,
+    required StorageService storageService,
   })  : _authProvider = authProvider,
-        _productService = productService {
+        _productService = productService,
+        _storageService = storageService {
     _authProvider.addListener(_handleAuthChanged);
     _handleAuthChanged();
   }
 
   final AuthProvider _authProvider;
   final ProductService _productService;
+  final StorageService _storageService;
 
   StreamSubscription<List<Product>>? _subscription;
   List<Product> _products = const [];
@@ -76,17 +80,41 @@ class ProductsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> createProduct(Product product) async {
+  Future<void> createProduct(
+    Product product, {
+    PickedImageFile? imageFile,
+  }) async {
     final userId = _authProvider.user?.id;
     if (userId == null) {
       _error = 'Debes iniciar sesión para crear productos.';
       notifyListeners();
       return;
     }
-    await _execute(() => _productService.createProduct(userId, product));
+    await _execute(() async {
+      final productId = product.id.isEmpty
+          ? _productService.createProductId(userId)
+          : product.id;
+      String? imageUrl = product.imageUrl;
+      if (imageFile != null) {
+        imageUrl = await _storageService.uploadProductImage(
+          uid: userId,
+          productId: productId,
+          file: imageFile,
+        );
+      }
+      await _productService.createProduct(
+        userId,
+        product.copyWith(id: productId, imageUrl: imageUrl),
+      );
+    });
   }
 
-  Future<void> updateProduct(Product product, {String? stockChangeReason}) async {
+  Future<void> updateProduct(
+    Product product, {
+    String? stockChangeReason,
+    PickedImageFile? imageFile,
+    bool removeImage = false,
+  }) async {
     final userId = _authProvider.user?.id;
     if (userId == null) {
       _error = 'Debes iniciar sesión para editar productos.';
@@ -100,14 +128,26 @@ class ProductsProvider extends ChangeNotifier {
         break;
       }
     }
-    await _execute(
-      () => _productService.updateProduct(
+    await _execute(() async {
+      String? imageUrl = product.imageUrl;
+      if (removeImage) {
+        await _storageService.deleteImageByUrl(previousProduct?.imageUrl);
+        imageUrl = null;
+      }
+      if (imageFile != null) {
+        imageUrl = await _storageService.uploadProductImage(
+          uid: userId,
+          productId: product.id,
+          file: imageFile,
+        );
+      }
+      await _productService.updateProduct(
         userId,
-        product,
+        product.copyWith(imageUrl: imageUrl),
         previousProduct: previousProduct,
         stockChangeReason: stockChangeReason,
-      ),
-    );
+      );
+    });
   }
 
   Future<void> deleteProduct(String productId) async {
@@ -117,7 +157,17 @@ class ProductsProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    await _execute(() => _productService.deleteProduct(userId, productId));
+    Product? previous;
+    for (final item in _products) {
+      if (item.id == productId) {
+        previous = item;
+        break;
+      }
+    }
+    await _execute(() async {
+      await _productService.deleteProduct(userId, productId);
+      await _storageService.deleteImageByUrl(previous?.imageUrl);
+    });
   }
 
   Future<void> _execute(Future<void> Function() action) async {
@@ -126,6 +176,10 @@ class ProductsProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await action();
+    } on StorageServiceException catch (error, stackTrace) {
+      debugPrint('ProductsProvider._execute storage error: ${error.message}');
+      debugPrint('$stackTrace');
+      _error = error.message;
     } catch (error, stackTrace) {
       debugPrint('ProductsProvider._execute error: $error');
       debugPrint('$stackTrace');

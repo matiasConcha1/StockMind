@@ -24,7 +24,7 @@ class LocationsScreen extends StatelessWidget {
       actions: [
         FilledButton.icon(
           onPressed: provider.isLoading ? null : () => _openDialog(context),
-          icon: const Icon(Icons.add_location_alt_rounded),
+          icon: const Icon(Icons.add_location_alt_outlined),
           label: const Text('Nueva ubicación'),
         ),
       ],
@@ -87,7 +87,7 @@ class LocationsScreen extends StatelessWidget {
     BuildContext context, {
     InventoryLocation? location,
   }) async {
-    final result = await showDialog<InventoryLocation>(
+    final result = await showDialog<LocationDialogResult>(
       context: context,
       builder: (_) => LocationDialog(location: location),
     );
@@ -95,9 +95,16 @@ class LocationsScreen extends StatelessWidget {
 
     final provider = context.read<LocationsProvider>();
     if (location == null) {
-      await provider.createLocation(result);
+      await provider.createLocation(
+        result.location,
+        imageFile: result.imageFile,
+      );
     } else {
-      await provider.updateLocation(result);
+      await provider.updateLocation(
+        result.location,
+        imageFile: result.imageFile,
+        removeImage: result.removeImage,
+      );
     }
   }
 
@@ -248,15 +255,15 @@ class _LocationCard extends StatelessWidget {
   static IconData _iconForType(String type) {
     switch (type.toLowerCase()) {
       case 'refrigerador':
-        return Icons.kitchen_rounded;
+        return Icons.kitchen_outlined;
       case 'congeladora':
         return Icons.ac_unit_rounded;
       case 'caja':
-        return Icons.inventory_rounded;
+        return Icons.inventory_2_outlined;
       case 'closet':
-        return Icons.checkroom_rounded;
+        return Icons.door_sliding_outlined;
       default:
-        return Icons.place_rounded;
+        return Icons.place_outlined;
     }
   }
 

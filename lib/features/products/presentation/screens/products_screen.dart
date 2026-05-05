@@ -20,16 +20,16 @@ class ProductsScreen extends StatelessWidget {
     return DashboardFrame(
       title: 'Productos',
       subtitle:
-          'Gestiona tu catálogo real por usuario, con filtros y control de stock.',
+          'Gestiona tu catálogo real por usuario, con filtros, exportación y control visual del stock.',
       actions: [
         OutlinedButton.icon(
           onPressed: exportItems.isEmpty ? null : () => _exportExcel(context),
-          icon: const Icon(Icons.grid_on_rounded),
+          icon: const Icon(Icons.table_chart_outlined),
           label: const Text('Exportar Excel'),
         ),
         FilledButton.tonalIcon(
           onPressed: exportItems.isEmpty ? null : () => _exportPdf(context),
-          icon: const Icon(Icons.picture_as_pdf_rounded),
+          icon: const Icon(Icons.picture_as_pdf_outlined),
           label: const Text('Exportar PDF'),
         ),
         FilledButton.icon(
@@ -60,7 +60,10 @@ class ProductsScreen extends StatelessWidget {
                         const SizedBox(height: 14),
                         DropdownButtonFormField<String?>(
                           initialValue: provider.categoryFilter,
-                          decoration: const InputDecoration(labelText: 'Categoría'),
+                          decoration: const InputDecoration(
+                            labelText: 'Categoría',
+                            prefixIcon: Icon(Icons.category_outlined),
+                          ),
                           items: [
                             const DropdownMenuItem<String?>(
                               value: null,
@@ -111,7 +114,10 @@ class ProductsScreen extends StatelessWidget {
                           flex: 2,
                           child: DropdownButtonFormField<String?>(
                             initialValue: provider.categoryFilter,
-                            decoration: const InputDecoration(labelText: 'Categoría'),
+                            decoration: const InputDecoration(
+                              labelText: 'Categoría',
+                              prefixIcon: Icon(Icons.category_outlined),
+                            ),
                             items: [
                               const DropdownMenuItem<String?>(
                                 value: null,
@@ -204,11 +210,16 @@ class ProductsScreen extends StatelessWidget {
     if (result == null || !context.mounted) return;
     final provider = context.read<ProductsProvider>();
     if (product == null) {
-      await provider.createProduct(result.product);
+      await provider.createProduct(
+        result.product,
+        imageFile: result.imageFile,
+      );
     } else {
       await provider.updateProduct(
         result.product,
         stockChangeReason: result.stockChangeReason,
+        imageFile: result.imageFile,
+        removeImage: result.removeImage,
       );
     }
   }

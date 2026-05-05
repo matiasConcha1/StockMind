@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
 import 'package:stockmind/features/locations/presentation/widgets/location_dialog.dart';
@@ -12,10 +13,14 @@ class ProductDialogResult {
   const ProductDialogResult({
     required this.product,
     this.stockChangeReason,
+    this.imageFile,
+    this.removeImage = false,
   });
 
   final Product product;
   final String? stockChangeReason;
+  final PickedImageFile? imageFile;
+  final bool removeImage;
 }
 
 class ProductDialog extends StatefulWidget {
@@ -36,9 +41,12 @@ class _ProductDialogState extends State<ProductDialog> {
   late final TextEditingController _categoryController;
   late final TextEditingController _priceController;
   late final TextEditingController _minStockController;
-  late final TextEditingController _imageUrlController;
   late final TextEditingController _reasonController;
   final Map<String, TextEditingController> _locationControllers = {};
+
+  PickedImageFile? _pickedImage;
+  bool _removeExistingImage = false;
+  bool _isPickingImage = false;
 
   @override
   void initState() {
@@ -50,7 +58,6 @@ class _ProductDialogState extends State<ProductDialog> {
     _minStockController = TextEditingController(
       text: product?.minStock.toString() ?? '',
     );
-    _imageUrlController = TextEditingController(text: product?.imageUrl ?? '');
     _reasonController = TextEditingController();
   }
 
@@ -60,7 +67,6 @@ class _ProductDialogState extends State<ProductDialog> {
     _categoryController.dispose();
     _priceController.dispose();
     _minStockController.dispose();
-    _imageUrlController.dispose();
     _reasonController.dispose();
     for (final controller in _locationControllers.values) {
       controller.dispose();
@@ -98,7 +104,7 @@ class _ProductDialogState extends State<ProductDialog> {
           Text(widget.product == null ? 'Nuevo producto' : 'Editar producto'),
           const SizedBox(height: 6),
           Text(
-            'Define la información base, agrega una referencia visual y distribuye el inventario entre tus ubicaciones.',
+            'Define la información base, agrega una imagen opcional y distribuye el inventario entre tus ubicaciones.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurface.withValues(alpha: 0.72),
             ),
@@ -179,22 +185,13 @@ class _ProductDialogState extends State<ProductDialog> {
             const SizedBox(height: 14),
             TextFormField(
               controller: _categoryController,
-              decoration: const InputDecoration(labelText: 'Categoría'),
+              decoration: const InputDecoration(
+                labelText: 'Categoría',
+                prefixIcon: Icon(Icons.category_outlined),
+              ),
               validator: (value) => value == null || value.trim().isEmpty
                   ? 'Ingresa una categoría.'
                   : null,
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _imageUrlController,
-              keyboardType: TextInputType.url,
-              decoration: const InputDecoration(
-                labelText: 'Foto del producto',
-                hintText: 'https://...',
-                prefixIcon: Icon(Icons.image_outlined),
-              ),
-              onChanged: (_) => setState(() {}),
-              validator: _validateOptionalUrl,
             ),
             const SizedBox(height: 14),
             if (useSingleColumn) ...[
@@ -231,7 +228,7 @@ class _ProductDialogState extends State<ProductDialog> {
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(width: 160, child: imagePreview),
+                    SizedBox(width: 180, child: imagePreview),
                     const SizedBox(width: 18),
                     Expanded(child: formContent),
                   ],
@@ -244,30 +241,51 @@ class _ProductDialogState extends State<ProductDialog> {
   Widget _buildImagePanel(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final hasExistingNetworkImage =
+        widget.product?.imageUrl != null && !_removeExistingImage;
+    final hasAnyImage = _pickedImage != null || hasExistingNetworkImage;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: RemoteImageFrame(
-            size: 132,
-            imageUrl: _imageUrlController.text.trim(),
-            icon: Icons.inventory_2_rounded,
-            borderRadius: BorderRadius.circular(24),
-          ),
+        _LocalAwarePreview(
+          size: 148,
+          pickedImage: _pickedImage,
+          imageUrl: hasExistingNetworkImage ? widget.product?.imageUrl : null,
+          icon: Icons.inventory_2_outlined,
         ),
         const SizedBox(height: 12),
-        Text(
-          'Vista previa',
-          style: theme.textTheme.titleSmall,
-        ),
+        Text('Imagen del producto', style: theme.textTheme.titleSmall),
         const SizedBox(height: 4),
         Text(
-          'La foto es opcional. Si no agregas una URL, se usará un placeholder.',
+          'Puedes subir una imagen desde tu dispositivo. Máximo 5 MB en JPG, PNG o WEBP.',
           style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurface.withValues(alpha: 0.7),
           ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: _isPickingImage ? null : () => _pickImage(context),
+              icon: _isPickingImage
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.upload_file_outlined),
+              label: Text(_isPickingImage ? 'Cargando...' : 'Subir imagen'),
+            ),
+            if (hasAnyImage)
+              OutlinedButton.icon(
+                onPressed: _clearImage,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Quitar imagen'),
+              ),
+          ],
         ),
       ],
     );
@@ -370,7 +388,7 @@ class _ProductDialogState extends State<ProductDialog> {
             children: [
               _buildInfoChip(
                 context,
-                icon: Icons.inventory_2_rounded,
+                icon: Icons.inventory_2_outlined,
                 label: '${locations.length} ubicaciones',
               ),
               _buildInfoChip(
@@ -387,7 +405,7 @@ class _ProductDialogState extends State<ProductDialog> {
               onPressed: locationsProvider.isLoading
                   ? null
                   : () => _openCreateLocationDialog(context),
-              icon: const Icon(Icons.add_location_alt_rounded, size: 18),
+              icon: const Icon(Icons.add_location_alt_outlined, size: 18),
               label: const Text('Crear ubicación'),
             ),
           ),
@@ -448,7 +466,7 @@ class _ProductDialogState extends State<ProductDialog> {
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
-              Icons.place_rounded,
+              Icons.location_on_outlined,
               color: colorScheme.secondary,
             ),
           ),
@@ -467,7 +485,7 @@ class _ProductDialogState extends State<ProductDialog> {
           const SizedBox(height: 14),
           FilledButton.tonalIcon(
             onPressed: () => _openCreateLocationDialog(context),
-            icon: const Icon(Icons.add_location_alt_rounded),
+            icon: const Icon(Icons.add_location_alt_outlined),
             label: const Text('Crear ubicación'),
           ),
         ],
@@ -639,7 +657,7 @@ class _ProductDialogState extends State<ProductDialog> {
               color: colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(Icons.inventory_rounded, color: colorScheme.primary),
+            child: Icon(Icons.inventory_2_outlined, color: colorScheme.primary),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -706,14 +724,48 @@ class _ProductDialogState extends State<ProductDialog> {
   }
 
   Future<void> _openCreateLocationDialog(BuildContext context) async {
-    final result = await showDialog<InventoryLocation>(
+    final result = await showDialog<LocationDialogResult>(
       context: context,
       builder: (_) => const LocationDialog(),
     );
 
     if (result == null || !context.mounted) return;
-    await context.read<LocationsProvider>().createLocation(result);
+    await context.read<LocationsProvider>().createLocation(
+          result.location,
+          imageFile: result.imageFile,
+        );
     if (mounted) setState(() {});
+  }
+
+  Future<void> _pickImage(BuildContext context) async {
+    final storageService = context.read<StorageService>();
+    setState(() => _isPickingImage = true);
+    try {
+      final picked = await storageService.pickImage();
+      if (!mounted || picked == null) return;
+      setState(() {
+        _pickedImage = picked;
+        _removeExistingImage = false;
+      });
+    } on StorageServiceException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingImage = false);
+      }
+    }
+  }
+
+  void _clearImage() {
+    setState(() {
+      _pickedImage = null;
+      if (widget.product?.imageUrl != null) {
+        _removeExistingImage = true;
+      }
+    });
   }
 
   void _syncLocationControllers(List<InventoryLocation> locations) {
@@ -769,7 +821,6 @@ class _ProductDialogState extends State<ProductDialog> {
     );
     final minStock = int.parse(_minStockController.text.trim());
     final now = DateTime.now();
-    final normalizedImageUrl = _normalizedUrl(_imageUrlController.text);
 
     final product = Product(
       id: widget.product?.id ?? '',
@@ -786,44 +837,73 @@ class _ProductDialogState extends State<ProductDialog> {
       locationQuantities: locationQuantities,
       createdAt: widget.product?.createdAt ?? now,
       updatedAt: now,
-      imageUrl: normalizedImageUrl,
+      imageUrl: _removeExistingImage ? null : widget.product?.imageUrl,
     );
 
     Navigator.of(context).pop(
       ProductDialogResult(
         product: product,
         stockChangeReason: _reasonController.text.trim(),
+        imageFile: _pickedImage,
+        removeImage: _removeExistingImage,
       ),
     );
-  }
-
-  String? _validateOptionalUrl(String? value) {
-    final trimmed = value?.trim() ?? '';
-    if (trimmed.isEmpty) return null;
-    final uri = Uri.tryParse(trimmed);
-    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
-      return 'Ingresa una URL válida.';
-    }
-    return null;
-  }
-
-  String? _normalizedUrl(String raw) {
-    final trimmed = raw.trim();
-    return trimmed.isEmpty ? null : trimmed;
   }
 
   IconData _iconForType(String type) {
     switch (type.toLowerCase()) {
       case 'refrigerador':
-        return Icons.kitchen_rounded;
+        return Icons.kitchen_outlined;
       case 'congeladora':
         return Icons.ac_unit_rounded;
       case 'caja':
-        return Icons.inventory_rounded;
+        return Icons.inventory_2_outlined;
       case 'closet':
-        return Icons.checkroom_rounded;
+        return Icons.door_sliding_outlined;
       default:
-        return Icons.place_rounded;
+        return Icons.place_outlined;
     }
+  }
+}
+
+class _LocalAwarePreview extends StatelessWidget {
+  const _LocalAwarePreview({
+    required this.size,
+    required this.icon,
+    this.pickedImage,
+    this.imageUrl,
+  });
+
+  final double size;
+  final PickedImageFile? pickedImage;
+  final String? imageUrl;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (pickedImage != null) {
+      return Container(
+        width: size,
+        height: size,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.48),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: colorScheme.outlineVariant),
+        ),
+        child: Image.memory(
+          pickedImage!.bytes,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
+    return RemoteImageFrame(
+      size: size,
+      imageUrl: imageUrl,
+      icon: icon,
+      borderRadius: BorderRadius.circular(24),
+    );
   }
 }
