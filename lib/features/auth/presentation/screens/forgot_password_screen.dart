@@ -39,7 +39,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
                 labelText: 'Correo',
-                prefixIcon: Icon(Icons.mail_outline_rounded),
+                prefixIcon: Icon(Icons.email_outlined),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {

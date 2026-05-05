@@ -12,6 +12,8 @@ class LocationService {
     return _firestore.collection('users').doc(userId).collection('locations');
   }
 
+  String createLocationId(String userId) => _collection(userId).doc().id;
+
   CollectionReference<Map<String, dynamic>> _typesCollection(String userId) {
     return _firestore
         .collection('users')
@@ -31,7 +33,9 @@ class LocationService {
   }
 
   Future<void> createLocation(String userId, InventoryLocation location) async {
-    final docRef = _collection(userId).doc();
+    final docRef = location.id.isEmpty
+        ? _collection(userId).doc()
+        : _collection(userId).doc(location.id);
     final item = location.copyWith(id: docRef.id);
     await docRef.set(item.toCreateMap());
   }

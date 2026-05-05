@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
-import 'package:stockmind/core/widgets/stockmind_brand.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
 class ProductTable extends StatelessWidget {
@@ -347,9 +346,8 @@ class _ProductIdentity extends StatelessWidget {
         RemoteImageFrame(
           size: 52,
           imageUrl: product.imageUrl,
-          icon: Icons.inventory_2_rounded,
+          icon: Icons.inventory_2_outlined,
           borderRadius: BorderRadius.circular(16),
-          placeholderAssetPath: StockMindBrandAssets.iconLogo,
         ),
         const SizedBox(width: 12),
         Expanded(

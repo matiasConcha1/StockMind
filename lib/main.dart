@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:stockmind/app/app.dart';
 import 'package:stockmind/core/theme/theme_provider.dart';
 import 'package:stockmind/core/utils/firebase_bootstrap.dart';
+import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/auth/data/services/auth_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
@@ -35,15 +36,18 @@ Future<void> main() async {
   await themeProvider.load();
   debugPrint('main: theme loaded');
 
+  final storageService = StorageService();
   final authProvider = AuthProvider(AuthService())..start();
   final productsProvider = ProductsProvider(
     authProvider: authProvider,
     productService: ProductService(),
+    storageService: storageService,
   );
   final locationsProvider = LocationsProvider(
     authProvider: authProvider,
     productsProvider: productsProvider,
     locationService: LocationService(),
+    storageService: storageService,
   );
   final dashboardProvider = DashboardProvider(
     authProvider: authProvider,
@@ -58,6 +62,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider<ThemeProvider>(create: (_) => themeProvider),
+        Provider<StorageService>.value(value: storageService),
         ChangeNotifierProvider<AuthProvider>(create: (_) => authProvider),
         ChangeNotifierProvider<ProductsProvider>(create: (_) => productsProvider),
         ChangeNotifierProvider<LocationsProvider>(create: (_) => locationsProvider),

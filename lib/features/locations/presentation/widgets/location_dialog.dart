@@ -1,8 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
 import 'package:stockmind/features/locations/providers/locations_provider.dart';
+
+class LocationDialogResult {
+  const LocationDialogResult({
+    required this.location,
+    this.imageFile,
+    this.removeImage = false,
+  });
+
+  final InventoryLocation location;
+  final PickedImageFile? imageFile;
+  final bool removeImage;
+}
 
 class LocationDialog extends StatefulWidget {
   const LocationDialog({
@@ -22,8 +35,11 @@ class _LocationDialogState extends State<LocationDialog>
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _customTypeController;
-  late final TextEditingController _imageUrlController;
   late String _type;
+
+  PickedImageFile? _pickedImage;
+  bool _removeExistingImage = false;
+  bool _isPickingImage = false;
 
   bool get _isCustomType => _type == LocationsProvider.otherLocationType;
 
@@ -35,7 +51,6 @@ class _LocationDialogState extends State<LocationDialog>
     _descriptionController =
         TextEditingController(text: location?.description ?? '');
     _customTypeController = TextEditingController();
-    _imageUrlController = TextEditingController(text: location?.imageUrl ?? '');
     _type = location?.type.trim().isNotEmpty ?? false
         ? location!.type.trim()
         : LocationsProvider.baseLocationTypes.first;
@@ -46,7 +61,6 @@ class _LocationDialogState extends State<LocationDialog>
     _nameController.dispose();
     _descriptionController.dispose();
     _customTypeController.dispose();
-    _imageUrlController.dispose();
     super.dispose();
   }
 
@@ -110,18 +124,6 @@ class _LocationDialogState extends State<LocationDialog>
                             decoration: const InputDecoration(
                               labelText: 'Descripción',
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextFormField(
-                            controller: _imageUrlController,
-                            keyboardType: TextInputType.url,
-                            decoration: const InputDecoration(
-                              labelText: 'Foto de ubicación',
-                              hintText: 'https://...',
-                              prefixIcon: Icon(Icons.image_outlined),
-                            ),
-                            onChanged: (_) => setState(() {}),
-                            validator: _validateOptionalUrl,
                           ),
                           const SizedBox(height: 14),
                           DropdownButtonFormField<String>(
@@ -230,26 +232,96 @@ class _LocationDialogState extends State<LocationDialog>
   Widget _buildPreview(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final imageUrl = _removeExistingImage ? null : widget.location?.imageUrl;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        RemoteImageFrame(
-          size: 124,
-          imageUrl: _imageUrlController.text.trim(),
-          icon: _iconForType(_resolvedPreviewType()),
-          borderRadius: BorderRadius.circular(22),
-        ),
+        if (_pickedImage != null)
+          Container(
+            width: 124,
+            height: 124,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.48),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: colorScheme.outlineVariant),
+            ),
+            child: Image.memory(_pickedImage!.bytes, fit: BoxFit.cover),
+          )
+        else
+          RemoteImageFrame(
+            size: 124,
+            imageUrl: imageUrl,
+            icon: _iconForType(_resolvedPreviewType()),
+            borderRadius: BorderRadius.circular(22),
+          ),
         const SizedBox(height: 12),
         Text('Vista previa', style: theme.textTheme.titleSmall),
         const SizedBox(height: 4),
         Text(
-          'Puedes usar una foto del refrigerador, caja o zona física. Si no agregas imagen, verás un ícono del tipo.',
+          'Puedes subir una foto desde tu dispositivo. Si no agregas imagen, verás el ícono del tipo.',
           style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: _isPickingImage ? null : () => _pickImage(context),
+              icon: _isPickingImage
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.upload_file_outlined),
+              label: Text(_isPickingImage ? 'Cargando...' : 'Subir imagen'),
+            ),
+            if (_pickedImage != null || imageUrl != null)
+              OutlinedButton.icon(
+                onPressed: _clearImage,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Quitar imagen'),
+              ),
+          ],
+        ),
       ],
     );
+  }
+
+  Future<void> _pickImage(BuildContext context) async {
+    final storageService = context.read<StorageService>();
+    setState(() => _isPickingImage = true);
+    try {
+      final picked = await storageService.pickImage();
+      if (!mounted || picked == null) return;
+      setState(() {
+        _pickedImage = picked;
+        _removeExistingImage = false;
+      });
+    } on StorageServiceException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingImage = false);
+      }
+    }
+  }
+
+  void _clearImage() {
+    setState(() {
+      _pickedImage = null;
+      if (widget.location?.imageUrl != null) {
+        _removeExistingImage = true;
+      }
+    });
   }
 
   void _submit() {
@@ -258,14 +330,18 @@ class _LocationDialogState extends State<LocationDialog>
     final resolvedType = _isCustomType ? _customTypeController.text.trim() : _type;
 
     Navigator.of(context).pop(
-      InventoryLocation(
-        id: widget.location?.id ?? '',
-        name: _nameController.text.trim(),
-        description: _descriptionController.text.trim(),
-        type: resolvedType,
-        createdAt: widget.location?.createdAt ?? now,
-        updatedAt: now,
-        imageUrl: _normalizedUrl(_imageUrlController.text),
+      LocationDialogResult(
+        location: InventoryLocation(
+          id: widget.location?.id ?? '',
+          name: _nameController.text.trim(),
+          description: _descriptionController.text.trim(),
+          type: resolvedType,
+          createdAt: widget.location?.createdAt ?? now,
+          updatedAt: now,
+          imageUrl: _removeExistingImage ? null : widget.location?.imageUrl,
+        ),
+        imageFile: _pickedImage,
+        removeImage: _removeExistingImage,
       ),
     );
   }
@@ -277,33 +353,18 @@ class _LocationDialogState extends State<LocationDialog>
     return _type;
   }
 
-  String? _validateOptionalUrl(String? value) {
-    final trimmed = value?.trim() ?? '';
-    if (trimmed.isEmpty) return null;
-    final uri = Uri.tryParse(trimmed);
-    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
-      return 'Ingresa una URL válida.';
-    }
-    return null;
-  }
-
-  String? _normalizedUrl(String raw) {
-    final trimmed = raw.trim();
-    return trimmed.isEmpty ? null : trimmed;
-  }
-
   IconData _iconForType(String type) {
     switch (type.toLowerCase()) {
       case 'refrigerador':
-        return Icons.kitchen_rounded;
+        return Icons.kitchen_outlined;
       case 'congeladora':
         return Icons.ac_unit_rounded;
       case 'caja':
-        return Icons.inventory_rounded;
+        return Icons.inventory_2_outlined;
       case 'closet':
-        return Icons.checkroom_rounded;
+        return Icons.door_sliding_outlined;
       default:
-        return Icons.place_rounded;
+        return Icons.place_outlined;
     }
   }
 }
