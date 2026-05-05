@@ -4,6 +4,7 @@ import 'package:stockmind/app/app.dart';
 import 'package:stockmind/core/theme/theme_provider.dart';
 import 'package:stockmind/core/utils/firebase_bootstrap.dart';
 import 'package:stockmind/core/services/storage_service.dart';
+import 'package:stockmind/features/alerts/data/services/stock_alert_service.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/auth/data/services/auth_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
@@ -37,11 +38,13 @@ Future<void> main() async {
   debugPrint('main: theme loaded');
 
   final storageService = StorageService();
+  final stockAlertService = StockAlertService();
   final authProvider = AuthProvider(AuthService())..start();
   final productsProvider = ProductsProvider(
     authProvider: authProvider,
     productService: ProductService(),
     storageService: storageService,
+    stockAlertService: stockAlertService,
   );
   final locationsProvider = LocationsProvider(
     authProvider: authProvider,
@@ -49,13 +52,17 @@ Future<void> main() async {
     locationService: LocationService(),
     storageService: storageService,
   );
+  final alertsProvider = AlertsProvider(
+    authProvider: authProvider,
+    stockAlertService: stockAlertService,
+  );
   final dashboardProvider = DashboardProvider(
     authProvider: authProvider,
     productsProvider: productsProvider,
+    alertsProvider: alertsProvider,
     stockService: StockService(),
     stockMovementService: StockMovementService(),
   );
-  final alertsProvider = AlertsProvider(productsProvider: productsProvider);
 
   debugPrint('main: running app');
   runApp(
@@ -66,8 +73,8 @@ Future<void> main() async {
         ChangeNotifierProvider<AuthProvider>(create: (_) => authProvider),
         ChangeNotifierProvider<ProductsProvider>(create: (_) => productsProvider),
         ChangeNotifierProvider<LocationsProvider>(create: (_) => locationsProvider),
-        ChangeNotifierProvider<DashboardProvider>(create: (_) => dashboardProvider),
         ChangeNotifierProvider<AlertsProvider>(create: (_) => alertsProvider),
+        ChangeNotifierProvider<DashboardProvider>(create: (_) => dashboardProvider),
       ],
       child: StockMindApp(bootstrap: bootstrap),
     ),
