@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
+import 'package:stockmind/core/widgets/stockmind_brand.dart';
 import 'package:stockmind/features/auth/presentation/widgets/auth_shell.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
@@ -31,6 +32,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final theme = Theme.of(context);
+    final isEnabled = !auth.isLoading;
+    final switchActive = _rememberSession;
 
     return AuthShell(
       title: 'Inicia sesión',
@@ -41,6 +44,8 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const StockMindLogo(width: 164, centered: true),
+            const SizedBox(height: 22),
             Text(
               'Correo electrónico',
               style: theme.textTheme.labelLarge,
@@ -92,33 +97,71 @@ class _LoginScreenState extends State<LoginScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: 10),
-            Container(
+            const SizedBox(height: 14),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: theme.brightness == Brightness.dark ? 0.28 : 0.45,
-                ),
-                borderRadius: BorderRadius.circular(16),
+                color: switchActive
+                    ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                    : theme.colorScheme.surfaceContainerHighest.withValues(
+                        alpha: theme.brightness == Brightness.dark ? 0.22 : 0.40,
+                      ),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
+                  color: switchActive
+                      ? AppTheme.brand.withValues(alpha: 0.42)
+                      : theme.colorScheme.outlineVariant.withValues(alpha: 0.80),
                 ),
               ),
-              child: CheckboxListTile(
-                value: _rememberSession,
-                onChanged: auth.isLoading
-                    ? null
-                    : (value) {
-                        setState(() {
-                          _rememberSession = value ?? true;
-                        });
-                      },
-                title: const Text('Recordar sesión'),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 2,
-                ),
-                dense: true,
+              child: Row(
+                children: [
+                  Transform.scale(
+                    scale: 0.92,
+                    child: Switch.adaptive(
+                      value: _rememberSession,
+                      onChanged: isEnabled
+                          ? (value) {
+                              setState(() {
+                                _rememberSession = value;
+                              });
+                            }
+                          : null,
+                      activeThumbColor: Colors.white,
+                      activeTrackColor: AppTheme.brandViolet,
+                      inactiveThumbColor: Colors.white,
+                      inactiveTrackColor: theme.brightness == Brightness.dark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Recordar sesión',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: switchActive
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Mantiene tu sesión activa en este dispositivo',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.72,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 8),

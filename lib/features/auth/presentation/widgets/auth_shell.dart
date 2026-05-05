@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:stockmind/core/theme/app_theme.dart';
+import 'package:stockmind/core/widgets/stockmind_brand.dart';
 
 class AuthShell extends StatelessWidget {
   const AuthShell({
@@ -171,18 +171,11 @@ class _HeroPanel extends StatelessWidget {
       children: [
         Row(
           children: [
-            Container(
-              width: logoSize,
-              height: logoSize,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Icon(
-                Icons.insights_rounded,
-                color: Colors.white,
-                size: logoIconSize,
-              ),
+            StockMindIconMark(
+              size: logoIconSize,
+              framed: true,
+              framePadding: (logoSize - logoIconSize) / 2,
+              frameRadius: 18,
             ),
             const SizedBox(width: 14),
             Flexible(
@@ -427,25 +420,8 @@ class _MobileBranding extends StatelessWidget {
     final theme = Theme.of(context);
     return Column(
       children: [
-        Container(
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppTheme.brand, AppTheme.brandViolet],
-            ),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: const Icon(Icons.insights_rounded, color: Colors.white, size: 32),
-        ),
+        const StockMindLogo(width: 170, centered: true),
         const SizedBox(height: 14),
-        Text(
-          'StockMind',
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 6),
         Text(
           'Inventario claro. Operación veloz. Decisiones reales.',
           style: theme.textTheme.bodyMedium,
@@ -594,11 +570,18 @@ class _InventoryIllustration extends StatelessWidget {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.notifications_active_rounded, color: Colors.white, size: 18),
+                      Icon(
+                        Icons.notifications_active_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                       SizedBox(width: 8),
                       Text(
                         'Alertas críticas',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),

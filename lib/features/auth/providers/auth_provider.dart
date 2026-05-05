@@ -102,6 +102,19 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
+  Future<bool> updateProfile({
+    required String displayName,
+    String? photoUrl,
+  }) async {
+    debugPrint('AuthProvider.updateProfile: ${_user?.email ?? 'unknown'}');
+    return _run(
+      () => _authService.updateProfile(
+        displayName: displayName,
+        photoUrl: photoUrl,
+      ),
+    );
+  }
+
   Future<bool> sendResetEmail(String email) async {
     debugPrint('AuthProvider.sendResetEmail: $email');
     return _run(() => _authService.sendPasswordResetEmail(email));
@@ -172,6 +185,8 @@ class AuthProvider extends ChangeNotifier {
         return 'No hay conexión disponible.';
       case 'session-persistence-failed':
         return 'No se pudo configurar la persistencia de sesión.';
+      case 'no-current-user':
+        return 'No hay una sesión activa.';
       default:
         return 'No fue posible completar la operación.';
     }

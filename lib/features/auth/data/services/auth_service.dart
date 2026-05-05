@@ -63,6 +63,38 @@ class AuthService {
     }
   }
 
+  Future<void> updateProfile({
+    required String displayName,
+    String? photoUrl,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'No hay una sesión activa.',
+      );
+    }
+
+    final normalizedPhotoUrl = photoUrl?.trim();
+    await user.updateDisplayName(displayName.trim());
+    await user.updatePhotoURL(
+      normalizedPhotoUrl == null || normalizedPhotoUrl.isEmpty
+          ? null
+          : normalizedPhotoUrl,
+    );
+    await user.reload();
+
+    final refreshedUser = _auth.currentUser;
+    if (refreshedUser != null) {
+      await _upsertUserDocument(
+        user: refreshedUser,
+        provider: _resolveProvider(refreshedUser),
+        fallbackName: displayName.trim(),
+        overridePhotoUrl: normalizedPhotoUrl,
+      );
+    }
+  }
+
   Future<void> sendPasswordResetEmail(String email) async {
     await _auth.sendPasswordResetEmail(email: email);
   }
@@ -110,9 +142,28 @@ class AuthService {
     return AppUser(
       id: user.uid,
       email: user.email ?? '',
-      displayName: user.displayName ?? 'Administrador',
+      displayName: (user.displayName?.trim().isNotEmpty ?? false)
+          ? user.displayName!.trim()
+          : 'Administrador',
       photoUrl: user.photoURL,
+      provider: _resolveProvider(user),
+      createdAt: user.metadata.creationTime,
     );
+  }
+
+  String _resolveProvider(User user) {
+    final providerId = user.providerData
+        .map((item) => item.providerId)
+        .firstWhere(
+          (value) => value == 'google.com' || value == 'password',
+          orElse: () => '',
+        );
+
+    return switch (providerId) {
+      'google.com' => 'google',
+      'password' => 'email',
+      _ => 'email',
+    };
   }
 
   Future<void> _configureSessionPersistence({
@@ -137,6 +188,7 @@ class AuthService {
     required User user,
     required String provider,
     String? fallbackName,
+    String? overridePhotoUrl,
   }) async {
     final name = (user.displayName?.trim().isNotEmpty ?? false)
         ? user.displayName!.trim()
@@ -155,7 +207,10 @@ class AuthService {
       'name': name,
       'email': user.email ?? '',
       'provider': provider,
-      'photoUrl': user.photoURL,
+      'photoUrl': (overridePhotoUrl?.isNotEmpty ?? false)
+          ? overridePhotoUrl
+          : user.photoURL,
+      'updatedAt': FieldValue.serverTimestamp(),
     };
 
     if (!snapshot.exists) {
