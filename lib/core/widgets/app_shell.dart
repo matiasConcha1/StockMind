@@ -22,11 +22,11 @@ class AppShell extends StatelessWidget {
     final user = context.watch<AuthProvider>().user;
 
     final destinations = const [
-      _ShellDestination(label: 'Dashboard', icon: Icons.space_dashboard_rounded),
-      _ShellDestination(label: 'Productos', icon: Icons.inventory_2_rounded),
+      _ShellDestination(label: 'Dashboard', icon: Icons.dashboard_rounded),
+      _ShellDestination(label: 'Productos', icon: Icons.inventory_2_outlined),
       _ShellDestination(label: 'Alertas', icon: Icons.warning_amber_rounded),
-      _ShellDestination(label: 'Ubicaciones', icon: Icons.place_rounded),
-      _ShellDestination(label: 'Configuración', icon: Icons.tune_rounded),
+      _ShellDestination(label: 'Ubicaciones', icon: Icons.location_on_outlined),
+      _ShellDestination(label: 'Configuración', icon: Icons.settings_outlined),
     ];
 
     final sidebar = Container(
