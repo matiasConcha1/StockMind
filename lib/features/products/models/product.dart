@@ -13,6 +13,7 @@ class ProductLocationQuantity {
 
   Map<String, dynamic> toMap() {
     return {
+      'locationId': locationId,
       'locationName': locationName,
       'quantity': quantity,
     };
@@ -23,7 +24,7 @@ class ProductLocationQuantity {
     Map<String, dynamic> data,
   ) {
     return ProductLocationQuantity(
-      locationId: locationId,
+      locationId: (data['locationId'] ?? locationId) as String,
       locationName: (data['locationName'] ?? 'Ubicación') as String,
       quantity: ((data['quantity'] ?? 0) as num).toInt(),
     );
@@ -42,6 +43,7 @@ class Product {
     required this.locationQuantities,
     required this.createdAt,
     required this.updatedAt,
+    this.imageUrl,
   });
 
   final String id;
@@ -54,6 +56,7 @@ class Product {
   final Map<String, ProductLocationQuantity> locationQuantities;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? imageUrl;
 
   int get stock => totalStock;
   bool get isLowStock => totalStock <= minStock;
@@ -72,6 +75,7 @@ class Product {
     Map<String, ProductLocationQuantity>? locationQuantities,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? imageUrl,
   }) {
     return Product(
       id: id ?? this.id,
@@ -84,6 +88,7 @@ class Product {
       locationQuantities: locationQuantities ?? this.locationQuantities,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 
@@ -98,6 +103,7 @@ class Product {
       'minStock': minStock,
       'status': _resolveStatus(stock: totalStock, minStock: minStock),
       'locations': _serializeLocations(locationQuantities),
+      'imageUrl': imageUrl,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -114,6 +120,7 @@ class Product {
       'minStock': minStock,
       'status': _resolveStatus(stock: totalStock, minStock: minStock),
       'locations': _serializeLocations(locationQuantities),
+      'imageUrl': imageUrl,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -152,6 +159,9 @@ class Product {
       locationQuantities: locationQuantities,
       createdAt: _toDate(data['createdAt']),
       updatedAt: _toDate(data['updatedAt']),
+      imageUrl: (data['imageUrl'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : data['imageUrl'] as String,
     );
   }
 
