@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:stockmind/features/products/helpers/stock_status_helper.dart';
 
 class ProductLocationQuantity {
   const ProductLocationQuantity({
@@ -43,6 +44,7 @@ class Product {
     required this.locationQuantities,
     required this.createdAt,
     required this.updatedAt,
+    this.expiryDate,
     this.imageUrl,
   });
 
@@ -56,13 +58,32 @@ class Product {
   final Map<String, ProductLocationQuantity> locationQuantities;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? expiryDate;
   final String? imageUrl;
 
   int get stock => totalStock;
-  bool get isLowStock => totalStock <= minStock;
-  bool get isCriticalStock => totalStock == 0;
+  StockStatusSummary get stockStatus =>
+      resolveStockStatus(stockActual: totalStock, stockMinimo: minStock);
+  bool get isLowStock => stockStatus.isOutOfStock || stockStatus.isLowStock;
+  bool get isCriticalStock => stockStatus.isOutOfStock;
+  bool get isMediumStock => stockStatus.isMediumStock;
+  bool get isHighStock => stockStatus.isHighStock;
   bool get hasLocationAssignments => locationQuantities.isNotEmpty;
   double get inventoryValue => price * totalStock;
+  bool get hasExpiryDate => expiryDate != null;
+
+  bool get isExpired =>
+      expiryDate != null && _dateOnly(expiryDate!).isBefore(_today);
+
+  bool get expiresWithin7Days =>
+      expiryDate != null &&
+      !_dateOnly(expiryDate!).isBefore(_today) &&
+      !_dateOnly(expiryDate!).isAfter(_today.add(const Duration(days: 7)));
+
+  bool get expiresWithin15Days =>
+      expiryDate != null &&
+      !_dateOnly(expiryDate!).isBefore(_today) &&
+      !_dateOnly(expiryDate!).isAfter(_today.add(const Duration(days: 15)));
 
   Product copyWith({
     String? id,
@@ -75,6 +96,7 @@ class Product {
     Map<String, ProductLocationQuantity>? locationQuantities,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? expiryDate,
     String? imageUrl,
   }) {
     return Product(
@@ -88,6 +110,7 @@ class Product {
       locationQuantities: locationQuantities ?? this.locationQuantities,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      expiryDate: expiryDate ?? this.expiryDate,
       imageUrl: imageUrl ?? this.imageUrl,
     );
   }
@@ -101,7 +124,8 @@ class Product {
       'totalStock': totalStock,
       'stock': totalStock,
       'minStock': minStock,
-      'status': _resolveStatus(stock: totalStock, minStock: minStock),
+      'status': stockStatus.code,
+      'expiryDate': expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
       'locations': _serializeLocations(locationQuantities),
       'imageUrl': imageUrl,
       'createdAt': FieldValue.serverTimestamp(),
@@ -118,7 +142,8 @@ class Product {
       'totalStock': totalStock,
       'stock': totalStock,
       'minStock': minStock,
-      'status': _resolveStatus(stock: totalStock, minStock: minStock),
+      'status': stockStatus.code,
+      'expiryDate': expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
       'locations': _serializeLocations(locationQuantities),
       'imageUrl': imageUrl,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -128,8 +153,8 @@ class Product {
   factory Product.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? <String, dynamic>{};
     final totalStock = ((data['totalStock'] ?? data['stock'] ?? 0) as num).toInt();
-    final minStock = ((data['minStock'] ?? data['minimumStock'] ?? 0) as num)
-        .toInt();
+    final minStock =
+        ((data['minStock'] ?? data['minimumStock'] ?? 0) as num).toInt();
     final rawLocations = (data['locations'] as Map<String, dynamic>?) ?? const {};
     final locationQuantities = <String, ProductLocationQuantity>{};
 
@@ -153,12 +178,14 @@ class Product {
       price: ((data['price'] ?? 0) as num).toDouble(),
       totalStock: totalStock,
       minStock: minStock,
-      status:
-          (data['status'] ?? _resolveStatus(stock: totalStock, minStock: minStock))
-              as String,
+      status: (data['status'] ??
+              resolveStockStatus(stockActual: totalStock, stockMinimo: minStock)
+                  .code)
+          as String,
       locationQuantities: locationQuantities,
       createdAt: _toDate(data['createdAt']),
       updatedAt: _toDate(data['updatedAt']),
+      expiryDate: _toNullableDate(data['expiryDate']),
       imageUrl: (data['imageUrl'] as String?)?.trim().isEmpty ?? true
           ? null
           : data['imageUrl'] as String,
@@ -169,18 +196,8 @@ class Product {
     Map<String, ProductLocationQuantity> items,
   ) {
     return {
-      for (final entry in items.entries)
-        entry.key: entry.value.toMap(),
+      for (final entry in items.entries) entry.key: entry.value.toMap(),
     };
-  }
-
-  static String _resolveStatus({
-    required int stock,
-    required int minStock,
-  }) {
-    if (stock == 0) return 'critical';
-    if (stock <= minStock) return 'low';
-    return 'ok';
   }
 
   static DateTime _toDate(dynamic value) {
@@ -188,4 +205,17 @@ class Product {
     if (value is DateTime) return value;
     return DateTime.now();
   }
+
+  static DateTime? _toNullableDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return null;
+  }
+
+  static DateTime _dateOnly(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
+  }
+
+  static DateTime get _today => _dateOnly(DateTime.now());
 }

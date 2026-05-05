@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
+import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/products/data/services/inventory_export_service.dart';
 import 'package:stockmind/features/products/models/product.dart';
@@ -14,13 +16,12 @@ class ProductsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProductsProvider>();
-    final isCompact = MediaQuery.sizeOf(context).width < 860;
     final exportItems = provider.filteredProducts;
 
     return DashboardFrame(
       title: 'Productos',
       subtitle:
-          'Gestiona tu catálogo real por usuario, con filtros, exportación y control visual del stock.',
+          'Gestiona tu catalogo por usuario, con filtros, exportacion y control inteligente del stock.',
       actions: [
         OutlinedButton.icon(
           onPressed: exportItems.isEmpty ? null : () => _exportExcel(context),
@@ -38,165 +39,208 @@ class ProductsScreen extends StatelessWidget {
           label: const Text('Nuevo producto'),
         ),
       ],
-      child: Column(
-        children: [
-          if (provider.error != null) ...[
-            _ProductsErrorBanner(message: provider.error!),
-            const SizedBox(height: 16),
-          ],
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: isCompact
-                  ? Column(
-                      children: [
-                        TextField(
-                          onChanged: provider.updateSearchQuery,
-                          decoration: const InputDecoration(
-                            hintText: 'Buscar por nombre, categoría o estado',
-                            prefixIcon: Icon(Icons.search_rounded),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        DropdownButtonFormField<String?>(
-                          initialValue: provider.categoryFilter,
-                          decoration: const InputDecoration(
-                            labelText: 'Categoría',
-                            prefixIcon: Icon(Icons.category_outlined),
-                          ),
-                          items: [
-                            const DropdownMenuItem<String?>(
-                              value: null,
-                              child: Text('Todas'),
-                            ),
-                            ...provider.categories.map(
-                              (category) => DropdownMenuItem<String?>(
-                                value: category,
-                                child: Text(category),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactFilters = constraints.maxWidth < 1080;
+
+          return Column(
+            children: [
+              if (provider.error != null) ...[
+                _ProductsErrorBanner(message: provider.error!),
+                const SizedBox(height: 16),
+              ],
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: compactFilters
+                      ? Column(
+                          children: [
+                            TextField(
+                              onChanged: provider.updateSearchQuery,
+                              decoration: const InputDecoration(
+                                hintText: 'Buscar por nombre, categoria o estado',
+                                prefixIcon: Icon(Icons.search_rounded),
                               ),
                             ),
-                          ],
-                          onChanged: provider.updateCategoryFilter,
-                        ),
-                        const SizedBox(height: 14),
-                        SegmentedButton<ProductFilter>(
-                          segments: const [
-                            ButtonSegment(
-                              value: ProductFilter.all,
-                              label: Text('Todos'),
-                            ),
-                            ButtonSegment(
-                              value: ProductFilter.lowStock,
-                              label: Text('Bajo stock'),
-                            ),
-                          ],
-                          selected: {provider.productFilter},
-                          onSelectionChanged: (value) {
-                            provider.updateProductFilter(value.first);
-                          },
-                        ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          flex: 4,
-                          child: TextField(
-                            onChanged: provider.updateSearchQuery,
-                            decoration: const InputDecoration(
-                              hintText: 'Buscar por nombre, categoría o estado',
-                              prefixIcon: Icon(Icons.search_rounded),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          flex: 2,
-                          child: DropdownButtonFormField<String?>(
-                            initialValue: provider.categoryFilter,
-                            decoration: const InputDecoration(
-                              labelText: 'Categoría',
-                              prefixIcon: Icon(Icons.category_outlined),
-                            ),
-                            items: [
-                              const DropdownMenuItem<String?>(
-                                value: null,
-                                child: Text('Todas'),
+                            const SizedBox(height: 14),
+                            DropdownButtonFormField<String?>(
+                              initialValue: provider.categoryFilter,
+                              decoration: const InputDecoration(
+                                labelText: 'Categoria',
+                                prefixIcon: Icon(Icons.category_outlined),
                               ),
-                              ...provider.categories.map(
-                                (category) => DropdownMenuItem<String?>(
-                                  value: category,
-                                  child: Text(category),
+                              items: [
+                                const DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text('Todas'),
+                                ),
+                                ...provider.categories.map(
+                                  (category) => DropdownMenuItem<String?>(
+                                    value: category,
+                                    child: Text(
+                                      category,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              onChanged: provider.updateCategoryFilter,
+                            ),
+                            const SizedBox(height: 14),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: SegmentedButton<ProductFilter>(
+                                  segments: const [
+                                    ButtonSegment(
+                                      value: ProductFilter.all,
+                                      label: Text('Todos'),
+                                    ),
+                                    ButtonSegment(
+                                      value: ProductFilter.atRisk,
+                                      label: Text('En riesgo'),
+                                    ),
+                                    ButtonSegment(
+                                      value: ProductFilter.healthy,
+                                      label: Text('Saludable'),
+                                    ),
+                                  ],
+                                  selected: {provider.productFilter},
+                                  onSelectionChanged: (value) {
+                                    provider.updateProductFilter(value.first);
+                                  },
                                 ),
                               ),
-                            ],
-                            onChanged: provider.updateCategoryFilter,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        SegmentedButton<ProductFilter>(
-                          segments: const [
-                            ButtonSegment(
-                              value: ProductFilter.all,
-                              label: Text('Todos'),
-                            ),
-                            ButtonSegment(
-                              value: ProductFilter.lowStock,
-                              label: Text('Bajo stock'),
                             ),
                           ],
-                          selected: {provider.productFilter},
-                          onSelectionChanged: (value) {
-                            provider.updateProductFilter(value.first);
-                          },
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 4,
+                              child: TextField(
+                                onChanged: provider.updateSearchQuery,
+                                decoration: const InputDecoration(
+                                  hintText: 'Buscar por nombre, categoria o estado',
+                                  prefixIcon: Icon(Icons.search_rounded),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              flex: 2,
+                              child: DropdownButtonFormField<String?>(
+                                initialValue: provider.categoryFilter,
+                                decoration: const InputDecoration(
+                                  labelText: 'Categoria',
+                                  prefixIcon: Icon(Icons.category_outlined),
+                                ),
+                                items: [
+                                  const DropdownMenuItem<String?>(
+                                    value: null,
+                                    child: Text('Todas'),
+                                  ),
+                                  ...provider.categories.map(
+                                    (category) => DropdownMenuItem<String?>(
+                                      value: category,
+                                      child: Text(
+                                        category,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: provider.updateCategoryFilter,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Flexible(
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: SegmentedButton<ProductFilter>(
+                                    segments: const [
+                                      ButtonSegment(
+                                        value: ProductFilter.all,
+                                        label: Text('Todos'),
+                                      ),
+                                      ButtonSegment(
+                                        value: ProductFilter.atRisk,
+                                        label: Text('En riesgo'),
+                                      ),
+                                      ButtonSegment(
+                                        value: ProductFilter.healthy,
+                                        label: Text('Saludable'),
+                                      ),
+                                    ],
+                                    selected: {provider.productFilter},
+                                    onSelectionChanged: (value) {
+                                      provider.updateProductFilter(value.first);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (provider.isLoading && !provider.hasProducts)
-            const Card(
-              child: SizedBox(
-                height: 320,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            )
-          else if (!provider.isLoading &&
-              provider.hasProducts &&
-              provider.filteredProducts.isEmpty)
-            const Card(
-              child: SizedBox(
-                height: 320,
-                child: EmptyState(
-                  title: 'Sin coincidencias',
-                  subtitle:
-                      'No encontramos productos con los filtros actuales. Ajusta la búsqueda o la categoría.',
-                  icon: Icons.filter_alt_off_outlined,
                 ),
               ),
-            )
-          else
-            Stack(
-              children: [
-                ProductTable(
-                  products: provider.filteredProducts,
-                  onEdit: (product) => _openDialog(context, product: product),
-                  onDelete: (product) => _confirmDelete(context, product),
-                ),
-                if (provider.isLoading && provider.hasProducts)
-                  const Positioned(
-                    top: 12,
-                    right: 12,
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2.4),
+              const SizedBox(height: 16),
+              if (provider.isLoading && !provider.hasProducts)
+                const Card(
+                  child: SizedBox(
+                    height: 320,
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: StockMindLoadingPanel(
+                          compact: true,
+                          statusMessage: 'Cargando productos...',
+                        ),
+                      ),
                     ),
                   ),
-              ],
-            ),
-        ],
+                )
+              else if (!provider.isLoading &&
+                  provider.hasProducts &&
+                  provider.filteredProducts.isEmpty)
+                const Card(
+                  child: SizedBox(
+                    height: 320,
+                    child: EmptyState(
+                      title: 'Sin coincidencias',
+                      subtitle:
+                          'No encontramos productos con los filtros actuales. Ajusta la busqueda o la categoria.',
+                      icon: Icons.filter_alt_off_outlined,
+                    ),
+                  ),
+                )
+              else
+                Stack(
+                  children: [
+                    ProductTable(
+                      products: provider.filteredProducts,
+                      onEdit: (product) => _openDialog(context, product: product),
+                      onDelete: (product) => _confirmDelete(context, product),
+                    ),
+                    if (provider.isLoading && provider.hasProducts)
+                      const Positioned(
+                        top: 12,
+                        right: 12,
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.4),
+                        ),
+                      ),
+                  ],
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -209,43 +253,69 @@ class ProductsScreen extends StatelessWidget {
 
     if (result == null || !context.mounted) return;
     final provider = context.read<ProductsProvider>();
+
     if (product == null) {
       await provider.createProduct(
         result.product,
         imageFile: result.imageFile,
       );
-    } else {
-      await provider.updateProduct(
-        result.product,
-        stockChangeReason: result.stockChangeReason,
-        imageFile: result.imageFile,
-        removeImage: result.removeImage,
+      if (!context.mounted) return;
+      await showAppAlertDialog(
+        context,
+        type: provider.error == null ? AppAlertType.success : AppAlertType.error,
+        title: provider.error == null
+            ? 'Producto creado'
+            : 'No se pudo crear el producto',
+        message: provider.error == null
+            ? 'El producto fue agregado correctamente al inventario.'
+            : provider.error!,
       );
+      return;
     }
+
+    await provider.updateProduct(
+      result.product,
+      stockChangeReason: result.stockChangeReason,
+      imageFile: result.imageFile,
+      removeImage: result.removeImage,
+    );
+    if (!context.mounted) return;
+    await showAppAlertDialog(
+      context,
+      type: provider.error == null ? AppAlertType.success : AppAlertType.error,
+      title: provider.error == null
+          ? 'Producto actualizado'
+          : 'No se pudo actualizar el producto',
+      message: provider.error == null
+          ? 'Los cambios fueron guardados correctamente.'
+          : provider.error!,
+    );
   }
 
   Future<void> _confirmDelete(BuildContext context, Product product) async {
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar producto'),
-        content: Text('¿Deseas eliminar "${product.name}" del catálogo?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+    final shouldDelete = await showAppConfirmDialog(
+      context,
+      title: 'Eliminar producto?',
+      message:
+          'Esta accion eliminara el producto del inventario y no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
     );
 
-    if (shouldDelete == true && context.mounted) {
-      await context.read<ProductsProvider>().deleteProduct(product.id);
-    }
+    if (!shouldDelete || !context.mounted) return;
+    final provider = context.read<ProductsProvider>();
+    await provider.deleteProduct(product.id);
+    if (!context.mounted) return;
+    await showAppAlertDialog(
+      context,
+      type: provider.error == null ? AppAlertType.success : AppAlertType.error,
+      title: provider.error == null
+          ? 'Producto eliminado'
+          : 'No se pudo eliminar el producto',
+      message: provider.error == null
+          ? 'El producto fue eliminado correctamente.'
+          : provider.error!,
+    );
   }
 
   Future<void> _exportExcel(BuildContext context) async {
@@ -254,7 +324,7 @@ class ProductsScreen extends StatelessWidget {
       () => InventoryExportService().exportProductsToExcel(
         context.read<ProductsProvider>().filteredProducts,
       ),
-      successMessage: 'Inventario exportado en Excel.',
+      successMessage: 'El inventario fue exportado correctamente en Excel.',
     );
   }
 
@@ -264,7 +334,7 @@ class ProductsScreen extends StatelessWidget {
       () => InventoryExportService().exportProductsToPdf(
         context.read<ProductsProvider>().filteredProducts,
       ),
-      successMessage: 'Inventario exportado en PDF.',
+      successMessage: 'El inventario fue exportado correctamente en PDF.',
     );
   }
 
@@ -276,15 +346,21 @@ class ProductsScreen extends StatelessWidget {
     try {
       await action();
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(successMessage)),
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.success,
+        title: 'Exportacion completada',
+        message: successMessage,
       );
-    } catch (_) {
+    } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No fue posible exportar el inventario.'),
-        ),
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.error,
+        title: 'No se pudo exportar',
+        message: error.toString().trim().isNotEmpty
+            ? error.toString().trim()
+            : 'No pudimos completar la exportacion. Intentalo nuevamente.',
       );
     }
   }
