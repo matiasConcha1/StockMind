@@ -1,95 +1,72 @@
-#  StockMind
+# StockMind
 
 <p align="center">
   <img src="assets/screenshots/banner.gif" alt="StockMind Banner" width="100%">
 </p>
 
 <p align="center">
-  Sistema moderno de gestión de inventario desarrollado en Flutter + Firebase.
+  <strong>Plataforma moderna de gestión de inventario</strong><br>
+  Aplicación multiplataforma desarrollada con Flutter, Firebase y arquitectura modular escalable.
 </p>
+
+---
+
+## Descripción
+
+**StockMind** es una aplicación administrativa tipo dashboard diseñada para gestionar inventario, productos, categorías, ubicaciones y alertas de stock de forma eficiente.
+
+El proyecto fue desarrollado con un enfoque profesional, priorizando una arquitectura limpia, separación de responsabilidades, escalabilidad y una experiencia de usuario moderna tanto en escritorio como en dispositivos móviles.
+
+---
+
+## Vista previa
+
+### Login y autenticación
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white">
-  <img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black">
-  <img src="https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white">
-  <img src="https://img.shields.io/badge/Responsive-Design-blueviolet?style=for-the-badge">
+  <img src="assets/screenshots/login.gif" alt="Login StockMind" width="900">
 </p>
 
----
-
-##  Descripción
-
-**StockMind** es una aplicación administrativa tipo dashboard diseñada para gestionar productos, inventario y alertas de stock bajo de manera simple, rápida y profesional.
-
-El sistema está pensado para negocios que necesitan controlar su inventario desde una interfaz moderna, responsive y fácil de usar.
-
----
-
-##  Vista previa
-
-###  Login profesional
+### Dashboard principal
 
 <p align="center">
-  <img src="assets/screenshots/login.gif" alt="Login StockMind" width="800">
+  <img src="assets/screenshots/dashboard.gif" alt="Dashboard StockMind" width="900">
 </p>
 
----
-
-###  Dashboard principal
+### Gestión de productos
 
 <p align="center">
-  <img src="assets/screenshots/dashboard.gif" alt="Dashboard StockMind" width="800">
+  <img src="assets/screenshots/products.gif" alt="Productos StockMind" width="900">
 </p>
 
----
-
-###  Gestión de productos
+### Modo oscuro
 
 <p align="center">
-  <img src="assets/screenshots/products.gif" alt="Productos StockMind" width="800">
+  <img src="assets/screenshots/dark-mode.gif" alt="Modo oscuro StockMind" width="900">
 </p>
 
 ---
 
-###  Modo oscuro
+## Funcionalidades principales
 
-<p align="center">
-  <img src="assets/screenshots/dark-mode.gif" alt="Modo oscuro StockMind" width="800">
-</p>
-
----
-
-##  Funcionalidades principales
-
--  Autenticación con Firebase
--  Dashboard con métricas de inventario
--  Gestión de productos
--  Crear, editar y eliminar productos
--  Alertas automáticas de stock bajo
--  Búsqueda y filtrado de productos
--  Modo claro y oscuro
--  Diseño responsive para web, tablet y móvil
--  Integración con Firestore
--  Interfaz moderna tipo SaaS
+- Autenticación con Firebase
+- Inicio de sesión con Google
+- Dashboard con métricas generales del inventario
+- Gestión completa de productos
+- Registro, edición y eliminación de productos
+- Gestión de ubicaciones o sectores
+- Subida de imágenes desde galería o archivos
+- Alertas automáticas de stock bajo
+- Búsqueda y filtrado dinámico
+- Interfaz responsive para web, tablet y móvil
+- Modo claro y oscuro
+- Navegación fluida tipo aplicación SaaS
 
 ---
 
-##  Tecnologías utilizadas
+## Arquitectura del proyecto
 
-| Tecnología | Uso |
-|----------|-----|
-| Flutter | Desarrollo frontend multiplataforma |
-| Dart | Lenguaje principal |
-| Firebase Auth | Autenticación de usuarios |
-| Cloud Firestore | Base de datos |
-| Provider | Gestión de estado |
-| fl_chart | Gráficos del dashboard |
-| Google Fonts | Tipografía |
-| Flutter SVG | Íconos e ilustraciones |
-
----
-
-##  Estructura del proyecto
+StockMind utiliza una arquitectura modular basada en funcionalidades, separando la lógica de negocio, la interfaz, los servicios externos y la gestión de estado.
 
 ```bash
 lib/
