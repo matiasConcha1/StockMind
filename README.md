@@ -1,4 +1,4 @@
-#  StockMind
+# StockMind
 
 <p align="center">
   <img src="assets/images/logo_icon.png" width="120" alt="StockMind Logo"/>
@@ -37,65 +37,65 @@ Permite gestionar productos, ubicaciones físicas, imágenes, alertas de stock b
 
 ---
 
-##  Capturas de pantalla
+## Capturas de pantalla
 
 ### Login
 
-![Login](assets/screenshots/login.png)
+<img src="screenshots/login.png" width="100%" alt="Login StockMind">
 
 ---
 
 ### Registro
 
-![Registro](assets/screenshots/register.png)
+<img src="screenshots/register.png" width="100%" alt="Registro StockMind">
 
 ---
 
 ### Dashboard
 
-![Dashboard](assets/screenshots/dashboard.png)
+<img src="screenshots/dashboard.png" width="100%" alt="Dashboard StockMind">
 
 ---
 
 ### Productos
 
-![Productos](assets/screenshots/products.png)
+<img src="screenshots/products.png" width="100%" alt="Productos StockMind">
 
 ---
 
 ### Nuevo producto
 
-![Nuevo producto](assets/screenshots/products2.png)
+<img src="screenshots/products2.png" width="100%" alt="Nuevo producto StockMind">
 
 ---
 
 ### Alertas
 
-![Alertas](assets/screenshots/alerts.png)
+<img src="screenshots/alerts.png" width="100%" alt="Alertas StockMind">
 
 ---
 
 ### Ubicaciones
 
-![Ubicaciones](assets/screenshots/locations.png)
+<img src="screenshots/locations.png" width="100%" alt="Ubicaciones StockMind">
 
 ---
 
 ### Nueva ubicación
 
-![Nueva ubicación](assets/screenshots/locations2.png)
+<img src="screenshots/locations2.png" width="100%" alt="Nueva ubicación StockMind">
 
 ---
 
 ### Configuración
 
-![Configuración](assets/screenshots/settings.png)
+<img src="screenshots/settings.png" width="100%" alt="Configuración StockMind">
 
 ---
 
 ### Perfil y seguridad
 
-![Perfil y configuración](assets/screenshots/settings2.png)
+<img src="screenshots/settings2.png" width="100%" alt="Perfil y seguridad StockMind">
 
 ---
 
@@ -116,7 +116,7 @@ Permite gestionar productos, ubicaciones físicas, imágenes, alertas de stock b
 
 ---
 
-##  Estructura del proyecto
+## Estructura del proyecto
 
 ```bash
 lib/
@@ -132,3 +132,53 @@ lib/
 ├── services/
 ├── firebase_options.dart
 └── main.dart
+ Instalación local
+git clone https://github.com/matiasConcha1/StockMind.git
+cd StockMind
+flutter pub get
+flutter run -d chrome
+ Configuración Firebase
+
+Para ejecutar el proyecto con Firebase real:
+
+Crear un proyecto en Firebase.
+Activar Authentication:
+Email/Password
+Google
+Crear Cloud Firestore.
+Activar Firebase Storage.
+Ejecutar:
+flutterfire configure
+ Build y deploy
+flutter build web --release
+firebase deploy
+ Demo
+
+ https://ejemplofirebase-38f98.web.app
+
+ Roadmap
+ Multiempresa
+ Roles de usuario
+ Historial avanzado de movimientos
+ Notificaciones push
+ Suscripciones
+ Reportes avanzados
+Autor
+
+Matías Concha
+Ingeniero en Informática
+
+GitHub: matiasConcha1
+Email: matyconcha12@gmail.com
+ Licencia
+
+Proyecto desarrollado con fines profesionales y de portafolio.
+Para colaboración o uso comercial, contactar al autor.
+
+ Estado
+
+✅ MVP funcional
+✅ Firebase integrado
+✅ Deploy web activo
+✅ PWA instalable
+🔥 Nivel SaaS / Portafolio profesional
