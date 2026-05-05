@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
+import 'package:stockmind/core/widgets/stockmind_brand.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
 class StockMindLoadingScreen extends StatefulWidget {
@@ -123,18 +124,11 @@ class _StockMindLoadingScreenState extends State<StockMindLoadingScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 78,
-                            height: 78,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            child: const Icon(
-                              Icons.insights_rounded,
-                              color: Colors.white,
-                              size: 38,
-                            ),
+                          const StockMindIconMark(
+                            size: 84,
+                            framed: true,
+                            framePadding: 12,
+                            frameRadius: 26,
                           ).animate().fadeIn(duration: 280.ms).scale(),
                           const SizedBox(height: 22),
                           Text(

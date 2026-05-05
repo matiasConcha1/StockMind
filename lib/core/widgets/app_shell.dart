@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/sidebar_item.dart';
+import 'package:stockmind/core/widgets/stockmind_brand.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
 class AppShell extends StatelessWidget {
@@ -195,7 +196,7 @@ class _BrandBlock extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
@@ -207,31 +208,34 @@ class _BrandBlock extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(26),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(Icons.insights_rounded, color: Colors.white),
+          const StockMindIconMark(
+            size: 30,
+            framed: true,
+            framePadding: 8,
+            frameRadius: 16,
           ),
-          const SizedBox(height: 18),
-          Text(
-            'StockMind',
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Dashboard de inventario con señales claras para operar mejor.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.82),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'StockMind',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Inventory SaaS',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.82),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
