@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/theme/theme_provider.dart';
+import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/features/auth/data/models/app_user.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
@@ -15,11 +16,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -169,7 +165,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.28),
+                  color:
+                      colorScheme.surfaceContainerHighest.withValues(alpha: 0.28),
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(color: colorScheme.outlineVariant),
                 ),
@@ -207,7 +204,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           FilledButton.tonalIcon(
                             onPressed: auth.isLoading || user?.email.isEmpty != false
                                 ? null
-                                : () => _sendPasswordReset(context, auth, user!.email),
+                                : () => _sendPasswordReset(
+                                      context,
+                                      auth,
+                                      user!.email,
+                                    ),
                             icon: const Icon(Icons.mail_outlined),
                             label: Text(
                               auth.isLoading
@@ -284,46 +285,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) async {
     final success = await auth.sendResetEmail(email);
     if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Te enviamos un correo para restablecer tu contrasena.'
-              : (auth.error ?? 'No fue posible enviar el correo.'),
-        ),
-      ),
+    await showAppAlertDialog(
+      context,
+      type: success ? AppAlertType.success : AppAlertType.error,
+      title: success ? 'Correo enviado' : 'No se pudo enviar',
+      message: success
+          ? 'Te enviamos un correo para restablecer tu contraseña.'
+          : (auth.error ??
+              'No pudimos completar la operación. Revisa tu conexión e inténtalo nuevamente.'),
     );
   }
 
   Future<void> _confirmSignOut(BuildContext context, AuthProvider auth) async {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: colorScheme.surface,
-          surfaceTintColor: Colors.transparent,
-          title: const Text('Cerrar sesion'),
-          content: const Text('¿Seguro que quieres cerrar sesion?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Si, cerrar sesion'),
-            ),
-          ],
-        );
-      },
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: '¿Seguro que quieres cerrar sesión?',
+      message: 'Tu sesión actual se cerrará en este dispositivo.',
+      confirmLabel: 'Cerrar sesión',
+      cancelLabel: 'Cancelar',
     );
 
-    if (confirmed != true || !context.mounted) return;
+    if (!confirmed || !context.mounted) return;
     await auth.signOut();
     if (!context.mounted) return;
+    if (auth.error != null) {
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.error,
+        title: 'No se pudo cerrar sesión',
+        message: auth.error!,
+      );
+      return;
+    }
     context.go(AppRoutePaths.login);
   }
 }
