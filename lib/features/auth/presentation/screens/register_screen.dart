@@ -61,7 +61,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
                 labelText: 'Correo',
-                prefixIcon: Icon(Icons.alternate_email_rounded),
+                prefixIcon: Icon(Icons.email_outlined),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -76,7 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               obscureText: _obscurePassword,
               decoration: InputDecoration(
                 labelText: 'Contraseña',
-                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   onPressed: () {
                     setState(() {
@@ -85,8 +85,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                   icon: Icon(
                     _obscurePassword
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
                   ),
                 ),
               ),
@@ -112,8 +112,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                   icon: Icon(
                     _obscureConfirmPassword
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
                   ),
                 ),
               ),
