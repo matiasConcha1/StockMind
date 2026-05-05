@@ -122,7 +122,7 @@ lib/
 ├── services/
 ├── firebase_options.dart
 └── main.dart
-
+-----
 ## Instalación local
 
 ```bash
@@ -130,7 +130,6 @@ git clone https://github.com/matiasConcha1/StockMind.git
 cd StockMind
 flutter pub get
 flutter run -d chrome
-Configuración Firebase
 
 Para ejecutar el proyecto con Firebase real:
 
