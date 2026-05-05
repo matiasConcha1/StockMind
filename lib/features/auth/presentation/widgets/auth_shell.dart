@@ -142,8 +142,6 @@ class _HeroPanel extends StatelessWidget {
             ? 20.0
             : (isTablet ? 26.0 : 34.0);
 
-    final logoSize = isVeryLowHeight ? 48.0 : 58.0;
-    final logoIconSize = isVeryLowHeight ? 24.0 : 28.0;
     final titleFontSize = isUltraLowHeight
         ? 28.0
         : isVeryLowHeight
@@ -172,10 +170,11 @@ class _HeroPanel extends StatelessWidget {
         Row(
           children: [
             StockMindIconMark(
-              size: logoIconSize,
+              size: isVeryLowHeight ? 36 : 44,
               framed: true,
-              framePadding: (logoSize - logoIconSize) / 2,
+              framePadding: isVeryLowHeight ? 10 : 12,
               frameRadius: 18,
+              assetScale: 1.9,
             ),
             const SizedBox(width: 14),
             Flexible(

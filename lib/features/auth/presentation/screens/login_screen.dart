@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
+import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/stockmind_brand.dart';
 import 'package:stockmind/features/auth/presentation/widgets/auth_shell.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
@@ -33,7 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.watch<AuthProvider>();
     final theme = Theme.of(context);
     final isEnabled = !auth.isLoading;
-    final switchActive = _rememberSession;
 
     return AuthShell(
       title: 'Inicia sesión',
@@ -98,71 +98,14 @@ class _LoginScreenState extends State<LoginScreen> {
               },
             ),
             const SizedBox(height: 14),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: switchActive
-                    ? theme.colorScheme.primary.withValues(alpha: 0.08)
-                    : theme.colorScheme.surfaceContainerHighest.withValues(
-                        alpha: theme.brightness == Brightness.dark ? 0.22 : 0.40,
-                      ),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: switchActive
-                      ? AppTheme.brand.withValues(alpha: 0.42)
-                      : theme.colorScheme.outlineVariant.withValues(alpha: 0.80),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Transform.scale(
-                    scale: 0.92,
-                    child: Switch.adaptive(
-                      value: _rememberSession,
-                      onChanged: isEnabled
-                          ? (value) {
-                              setState(() {
-                                _rememberSession = value;
-                              });
-                            }
-                          : null,
-                      activeThumbColor: Colors.white,
-                      activeTrackColor: AppTheme.brandViolet,
-                      inactiveThumbColor: Colors.white,
-                      inactiveTrackColor: theme.brightness == Brightness.dark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFCBD5E1),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Recordar sesión',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: switchActive
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Mantiene tu sesión activa en este dispositivo',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.72,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            _RememberSessionCard(
+              value: _rememberSession,
+              enabled: isEnabled,
+              onChanged: (value) {
+                setState(() {
+                  _rememberSession = value;
+                });
+              },
             ),
             const SizedBox(height: 8),
             Align(
@@ -254,18 +197,138 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
-    await context.read<AuthProvider>().signInWithEmail(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-          rememberSession: _rememberSession,
-        );
+    if (!_formKey.currentState!.validate()) {
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.warning,
+        title: 'Faltan datos de acceso',
+        message:
+            'Debes ingresar tu correo y una contraseña válida antes de continuar.',
+      );
+      return;
+    }
+
+    final auth = context.read<AuthProvider>();
+    final success = await auth.signInWithEmail(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+      rememberSession: _rememberSession,
+    );
+
+    if (!mounted || success) return;
+    await showAppAlertDialog(
+      context,
+      type: AppAlertType.error,
+      title: 'No se pudo iniciar sesión',
+      message:
+          auth.error ?? 'Verifica tu correo y contraseña e inténtalo nuevamente.',
+    );
   }
 
   Future<void> _handleGoogleLogin() async {
-    await context.read<AuthProvider>().signInWithGoogle(
-          rememberSession: _rememberSession,
-        );
+    final auth = context.read<AuthProvider>();
+    final success = await auth.signInWithGoogle(
+      rememberSession: _rememberSession,
+    );
+
+    if (!mounted || success) return;
+    await showAppAlertDialog(
+      context,
+      type: AppAlertType.error,
+      title: 'No se pudo iniciar sesión',
+      message:
+          auth.error ?? 'Verifica tu correo y contraseña e inténtalo nuevamente.',
+    );
+  }
+}
+
+class _RememberSessionCard extends StatelessWidget {
+  const _RememberSessionCard({
+    required this.value,
+    required this.onChanged,
+    required this.enabled,
+  });
+
+  final bool value;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
+        color: value
+            ? colorScheme.primary.withValues(alpha: 0.08)
+            : colorScheme.surfaceContainerHighest.withValues(
+                alpha: theme.brightness == Brightness.dark ? 0.22 : 0.40,
+              ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: value
+              ? AppTheme.brand.withValues(alpha: 0.42)
+              : colorScheme.outlineVariant.withValues(alpha: 0.80),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: enabled ? () => onChanged(!value) : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Transform.scale(
+                  scale: 0.94,
+                  child: Switch.adaptive(
+                    value: value,
+                    onChanged: enabled ? onChanged : null,
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: AppTheme.brandViolet,
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: theme.brightness == Brightness.dark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Recordar sesión',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color:
+                              value ? colorScheme.primary : colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Mantiene tu sesión activa en este dispositivo',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.72),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
