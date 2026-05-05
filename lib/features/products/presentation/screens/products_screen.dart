@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
+import 'package:stockmind/features/products/data/services/inventory_export_service.dart';
 import 'package:stockmind/features/products/models/product.dart';
 import 'package:stockmind/features/products/presentation/widgets/product_dialog.dart';
 import 'package:stockmind/features/products/presentation/widgets/product_table.dart';
@@ -14,11 +15,23 @@ class ProductsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<ProductsProvider>();
     final isCompact = MediaQuery.sizeOf(context).width < 860;
+    final exportItems = provider.filteredProducts;
 
     return DashboardFrame(
       title: 'Productos',
-      subtitle: 'Gestiona tu catálogo real por usuario, con filtros y control de stock.',
+      subtitle:
+          'Gestiona tu catálogo real por usuario, con filtros y control de stock.',
       actions: [
+        OutlinedButton.icon(
+          onPressed: exportItems.isEmpty ? null : () => _exportExcel(context),
+          icon: const Icon(Icons.grid_on_rounded),
+          label: const Text('Exportar Excel'),
+        ),
+        FilledButton.tonalIcon(
+          onPressed: exportItems.isEmpty ? null : () => _exportPdf(context),
+          icon: const Icon(Icons.picture_as_pdf_rounded),
+          label: const Text('Exportar PDF'),
+        ),
         FilledButton.icon(
           onPressed: provider.isLoading ? null : () => _openDialog(context),
           icon: const Icon(Icons.add_rounded),
@@ -221,6 +234,47 @@ class ProductsScreen extends StatelessWidget {
 
     if (shouldDelete == true && context.mounted) {
       await context.read<ProductsProvider>().deleteProduct(product.id);
+    }
+  }
+
+  Future<void> _exportExcel(BuildContext context) async {
+    await _runExport(
+      context,
+      () => InventoryExportService().exportProductsToExcel(
+        context.read<ProductsProvider>().filteredProducts,
+      ),
+      successMessage: 'Inventario exportado en Excel.',
+    );
+  }
+
+  Future<void> _exportPdf(BuildContext context) async {
+    await _runExport(
+      context,
+      () => InventoryExportService().exportProductsToPdf(
+        context.read<ProductsProvider>().filteredProducts,
+      ),
+      successMessage: 'Inventario exportado en PDF.',
+    );
+  }
+
+  Future<void> _runExport(
+    BuildContext context,
+    Future<void> Function() action, {
+    required String successMessage,
+  }) async {
+    try {
+      await action();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(successMessage)),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No fue posible exportar el inventario.'),
+        ),
+      );
     }
   }
 }
