@@ -8,6 +8,7 @@ class InventoryLocation {
     required this.type,
     required this.createdAt,
     required this.updatedAt,
+    this.imageUrl,
   });
 
   final String id;
@@ -16,6 +17,7 @@ class InventoryLocation {
   final String type;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? imageUrl;
 
   InventoryLocation copyWith({
     String? id,
@@ -24,6 +26,7 @@ class InventoryLocation {
     String? type,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? imageUrl,
   }) {
     return InventoryLocation(
       id: id ?? this.id,
@@ -32,6 +35,7 @@ class InventoryLocation {
       type: type ?? this.type,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 
@@ -41,6 +45,7 @@ class InventoryLocation {
       'name': name,
       'description': description,
       'type': type,
+      'imageUrl': imageUrl,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -52,6 +57,7 @@ class InventoryLocation {
       'name': name,
       'description': description,
       'type': type,
+      'imageUrl': imageUrl,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -67,6 +73,9 @@ class InventoryLocation {
       type: (data['type'] ?? 'otro') as String,
       createdAt: _toDate(data['createdAt']),
       updatedAt: _toDate(data['updatedAt']),
+      imageUrl: (data['imageUrl'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : data['imageUrl'] as String,
     );
   }
 

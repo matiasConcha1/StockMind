@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
+import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
 import 'package:stockmind/features/locations/presentation/widgets/location_detail_dialog.dart';
@@ -61,7 +62,7 @@ class LocationsScreen extends StatelessWidget {
                 crossAxisCount: crossAxisCount,
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
-                childAspectRatio: width < 760 ? 1.4 : 1.1,
+                childAspectRatio: width < 760 ? 1.28 : 1.06,
               ),
               itemBuilder: (context, index) {
                 final location = provider.locations[index];
@@ -159,6 +160,8 @@ class _LocationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
@@ -169,20 +172,40 @@ class _LocationCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(
-                      _iconForType(location.type),
-                      color: theme.colorScheme.primary,
+                  RemoteImageFrame(
+                    size: 64,
+                    imageUrl: location.imageUrl,
+                    icon: _iconForType(location.type),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(location.name, style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            _capitalize(location.type),
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
                   PopupMenuButton<String>(
                     onSelected: (value) {
                       if (value == 'edit') onEdit();
@@ -196,22 +219,21 @@ class _LocationCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              Text(location.name, style: theme.textTheme.titleLarge),
-              const SizedBox(height: 6),
               Text(
                 location.description.isEmpty
                     ? 'Sin descripción adicional.'
                     : location.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.72),
+                ),
               ),
               const Spacer(),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  _Pill(label: '${_capitalize(location.type)}'),
                   _Pill(label: '$productCount productos'),
                   _Pill(label: '$totalUnits unidades'),
                 ],
