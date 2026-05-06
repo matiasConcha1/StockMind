@@ -1,14 +1,18 @@
 import 'dart:math' as math;
 
+import 'package:barcode_widget/barcode_widget.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
 import 'package:stockmind/features/locations/providers/locations_provider.dart';
+import 'package:stockmind/features/products/helpers/product_code_helper.dart';
 import 'package:stockmind/features/products/helpers/stock_status_helper.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
@@ -47,6 +51,8 @@ class _ProductDialogState extends State<ProductDialog> {
   late final TextEditingController _reasonController;
   final Map<String, TextEditingController> _locationControllers = {};
   DateTime? _expiryDate;
+  late final String _draftBarcode;
+  late final String _draftQrCode;
 
   PickedImageFile? _pickedImage;
   bool _removeExistingImage = false;
@@ -64,6 +70,15 @@ class _ProductDialogState extends State<ProductDialog> {
     );
     _reasonController = TextEditingController();
     _expiryDate = product?.expiryDate;
+    _draftBarcode = (product?.barcode?.trim().isNotEmpty ?? false)
+        ? product!.barcode!.trim()
+        : generateBarcodeValue();
+    _draftQrCode = (product?.qrCode?.trim().isNotEmpty ?? false)
+        ? product!.qrCode!.trim()
+        : generateQrCodeValue(
+            productId: product?.id ?? '',
+            barcode: _draftBarcode,
+          );
   }
 
   @override
@@ -129,6 +144,8 @@ class _ProductDialogState extends State<ProductDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildBasicsSection(context),
+                  const SizedBox(height: 20),
+                  _buildIdentificationSection(context),
                   const SizedBox(height: 20),
                   _buildDistributionSection(
                     context: context,
@@ -472,6 +489,113 @@ class _ProductDialogState extends State<ProductDialog> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildIdentificationSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Identificación del producto',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Cada producto cuenta con un código de barras y un QR para escanearlo rápidamente.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.72),
+            ),
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 640;
+              final codeInfo = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildCodeReadOnlyField(
+                    context,
+                    label: 'Código de barras',
+                    value: _draftBarcode,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildCodeReadOnlyField(
+                    context,
+                    label: 'QR del producto',
+                    value: _draftQrCode,
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      FilledButton.tonalIcon(
+                        onPressed: () => _showQrPreview(context),
+                        icon: const Icon(Icons.qr_code_2_rounded),
+                        label: const Text('Ver QR'),
+                      ),
+                      FilledButton.tonalIcon(
+                        onPressed: () => _showBarcodePreview(context),
+                        icon: const Icon(Icons.view_week_outlined),
+                        label: const Text('Ver código de barras'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _copyCode(context, _draftBarcode),
+                        icon: const Icon(Icons.copy_all_outlined),
+                        label: const Text('Copiar código'),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+
+              if (compact) return codeInfo;
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: codeInfo),
+                  const SizedBox(width: 16),
+                  _CodePreviewRail(
+                    barcodeValue: _draftBarcode,
+                    qrValue: _draftQrCode,
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCodeReadOnlyField(
+    BuildContext context, {
+    required String label,
+    required String value,
+  }) {
+    return TextFormField(
+      initialValue: value,
+      readOnly: true,
+      decoration: InputDecoration(
+        labelText: label,
+        suffixIcon: IconButton(
+          onPressed: () => _copyCode(context, value),
+          icon: const Icon(Icons.copy_rounded),
+        ),
       ),
     );
   }
@@ -871,6 +995,8 @@ class _ProductDialogState extends State<ProductDialog> {
       updatedAt: now,
       imageUrl: _removeExistingImage ? null : widget.product?.imageUrl,
       expiryDate: _expiryDate,
+      barcode: widget.product?.barcode ?? _draftBarcode,
+      qrCode: widget.product?.qrCode ?? _draftQrCode,
     );
 
     Navigator.of(context).pop(
@@ -910,6 +1036,52 @@ class _ProductDialogState extends State<ProductDialog> {
     setState(() {
       _expiryDate = DateTime(picked.year, picked.month, picked.day);
     });
+  }
+
+  Future<void> _copyCode(BuildContext context, String value) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    await showAppAlertDialog(
+      context,
+      type: AppAlertType.success,
+      title: 'Código copiado',
+      message: 'El código fue copiado al portapapeles.',
+    );
+  }
+
+  Future<void> _showQrPreview(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _CodePreviewDialog(
+        title: 'QR del producto',
+        child: QrImageView(
+          data: _draftQrCode,
+          version: QrVersions.auto,
+          size: 220,
+          backgroundColor: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showBarcodePreview(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _CodePreviewDialog(
+        title: 'Código de barras',
+        child: Container(
+          color: Colors.white,
+          padding: const EdgeInsets.all(16),
+          child: BarcodeWidget(
+            barcode: Barcode.code128(),
+            data: _draftBarcode,
+            width: 320,
+            height: 120,
+            drawText: true,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -951,6 +1123,81 @@ class _LocalAwarePreview extends StatelessWidget {
       imageUrl: imageUrl,
       icon: icon,
       borderRadius: BorderRadius.circular(24),
+    );
+  }
+}
+
+class _CodePreviewRail extends StatelessWidget {
+  const _CodePreviewRail({
+    required this.barcodeValue,
+    required this.qrValue,
+  });
+
+  final String barcodeValue;
+  final String qrValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: 180,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(8),
+            child: QrImageView(
+              data: qrValue,
+              version: QrVersions.auto,
+              size: 110,
+              backgroundColor: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            child: BarcodeWidget(
+              barcode: Barcode.code128(),
+              data: barcodeValue,
+              width: 132,
+              height: 56,
+              drawText: false,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CodePreviewDialog extends StatelessWidget {
+  const _CodePreviewDialog({
+    required this.title,
+    required this.child,
+  });
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(title),
+      content: SingleChildScrollView(child: Center(child: child)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cerrar'),
+        ),
+      ],
     );
   }
 }

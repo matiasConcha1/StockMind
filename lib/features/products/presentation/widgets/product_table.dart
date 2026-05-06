@@ -10,12 +10,16 @@ class ProductTable extends StatelessWidget {
     required this.products,
     required this.onEdit,
     required this.onDelete,
+    required this.canEdit,
+    required this.canDelete,
     super.key,
   });
 
   final List<Product> products;
   final ValueChanged<Product> onEdit;
   final ValueChanged<Product> onDelete;
+  final bool canEdit;
+  final bool canDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +50,8 @@ class ProductTable extends StatelessWidget {
                   (product) => _CompactProductCard(
                     product: product,
                     currency: currency,
+                    canEdit: canEdit,
+                    canDelete: canDelete,
                     onEdit: () => onEdit(product),
                     onDelete: () => onDelete(product),
                   ),
@@ -65,6 +71,8 @@ class ProductTable extends StatelessWidget {
                   _DesktopProductRow(
                     product: product,
                     currency: currency,
+                    canEdit: canEdit,
+                    canDelete: canDelete,
                     onEdit: () => onEdit(product),
                     onDelete: () => onDelete(product),
                   ),
@@ -140,12 +148,16 @@ class _DesktopProductRow extends StatefulWidget {
   const _DesktopProductRow({
     required this.product,
     required this.currency,
+    required this.canEdit,
+    required this.canDelete,
     required this.onEdit,
     required this.onDelete,
   });
 
   final Product product;
   final NumberFormat currency;
+  final bool canEdit;
+  final bool canDelete;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -257,24 +269,27 @@ class _DesktopProductRowState extends State<_DesktopProductRow> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    OutlinedButton.icon(
-                      onPressed: widget.onEdit,
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      label: const Text('Editar'),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: widget.onDelete,
-                      icon: Icon(
-                        Icons.delete_outline_rounded,
-                        size: 18,
-                        color: colorScheme.error,
+                    if (widget.canEdit)
+                      OutlinedButton.icon(
+                        onPressed: widget.onEdit,
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        label: const Text('Editar'),
                       ),
-                      label: Text(
-                        'Eliminar',
-                        style: TextStyle(color: colorScheme.error),
+                    if (widget.canEdit && widget.canDelete)
+                      const SizedBox(height: 8),
+                    if (widget.canDelete)
+                      TextButton.icon(
+                        onPressed: widget.onDelete,
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                          color: colorScheme.error,
+                        ),
+                        label: Text(
+                          'Eliminar',
+                          style: TextStyle(color: colorScheme.error),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -290,12 +305,16 @@ class _CompactProductCard extends StatelessWidget {
   const _CompactProductCard({
     required this.product,
     required this.currency,
+    required this.canEdit,
+    required this.canDelete,
     required this.onEdit,
     required this.onDelete,
   });
 
   final Product product;
   final NumberFormat currency;
+  final bool canEdit;
+  final bool canDelete;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -316,25 +335,28 @@ class _CompactProductCard extends StatelessWidget {
               children: [
                 Expanded(child: _ProductIdentity(product: product)),
                 const SizedBox(width: 8),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'edit') onEdit();
-                    if (value == 'delete') onDelete();
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Editar'),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text(
-                        'Eliminar',
-                        style: TextStyle(color: colorScheme.error),
-                      ),
-                    ),
-                  ],
-                ),
+                if (canEdit || canDelete)
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'edit') onEdit();
+                      if (value == 'delete') onDelete();
+                    },
+                    itemBuilder: (context) => [
+                      if (canEdit)
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Text('Editar'),
+                        ),
+                      if (canDelete)
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Text(
+                            'Eliminar',
+                            style: TextStyle(color: colorScheme.error),
+                          ),
+                        ),
+                    ],
+                  ),
               ],
             ),
             const SizedBox(height: 14),

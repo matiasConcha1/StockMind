@@ -46,6 +46,8 @@ class Product {
     required this.updatedAt,
     this.expiryDate,
     this.imageUrl,
+    this.barcode,
+    this.qrCode,
   });
 
   final String id;
@@ -60,6 +62,8 @@ class Product {
   final DateTime updatedAt;
   final DateTime? expiryDate;
   final String? imageUrl;
+  final String? barcode;
+  final String? qrCode;
 
   int get stock => totalStock;
   StockStatusSummary get stockStatus =>
@@ -71,6 +75,8 @@ class Product {
   bool get hasLocationAssignments => locationQuantities.isNotEmpty;
   double get inventoryValue => price * totalStock;
   bool get hasExpiryDate => expiryDate != null;
+  bool get hasBarcode => (barcode?.trim().isNotEmpty ?? false);
+  bool get hasQrCode => (qrCode?.trim().isNotEmpty ?? false);
 
   bool get isExpired =>
       expiryDate != null && _dateOnly(expiryDate!).isBefore(_today);
@@ -98,6 +104,8 @@ class Product {
     DateTime? updatedAt,
     DateTime? expiryDate,
     String? imageUrl,
+    String? barcode,
+    String? qrCode,
   }) {
     return Product(
       id: id ?? this.id,
@@ -112,6 +120,8 @@ class Product {
       updatedAt: updatedAt ?? this.updatedAt,
       expiryDate: expiryDate ?? this.expiryDate,
       imageUrl: imageUrl ?? this.imageUrl,
+      barcode: barcode ?? this.barcode,
+      qrCode: qrCode ?? this.qrCode,
     );
   }
 
@@ -126,8 +136,12 @@ class Product {
       'minStock': minStock,
       'status': stockStatus.code,
       'expiryDate': expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
+      'expirationDate':
+          expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
       'locations': _serializeLocations(locationQuantities),
       'imageUrl': imageUrl,
+      'barcode': barcode,
+      'qrCode': qrCode,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -144,8 +158,12 @@ class Product {
       'minStock': minStock,
       'status': stockStatus.code,
       'expiryDate': expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
+      'expirationDate':
+          expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
       'locations': _serializeLocations(locationQuantities),
       'imageUrl': imageUrl,
+      'barcode': barcode,
+      'qrCode': qrCode,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -185,10 +203,17 @@ class Product {
       locationQuantities: locationQuantities,
       createdAt: _toDate(data['createdAt']),
       updatedAt: _toDate(data['updatedAt']),
-      expiryDate: _toNullableDate(data['expiryDate']),
+      expiryDate:
+          _toNullableDate(data['expirationDate']) ?? _toNullableDate(data['expiryDate']),
       imageUrl: (data['imageUrl'] as String?)?.trim().isEmpty ?? true
           ? null
           : data['imageUrl'] as String,
+      barcode: (data['barcode'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : data['barcode'] as String,
+      qrCode: (data['qrCode'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : data['qrCode'] as String,
     );
   }
 

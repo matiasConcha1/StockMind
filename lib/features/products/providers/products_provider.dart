@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:stockmind/core/services/alert_service.dart';
 import 'package:stockmind/core/services/storage_service.dart';
-import 'package:stockmind/features/alerts/data/services/stock_alert_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/products/data/services/product_service.dart';
 import 'package:stockmind/features/products/models/product.dart';
@@ -15,11 +15,11 @@ class ProductsProvider extends ChangeNotifier {
     required AuthProvider authProvider,
     required ProductService productService,
     required StorageService storageService,
-    required StockAlertService stockAlertService,
+    required AlertService alertService,
   })  : _authProvider = authProvider,
         _productService = productService,
         _storageService = storageService,
-        _stockAlertService = stockAlertService {
+        _alertService = alertService {
     _authProvider.addListener(_handleAuthChanged);
     _handleAuthChanged();
   }
@@ -27,7 +27,7 @@ class ProductsProvider extends ChangeNotifier {
   final AuthProvider _authProvider;
   final ProductService _productService;
   final StorageService _storageService;
-  final StockAlertService _stockAlertService;
+  final AlertService _alertService;
 
   StreamSubscription<List<Product>>? _subscription;
   List<Product> _products = const [];
@@ -189,9 +189,68 @@ class ProductsProvider extends ChangeNotifier {
     }
     await _execute(() async {
       await _productService.deleteProduct(userId, productId);
-      await _stockAlertService.deleteAlertsForProduct(userId, productId);
+      await _alertService.deleteAlertsForProduct(userId, productId);
       await _storageService.deleteImageByUrl(previous?.imageUrl);
     });
+  }
+
+  Future<ProductLookupResult?> findProductByCode(String code) async {
+    final userId = _authProvider.user?.id;
+    if (userId == null) {
+      _error = 'Debes iniciar sesión para escanear productos.';
+      notifyListeners();
+      return null;
+    }
+
+    try {
+      _error = null;
+      notifyListeners();
+      return await _productService.findProductByCode(userId, code);
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint(
+        'ProductsProvider.findProductByCode FirebaseException: code=${error.code} message=${error.message}',
+      );
+      debugPrint('$stackTrace');
+      _error = _mapFirebaseError(error);
+      notifyListeners();
+      return null;
+    } catch (error, stackTrace) {
+      debugPrint('ProductsProvider.findProductByCode error: $error');
+      debugPrint('$stackTrace');
+      _error = 'No fue posible buscar el producto escaneado.';
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<bool> adjustProductStock({
+    required String productId,
+    required String locationId,
+    required String locationName,
+    required int quantity,
+    required bool increase,
+  }) async {
+    final userId = _authProvider.user?.id;
+    if (userId == null) {
+      _error = 'Debes iniciar sesión para actualizar el stock.';
+      notifyListeners();
+      return false;
+    }
+
+    var success = false;
+    await _execute(() async {
+      final result = await _productService.adjustProductStock(
+        userId: userId,
+        productId: productId,
+        locationId: locationId,
+        locationName: locationName,
+        quantity: quantity,
+        increase: increase,
+      );
+      await _syncProductAlertBestEffort(userId, result.product);
+      success = true;
+    });
+    return success && _error == null;
   }
 
   Future<void> _execute(Future<void> Function() action) async {
@@ -222,7 +281,7 @@ class ProductsProvider extends ChangeNotifier {
 
   Future<void> _syncProductAlertBestEffort(String userId, Product product) async {
     try {
-      await _stockAlertService.syncProductAlerts(userId, product);
+      await _alertService.checkProductAlerts(userId: userId, product: product);
     } on FirebaseException catch (error, stackTrace) {
       debugPrint(
         'ProductsProvider._syncProductAlertBestEffort FirebaseException: code=${error.code} message=${error.message}',
@@ -273,7 +332,32 @@ class ProductsProvider extends ChangeNotifier {
 
   Future<void> _syncAlertsForSnapshot(String userId, List<Product> items) async {
     for (final product in items) {
-      await _syncProductAlertBestEffort(userId, product);
+      await _ensureCodesBestEffort(userId, product);
+    }
+    try {
+      await _alertService.checkAllProductAlerts(userId: userId, products: items);
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint(
+        'ProductsProvider._syncAlertsForSnapshot FirebaseException: code=${error.code} message=${error.message}',
+      );
+      debugPrint('$stackTrace');
+    } catch (error, stackTrace) {
+      debugPrint('ProductsProvider._syncAlertsForSnapshot error: $error');
+      debugPrint('$stackTrace');
+    }
+  }
+
+  Future<void> _ensureCodesBestEffort(String userId, Product product) async {
+    try {
+      await _productService.ensureProductCodes(userId, product);
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint(
+        'ProductsProvider._ensureCodesBestEffort FirebaseException: code=${error.code} message=${error.message}',
+      );
+      debugPrint('$stackTrace');
+    } catch (error, stackTrace) {
+      debugPrint('ProductsProvider._ensureCodesBestEffort error: $error');
+      debugPrint('$stackTrace');
     }
   }
 
