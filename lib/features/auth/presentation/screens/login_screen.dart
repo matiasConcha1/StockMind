@@ -7,6 +7,7 @@ import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/stockmind_brand.dart';
 import 'package:stockmind/features/auth/presentation/widgets/auth_shell.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/users/providers/user_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -215,7 +216,11 @@ class _LoginScreenState extends State<LoginScreen> {
       rememberSession: _rememberSession,
     );
 
-    if (!mounted || success) return;
+    if (!mounted) return;
+    if (success) {
+      await context.read<UserProvider>().loadCurrentUser();
+      return;
+    }
     await showAppAlertDialog(
       context,
       type: AppAlertType.error,
@@ -231,7 +236,11 @@ class _LoginScreenState extends State<LoginScreen> {
       rememberSession: _rememberSession,
     );
 
-    if (!mounted || success) return;
+    if (!mounted) return;
+    if (success) {
+      await context.read<UserProvider>().loadCurrentUser();
+      return;
+    }
     await showAppAlertDialog(
       context,
       type: AppAlertType.error,
