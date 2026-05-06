@@ -36,6 +36,36 @@ class AlertService {
     return _stockAlertService.deleteAlertsForProduct(userId, productId);
   }
 
+  Future<void> resolveProductAlerts({
+    required String userId,
+    required String productId,
+    required String resolvedBy,
+  }) async {
+    final activeAlerts =
+        await _stockAlertService.getActiveAlertsForProduct(userId, productId);
+    await _stockAlertService.resolveActiveAlertsForProduct(
+      userId,
+      productId,
+      resolvedBy: resolvedBy,
+    );
+    for (final alert in activeAlerts) {
+      try {
+        await _activityLogService.createLog(
+          userId: userId,
+          action: 'resolve_alert',
+          entityType: 'alert',
+          entityId: alert.id,
+          entityName: alert.productName,
+          description:
+              'Se resolvió la alerta ${alert.type} del producto ${alert.productName}.',
+        );
+      } catch (error, stackTrace) {
+        debugPrint('AlertService.resolveProductAlerts log error: $error');
+        debugPrint('$stackTrace');
+      }
+    }
+  }
+
   Future<void> markAsRead(String userId, String alertId) {
     return _stockAlertService.markAsRead(userId, alertId);
   }
