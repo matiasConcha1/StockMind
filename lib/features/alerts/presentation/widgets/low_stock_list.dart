@@ -11,12 +11,16 @@ class LowStockList extends StatelessWidget {
     required this.alerts,
     this.onMarkAsRead,
     this.onResolve,
+    this.onCreateRequest,
+    this.canCreateRequest,
     super.key,
   });
 
   final List<StockAlert> alerts;
   final ValueChanged<StockAlert>? onMarkAsRead;
   final ValueChanged<StockAlert>? onResolve;
+  final ValueChanged<StockAlert>? onCreateRequest;
+  final bool Function(StockAlert)? canCreateRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +51,8 @@ class LowStockList extends StatelessWidget {
                 alert: entry.value,
                 onMarkAsRead: onMarkAsRead,
                 onResolve: onResolve,
+                onCreateRequest: onCreateRequest,
+                canCreateRequest: canCreateRequest,
               ).animate().fadeIn(
                     duration: 260.ms,
                     delay: (entry.key * 40).ms,
@@ -63,11 +69,15 @@ class _AlertTile extends StatelessWidget {
     required this.alert,
     this.onMarkAsRead,
     this.onResolve,
+    this.onCreateRequest,
+    this.canCreateRequest,
   });
 
   final StockAlert alert;
   final ValueChanged<StockAlert>? onMarkAsRead;
   final ValueChanged<StockAlert>? onResolve;
+  final ValueChanged<StockAlert>? onCreateRequest;
+  final bool Function(StockAlert)? canCreateRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -95,6 +105,8 @@ class _AlertTile extends StatelessWidget {
             status: status,
             onMarkAsRead: onMarkAsRead,
             onResolve: onResolve,
+            onCreateRequest: onCreateRequest,
+            canCreateRequest: canCreateRequest,
           );
 
           if (stacked) {
@@ -260,6 +272,8 @@ class _AlertActions extends StatelessWidget {
     required this.status,
     this.onMarkAsRead,
     this.onResolve,
+    this.onCreateRequest,
+    this.canCreateRequest,
   });
 
   final StockAlert alert;
@@ -267,6 +281,8 @@ class _AlertActions extends StatelessWidget {
   final StockStatusSummary status;
   final ValueChanged<StockAlert>? onMarkAsRead;
   final ValueChanged<StockAlert>? onResolve;
+  final ValueChanged<StockAlert>? onCreateRequest;
+  final bool Function(StockAlert)? canCreateRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -284,6 +300,14 @@ class _AlertActions extends StatelessWidget {
           TextButton(
             onPressed: () => onMarkAsRead!(alert),
             child: const Text('Marcar leida'),
+          ),
+        if (alert.isActive &&
+            alert.isLowStock &&
+            onCreateRequest != null &&
+            (canCreateRequest?.call(alert) ?? true))
+          TextButton(
+            onPressed: () => onCreateRequest!(alert),
+            child: const Text('Crear solicitud de reposición'),
           ),
         if (alert.isActive && onResolve != null)
           FilledButton.tonal(

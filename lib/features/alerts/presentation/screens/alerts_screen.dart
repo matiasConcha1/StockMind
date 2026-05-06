@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/core/services/report_export_service.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
+import 'package:stockmind/core/widgets/export_feedback.dart';
 import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
+import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
+import 'package:stockmind/features/replenishment/presentation/widgets/stock_request_dialog.dart';
+import 'package:stockmind/features/replenishment/providers/stock_requests_provider.dart';
 
 class AlertsScreen extends StatelessWidget {
   const AlertsScreen({super.key});
@@ -12,6 +17,8 @@ class AlertsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AlertsProvider>();
+    final auth = context.watch<AuthProvider>();
+    final requestsProvider = context.watch<StockRequestsProvider>();
     final width = MediaQuery.sizeOf(context).width;
     final isSmallPhone = width < 480;
     final isMobile = width < 760;
@@ -46,6 +53,13 @@ class AlertsScreen extends StatelessWidget {
 
     return DashboardFrame(
       title: 'Alertas',
+      actions: [
+        FilledButton.tonalIcon(
+          onPressed: () => _exportAlerts(context, provider, auth),
+          icon: const Icon(Icons.download_rounded),
+          label: const Text('Exportar'),
+        ),
+      ],
       subtitle:
           'Supervisa incidencias de stock y vencimiento en tiempo real, con resolución auditada y filtros operativos.',
       child: Column(
@@ -130,6 +144,17 @@ class AlertsScreen extends StatelessWidget {
               alerts: provider.visibleAlerts,
               onMarkAsRead: (alert) => provider.markAsRead(alert.id),
               onResolve: (alert) => provider.resolveAlert(alert.id),
+              onCreateRequest: (alert) {
+                if (requestsProvider.hasPendingRequestForProduct(alert.productId)) {
+                  return;
+                }
+                showStockRequestDialog(
+                  context,
+                  initialProductId: alert.productId,
+                );
+              },
+              canCreateRequest: (alert) =>
+                  !requestsProvider.hasPendingRequestForProduct(alert.productId),
             ),
         ],
       ),
@@ -145,6 +170,25 @@ class AlertsScreen extends StatelessWidget {
       AlertsFilter.active => 'Activas',
       AlertsFilter.resolved => 'Resueltas',
     };
+  }
+
+  Future<void> _exportAlerts(
+    BuildContext context,
+    AlertsProvider provider,
+    AuthProvider auth,
+  ) async {
+    await runExportTask(
+      context: context,
+      hasData: provider.visibleAlerts.isNotEmpty,
+      noDataTitle: 'No hay alertas para exportar',
+      noDataMessage:
+          'Ajusta los filtros o espera nuevas incidencias antes de exportar.',
+      successMessage: 'Las alertas fueron descargadas correctamente.',
+      task: () => ReportExportService().exportAlertsCsv(
+        alerts: provider.visibleAlerts,
+        userName: auth.user?.displayName ?? auth.user?.email,
+      ),
+    );
   }
 }
 
