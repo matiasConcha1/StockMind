@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
@@ -8,6 +9,46 @@ import 'package:stockmind/core/utils/web_file_downloader.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
 class InventoryExportService {
+  Future<void> exportProductsToCsv(List<Product> products) async {
+    final buffer = StringBuffer();
+    buffer.writeln(_csvRow(const [
+      'Nombre del producto',
+      'Categoria',
+      'Precio',
+      'Stock total',
+      'Stock minimo',
+      'Estado de stock',
+      'Ubicaciones',
+      'Fecha de vencimiento',
+      'Fecha de creacion',
+      'Fecha de actualizacion',
+    ]));
+
+    for (final product in products) {
+      buffer.writeln(
+        _csvRow([
+          product.name,
+          product.category,
+          product.price.toStringAsFixed(2),
+          product.totalStock.toString(),
+          product.minStock.toString(),
+          product.stockStatus.label,
+          _locationsSummary(product),
+          _formatDate(product.expiryDate),
+          _formatDate(product.createdAt),
+          _formatDate(product.updatedAt),
+        ]),
+      );
+    }
+
+    final bytes = Uint8List.fromList(utf8.encode(buffer.toString()));
+    WebFileDownloader.downloadBytes(
+      bytes: bytes,
+      fileName: _csvFileName(),
+      mimeType: 'text/csv;charset=utf-8',
+    );
+  }
+
   Future<void> exportProductsToExcel(List<Product> products) async {
     final excel = Excel.createExcel();
     final defaultSheetName = excel.getDefaultSheet();
@@ -143,6 +184,24 @@ class InventoryExportService {
       symbol: '\$',
       decimalDigits: 0,
     ).format(value);
+  }
+
+  String _formatDate(DateTime? value) {
+    if (value == null) {
+      return '';
+    }
+    return DateFormat('yyyy-MM-dd HH:mm').format(value);
+  }
+
+  String _csvRow(List<String> values) {
+    return values
+        .map((value) => '"${value.replaceAll('"', '""')}"')
+        .join(',');
+  }
+
+  String _csvFileName() {
+    final stamp = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    return 'stockmind_inventario_$stamp.csv';
   }
 
   String _fileName({

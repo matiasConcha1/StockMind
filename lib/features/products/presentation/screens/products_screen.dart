@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
+import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/products/data/services/inventory_export_service.dart';
 import 'package:stockmind/features/products/models/product.dart';
@@ -16,6 +19,7 @@ class ProductsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProductsProvider>();
+    final auth = context.watch<AuthProvider>();
     final exportItems = provider.filteredProducts;
 
     return DashboardFrame(
@@ -34,14 +38,22 @@ class ProductsScreen extends StatelessWidget {
           label: const Text('Exportar PDF'),
         ),
         FilledButton.icon(
-          onPressed: provider.isLoading ? null : () => _openDialog(context),
+          onPressed: provider.isLoading || !auth.canEdit
+              ? null
+              : () => _openDialog(context),
           icon: const Icon(Icons.add_rounded),
           label: const Text('Nuevo producto'),
+        ),
+        FilledButton.tonalIcon(
+          onPressed: auth.canEdit ? () => context.go(AppRoutePaths.scan) : null,
+          icon: const Icon(Icons.qr_code_scanner_rounded),
+          label: const Text('Escanear'),
         ),
       ],
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compactFilters = constraints.maxWidth < 1080;
+          final useStackedFilters = constraints.maxWidth < 860;
 
           return Column(
             children: [
@@ -52,8 +64,9 @@ class ProductsScreen extends StatelessWidget {
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(20),
-                  child: compactFilters
+                  child: useStackedFilters
                       ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             TextField(
                               onChanged: provider.updateSearchQuery,
@@ -87,34 +100,62 @@ class ProductsScreen extends StatelessWidget {
                               onChanged: provider.updateCategoryFilter,
                             ),
                             const SizedBox(height: 14),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: SegmentedButton<ProductFilter>(
-                                  segments: const [
-                                    ButtonSegment(
-                                      value: ProductFilter.all,
-                                      label: Text('Todos'),
-                                    ),
-                                    ButtonSegment(
-                                      value: ProductFilter.atRisk,
-                                      label: Text('En riesgo'),
-                                    ),
-                                    ButtonSegment(
-                                      value: ProductFilter.healthy,
-                                      label: Text('Saludable'),
-                                    ),
-                                  ],
-                                  selected: {provider.productFilter},
-                                  onSelectionChanged: (value) {
-                                    provider.updateProductFilter(value.first);
-                                  },
-                                ),
-                              ),
-                            ),
+                            _FilterSelector(provider: provider),
                           ],
                         )
+                      : compactFilters
+                          ? Column(
+                              children: [
+                                TextField(
+                                  onChanged: provider.updateSearchQuery,
+                                  decoration: const InputDecoration(
+                                    hintText:
+                                        'Buscar por nombre, categoria o estado',
+                                    prefixIcon: Icon(Icons.search_rounded),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: DropdownButtonFormField<String?>(
+                                        initialValue: provider.categoryFilter,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Categoria',
+                                          prefixIcon:
+                                              Icon(Icons.category_outlined),
+                                        ),
+                                        items: [
+                                          const DropdownMenuItem<String?>(
+                                            value: null,
+                                            child: Text('Todas'),
+                                          ),
+                                          ...provider.categories.map(
+                                            (category) =>
+                                                DropdownMenuItem<String?>(
+                                              value: category,
+                                              child: Text(
+                                                category,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        onChanged: provider.updateCategoryFilter,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: _FilterSelector(provider: provider),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            )
                       : Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -156,32 +197,11 @@ class ProductsScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 14),
-                            Flexible(
+                            Expanded(
+                              flex: 3,
                               child: Align(
-                                alignment: Alignment.centerRight,
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: SegmentedButton<ProductFilter>(
-                                    segments: const [
-                                      ButtonSegment(
-                                        value: ProductFilter.all,
-                                        label: Text('Todos'),
-                                      ),
-                                      ButtonSegment(
-                                        value: ProductFilter.atRisk,
-                                        label: Text('En riesgo'),
-                                      ),
-                                      ButtonSegment(
-                                        value: ProductFilter.healthy,
-                                        label: Text('Saludable'),
-                                      ),
-                                    ],
-                                    selected: {provider.productFilter},
-                                    onSelectionChanged: (value) {
-                                      provider.updateProductFilter(value.first);
-                                    },
-                                  ),
-                                ),
+                                alignment: Alignment.centerLeft,
+                                child: _FilterSelector(provider: provider),
                               ),
                             ),
                           ],
@@ -223,6 +243,8 @@ class ProductsScreen extends StatelessWidget {
                   children: [
                     ProductTable(
                       products: provider.filteredProducts,
+                      canEdit: auth.canEdit,
+                      canDelete: auth.canDelete,
                       onEdit: (product) => _openDialog(context, product: product),
                       onDelete: (product) => _confirmDelete(context, product),
                     ),
@@ -295,9 +317,9 @@ class ProductsScreen extends StatelessWidget {
   Future<void> _confirmDelete(BuildContext context, Product product) async {
     final shouldDelete = await showAppConfirmDialog(
       context,
-      title: 'Eliminar producto?',
+      title: '¿Eliminar producto?',
       message:
-          'Esta accion eliminara el producto del inventario y no se puede deshacer.',
+          'El producto se archivará y dejará de aparecer en el inventario. Esta acción quedará registrada en el historial.',
       confirmLabel: 'Eliminar',
       cancelLabel: 'Cancelar',
     );
@@ -310,10 +332,10 @@ class ProductsScreen extends StatelessWidget {
       context,
       type: provider.error == null ? AppAlertType.success : AppAlertType.error,
       title: provider.error == null
-          ? 'Producto eliminado'
+          ? 'Producto archivado'
           : 'No se pudo eliminar el producto',
       message: provider.error == null
-          ? 'El producto fue eliminado correctamente.'
+          ? 'El producto fue archivado correctamente y ya no aparece en el inventario.'
           : provider.error!,
     );
   }
@@ -363,6 +385,90 @@ class ProductsScreen extends StatelessWidget {
             : 'No pudimos completar la exportacion. Intentalo nuevamente.',
       );
     }
+  }
+}
+
+class _FilterSelector extends StatelessWidget {
+  const _FilterSelector({
+    required this.provider,
+  });
+
+  final ProductsProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        _FilterChipButton(
+          label: 'Todos',
+          selected: provider.productFilter == ProductFilter.all,
+          onTap: () => provider.updateProductFilter(ProductFilter.all),
+        ),
+        _FilterChipButton(
+          label: 'En riesgo',
+          selected: provider.productFilter == ProductFilter.atRisk,
+          onTap: () => provider.updateProductFilter(ProductFilter.atRisk),
+        ),
+        _FilterChipButton(
+          label: 'Saludable',
+          selected: provider.productFilter == ProductFilter.healthy,
+          onTap: () => provider.updateProductFilter(ProductFilter.healthy),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterChipButton extends StatelessWidget {
+  const _FilterChipButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? colorScheme.primary.withValues(alpha: 0.16)
+                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected
+                  ? colorScheme.primary.withValues(alpha: 0.45)
+                  : colorScheme.outlineVariant,
+            ),
+          ),
+          child: Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: selected
+                  ? colorScheme.primary
+                  : colorScheme.onSurface.withValues(alpha: 0.82),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

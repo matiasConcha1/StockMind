@@ -13,9 +13,17 @@ class StockStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = product.stockStatus;
     final colorScheme = Theme.of(context).colorScheme;
-    final foreground = status.foregroundColor(colorScheme);
+    final status = product.stockStatus;
+    final isExpired = product.isExpired;
+    final foreground = isExpired
+        ? colorScheme.error
+        : status.foregroundColor(colorScheme);
+    final background = isExpired
+        ? colorScheme.error.withValues(alpha: 0.12)
+        : status.backgroundColor(colorScheme);
+    final icon = isExpired ? Icons.event_busy_outlined : status.icon;
+    final label = isExpired ? 'Vencido' : status.label;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -23,17 +31,17 @@ class StockStatusBadge extends StatelessWidget {
         vertical: compact ? 7 : 8,
       ),
       decoration: BoxDecoration(
-        color: status.backgroundColor(colorScheme),
+        color: background,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: foreground.withValues(alpha: 0.12)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(status.icon, size: compact ? 14 : 16, color: foreground),
+          Icon(icon, size: compact ? 14 : 16, color: foreground),
           const SizedBox(width: 6),
           Text(
-            status.label,
+            label,
             style: TextStyle(
               color: foreground,
               fontWeight: FontWeight.w700,

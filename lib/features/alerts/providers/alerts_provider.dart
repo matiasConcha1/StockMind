@@ -1,30 +1,31 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:stockmind/core/services/alert_service.dart';
 import 'package:stockmind/features/alerts/data/models/stock_alert.dart';
-import 'package:stockmind/features/alerts/data/services/stock_alert_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
 enum AlertsFilter {
   all,
-  critical,
-  high,
-  medium,
+  lowStock,
+  expiringSoon,
+  expired,
+  active,
   resolved,
 }
 
 class AlertsProvider extends ChangeNotifier {
   AlertsProvider({
     required AuthProvider authProvider,
-    required StockAlertService stockAlertService,
+    required AlertService alertService,
   })  : _authProvider = authProvider,
-        _stockAlertService = stockAlertService {
+        _alertService = alertService {
     _authProvider.addListener(_handleAuthChanged);
     _handleAuthChanged();
   }
 
   final AuthProvider _authProvider;
-  final StockAlertService _stockAlertService;
+  final AlertService _alertService;
 
   StreamSubscription<List<StockAlert>>? _subscription;
   List<StockAlert> _alerts = const [];
@@ -42,12 +43,14 @@ class AlertsProvider extends ChangeNotifier {
   List<StockAlert> get visibleAlerts {
     return switch (_filter) {
       AlertsFilter.all => _alerts,
-      AlertsFilter.critical =>
-        _alerts.where((alert) => alert.isActive && alert.isCritical).toList(),
-      AlertsFilter.high =>
-        _alerts.where((alert) => alert.isActive && alert.isHigh).toList(),
-      AlertsFilter.medium =>
-        _alerts.where((alert) => alert.isActive && alert.isMedium).toList(),
+      AlertsFilter.lowStock =>
+        _alerts.where((alert) => alert.isActive && alert.isLowStock).toList(),
+      AlertsFilter.expiringSoon =>
+        _alerts.where((alert) => alert.isActive && alert.isExpiringSoon).toList(),
+      AlertsFilter.expired =>
+        _alerts.where((alert) => alert.isActive && alert.isExpired).toList(),
+      AlertsFilter.active =>
+        _alerts.where((alert) => alert.isActive).toList(),
       AlertsFilter.resolved =>
         _alerts.where((alert) => alert.isResolved).toList(),
     };
@@ -57,11 +60,12 @@ class AlertsProvider extends ChangeNotifier {
       _alerts.where((alert) => alert.isActive).toList();
 
   int get activeAlertsCount => activeAlerts.length;
-  int get criticalAlertsCount =>
-      activeAlerts.where((alert) => alert.isCritical).length;
-  int get highAlertsCount => activeAlerts.where((alert) => alert.isHigh).length;
-  int get mediumAlertsCount =>
-      activeAlerts.where((alert) => alert.isMedium).length;
+  int get lowStockAlertsCount =>
+      activeAlerts.where((alert) => alert.isLowStock).length;
+  int get expiringSoonAlertsCount =>
+      activeAlerts.where((alert) => alert.isExpiringSoon).length;
+  int get expiredAlertsCount =>
+      activeAlerts.where((alert) => alert.isExpired).length;
   int get resolvedAlertsCount =>
       _alerts.where((alert) => alert.isResolved).length;
   int get unreadAlertsCount =>
@@ -75,13 +79,19 @@ class AlertsProvider extends ChangeNotifier {
   Future<void> markAsRead(String alertId) async {
     final userId = _authProvider.user?.id;
     if (userId == null) return;
-    await _runAction(() => _stockAlertService.markAsRead(userId, alertId));
+    await _runAction(() => _alertService.markAsRead(userId, alertId));
   }
 
   Future<void> resolveAlert(String alertId) async {
     final userId = _authProvider.user?.id;
     if (userId == null) return;
-    await _runAction(() => _stockAlertService.resolveAlert(userId, alertId));
+    await _runAction(
+      () => _alertService.resolveAlert(
+        userId: userId,
+        alertId: alertId,
+        resolvedBy: userId,
+      ),
+    );
   }
 
   Future<void> _runAction(Future<void> Function() action) async {
@@ -109,7 +119,7 @@ class AlertsProvider extends ChangeNotifier {
 
     _loading = true;
     notifyListeners();
-    _subscription = _stockAlertService.watchAlerts(userId).listen(
+    _subscription = _alertService.watchAlerts(userId).listen(
       (items) {
         _alerts = items;
         _loading = false;

@@ -125,41 +125,30 @@ class _AlertTile extends StatelessWidget {
 
   StockStatusSummary _statusForAlert(StockAlert alert) {
     switch (alert.type) {
-      case 'sin_stock':
-        return resolveStockStatus(stockActual: 0, stockMinimo: 0);
-      case 'bajo_stock':
-        return resolveStockStatus(stockActual: 2, stockMinimo: 0);
-      case 'stock_medio':
-        return resolveStockStatus(stockActual: 8, stockMinimo: 0);
-      case 'producto_vencido':
+      case 'low_stock':
+        return resolveStockStatus(
+          stockActual: alert.currentStock,
+          stockMinimo: alert.minStock,
+        );
+      case 'expired':
         return const StockStatusSummary(
           level: StockStatusLevel.sinStock,
-          code: 'producto_vencido',
+          code: 'expired',
           label: 'Vencido',
           message: 'Este producto ya venció.',
           alertTitle: 'Producto vencido',
-          severity: 'critical',
+          severity: 'high',
           priority: 1,
         );
-      case 'vence_pronto':
+      case 'expiring_soon':
         return const StockStatusSummary(
           level: StockStatusLevel.bajoStock,
-          code: 'vence_pronto',
+          code: 'expiring_soon',
           label: 'Vence pronto',
           message: 'Este producto vence pronto.',
           alertTitle: 'Este producto vence pronto',
-          severity: 'high',
-          priority: 2,
-        );
-      case 'vencimiento_warning':
-        return const StockStatusSummary(
-          level: StockStatusLevel.stockMedio,
-          code: 'vencimiento_warning',
-          label: 'Próximo a vencer',
-          message: 'Este producto vencerá en los próximos 15 días.',
-          alertTitle: 'Vencimiento próximo',
           severity: 'medium',
-          priority: 3,
+          priority: 2,
         );
       default:
         return resolveStockStatus(stockActual: 20, stockMinimo: 0);
@@ -248,7 +237,7 @@ class _AlertBody extends StatelessWidget {
                         : Icons.flag_outlined,
                     label: alert.isExpiryAlert && alert.expiryDate != null
                         ? DateFormat('dd/MM/yyyy').format(alert.expiryDate!)
-                        : 'Mínimo ${alert.minStock}',
+                        : 'Minimo ${alert.minStock}',
                   ),
                   _MetaPill(
                     icon: Icons.schedule_rounded,
@@ -294,7 +283,7 @@ class _AlertActions extends StatelessWidget {
         if (!alert.isRead && onMarkAsRead != null)
           TextButton(
             onPressed: () => onMarkAsRead!(alert),
-            child: const Text('Marcar leída'),
+            child: const Text('Marcar leida'),
           ),
         if (alert.isActive && onResolve != null)
           FilledButton.tonal(

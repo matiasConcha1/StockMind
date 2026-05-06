@@ -4,6 +4,7 @@ import 'package:stockmind/features/products/models/product.dart';
 class DashboardSnapshot {
   const DashboardSnapshot({
     required this.totalProducts,
+    required this.totalLocations,
     required this.totalUnits,
     required this.outOfStockProducts,
     required this.lowStockProducts,
@@ -17,10 +18,12 @@ class DashboardSnapshot {
     required this.totalInventoryValue,
     required this.topCategories,
     required this.lowestStockProducts,
+    required this.recentlyUpdatedProducts,
     required this.recentMovements,
   });
 
   final int totalProducts;
+  final int totalLocations;
   final int totalUnits;
   final int outOfStockProducts;
   final int lowStockProducts;
@@ -34,6 +37,7 @@ class DashboardSnapshot {
   final double totalInventoryValue;
   final List<CategorySlice> topCategories;
   final List<Product> lowestStockProducts;
+  final List<Product> recentlyUpdatedProducts;
   final List<StockMovement> recentMovements;
 
   double get stockHealthScore {

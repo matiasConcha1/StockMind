@@ -7,6 +7,7 @@ import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/sidebar_item.dart';
 import 'package:stockmind/core/widgets/stockmind_brand.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/users/providers/user_provider.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({
@@ -19,19 +20,147 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isCompact = MediaQuery.sizeOf(context).width < 1000;
-    final user = context.watch<AuthProvider>().user;
+    final width = MediaQuery.of(context).size.width;
+    final isMobile = width < 768;
+    final authUser = context.watch<AuthProvider>().user;
+    final userProvider = context.watch<UserProvider>();
+    final user = userProvider.currentUser ?? authUser;
 
-    final destinations = const [
-      _ShellDestination(label: 'Dashboard', icon: Icons.dashboard_rounded),
-      _ShellDestination(label: 'Productos', icon: Icons.inventory_2_outlined),
-      _ShellDestination(label: 'Alertas', icon: Icons.warning_amber_rounded),
-      _ShellDestination(label: 'Ubicaciones', icon: Icons.location_on_outlined),
-      _ShellDestination(label: 'Configuración', icon: Icons.settings_outlined),
+    final destinations = [
+      const _ShellDestination(
+        branchIndex: 0,
+        label: 'Dashboard',
+        mobileLabel: 'Inicio',
+        icon: Icons.dashboard_rounded,
+      ),
+      const _ShellDestination(
+        branchIndex: 1,
+        label: 'Productos',
+        mobileLabel: 'Productos',
+        icon: Icons.inventory_2_outlined,
+      ),
+      const _ShellDestination(
+        branchIndex: 2,
+        label: 'Alertas',
+        mobileLabel: 'Alertas',
+        icon: Icons.warning_amber_rounded,
+      ),
+      const _ShellDestination(
+        branchIndex: 3,
+        label: 'Ubicaciones',
+        mobileLabel: 'Ubic.',
+        icon: Icons.location_on_outlined,
+      ),
+      const _ShellDestination(
+        branchIndex: 4,
+        label: 'Configuración',
+        mobileLabel: 'Ajustes',
+        icon: Icons.settings_outlined,
+      ),
     ];
 
-    final sidebar = Container(
-      width: 308,
+    final sidebar = _DesktopSidebar(
+      width: width < 1040 ? 278 : 308,
+      destinations: destinations,
+      navigationShell: navigationShell,
+      user: user,
+    );
+
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              theme.scaffoldBackgroundColor,
+              theme.brightness == Brightness.dark
+                  ? const Color(0xFF050C17)
+                  : const Color(0xFFF1F4FF),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SafeArea(
+          child: Row(
+            children: [
+              if (!isMobile) sidebar,
+              Expanded(
+                child: Padding(
+                  padding: isMobile
+                      ? EdgeInsets.zero
+                      : const EdgeInsets.fromLTRB(0, 18, 18, 18),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(isMobile ? 0 : 32),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.brightness == Brightness.dark
+                                ? const Color(0xFF0A1324)
+                                : Colors.white,
+                            theme.brightness == Brightness.dark
+                                ? const Color(0xFF0C162A)
+                                : const Color(0xFFF8FBFF),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: navigationShell,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: isMobile
+          ? SafeArea(
+              top: false,
+              child: NavigationBar(
+                selectedIndex: _selectedNavIndex(
+                  destinations,
+                  navigationShell.currentIndex,
+                ),
+                onDestinationSelected: (index) =>
+                    navigationShell.goBranch(destinations[index].branchIndex),
+                height: 72,
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                destinations: destinations
+                    .map(
+                      (item) => NavigationDestination(
+                        icon: Icon(item.icon),
+                        label: item.mobileLabel ?? item.label,
+                      ),
+                    )
+                    .toList(),
+              ),
+            )
+          : null,
+    );
+  }
+}
+
+class _DesktopSidebar extends StatelessWidget {
+  const _DesktopSidebar({
+    required this.width,
+    required this.destinations,
+    required this.navigationShell,
+    required this.user,
+  });
+
+  final double width;
+  final List<_ShellDestination> destinations;
+  final StatefulNavigationShell navigationShell;
+  final dynamic user;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: width,
       margin: const EdgeInsets.all(18),
       child: Column(
         children: [
@@ -56,12 +185,14 @@ class AppShell extends StatelessWidget {
                 children: [
                   const _BrandBlock(),
                   const SizedBox(height: 24),
-                  for (var index = 0; index < destinations.length; index++) ...[
+                  for (final destination in destinations) ...[
                     SidebarItem(
-                      label: destinations[index].label,
-                      icon: destinations[index].icon,
-                      selected: navigationShell.currentIndex == index,
-                      onTap: () => navigationShell.goBranch(index),
+                      label: destination.label,
+                      icon: destination.icon,
+                      selected:
+                          navigationShell.currentIndex == destination.branchIndex,
+                      onTap: () =>
+                          navigationShell.goBranch(destination.branchIndex),
                     ),
                     const SizedBox(height: 8),
                   ],
@@ -86,12 +217,10 @@ class AppShell extends StatelessWidget {
                 CircleAvatar(
                   radius: 24,
                   backgroundColor: AppTheme.brand.withValues(alpha: 0.12),
-                  foregroundImage:
-                      user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
-                  child: Text(
-                    (user?.displayName.isNotEmpty ?? false)
-                        ? user!.displayName.characters.first.toUpperCase()
-                        : 'S',
+                        foregroundImage:
+                      user?.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
+                        child: Text(
+                    _buildUserInitial(user?.displayName),
                     style: const TextStyle(color: AppTheme.brand),
                   ),
                 ),
@@ -122,72 +251,6 @@ class AppShell extends StatelessWidget {
         ],
       ),
     );
-
-    return Scaffold(
-      drawer: isCompact ? Drawer(child: SafeArea(child: sidebar)) : null,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              theme.scaffoldBackgroundColor,
-              theme.brightness == Brightness.dark
-                  ? const Color(0xFF050C17)
-                  : const Color(0xFFF1F4FF),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              if (!isCompact) sidebar,
-              Expanded(
-                child: Padding(
-                  padding: isCompact
-                      ? EdgeInsets.zero
-                      : const EdgeInsets.fromLTRB(0, 18, 18, 18),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(isCompact ? 0 : 32),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            theme.brightness == Brightness.dark
-                                ? const Color(0xFF0A1324)
-                                : Colors.white,
-                            theme.brightness == Brightness.dark
-                                ? const Color(0xFF0C162A)
-                                : const Color(0xFFF8FBFF),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: navigationShell,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: isCompact
-          ? NavigationBar(
-              selectedIndex: navigationShell.currentIndex,
-              onDestinationSelected: (index) => navigationShell.goBranch(index),
-              destinations: destinations
-                  .map(
-                    (item) => NavigationDestination(
-                      icon: Icon(item.icon),
-                      label: item.label,
-                    ),
-                  )
-                  .toList(),
-            )
-          : null,
-    );
   }
 }
 
@@ -197,6 +260,7 @@ class _BrandBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -225,16 +289,24 @@ class _BrandBlock extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'StockMind',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'StockMind',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Inventory SaaS',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: Colors.white.withValues(alpha: 0.82),
                   ),
@@ -250,12 +322,16 @@ class _BrandBlock extends StatelessWidget {
 
 class _ShellDestination {
   const _ShellDestination({
+    required this.branchIndex,
     required this.label,
     required this.icon,
+    this.mobileLabel,
   });
 
+  final int branchIndex;
   final String label;
   final IconData icon;
+  final String? mobileLabel;
 }
 
 Future<void> _handleSidebarSignOut(BuildContext context) async {
@@ -270,6 +346,9 @@ Future<void> _handleSidebarSignOut(BuildContext context) async {
 
   final auth = context.read<AuthProvider>();
   await auth.signOut();
+  if (context.mounted) {
+    context.read<UserProvider>().clear();
+  }
   if (!context.mounted || auth.error == null) return;
   await showAppAlertDialog(
     context,
@@ -277,4 +356,22 @@ Future<void> _handleSidebarSignOut(BuildContext context) async {
     title: 'No se pudo cerrar sesión',
     message: auth.error!,
   );
+}
+
+int _selectedNavIndex(
+  List<_ShellDestination> destinations,
+  int branchIndex,
+) {
+  final visibleIndex = destinations.indexWhere(
+    (destination) => destination.branchIndex == branchIndex,
+  );
+  return visibleIndex == -1 ? 0 : visibleIndex;
+}
+
+String _buildUserInitial(String? value) {
+  final clean = value?.trim() ?? '';
+  if (clean.isEmpty) {
+    return 'S';
+  }
+  return clean.substring(0, 1).toUpperCase();
 }

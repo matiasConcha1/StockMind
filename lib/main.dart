@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/app.dart';
+import 'package:stockmind/core/services/alert_service.dart';
+import 'package:stockmind/core/services/notification_service.dart';
 import 'package:stockmind/core/theme/theme_provider.dart';
 import 'package:stockmind/core/utils/firebase_bootstrap.dart';
 import 'package:stockmind/core/services/storage_service.dart';
@@ -15,6 +17,7 @@ import 'package:stockmind/features/locations/data/services/location_service.dart
 import 'package:stockmind/features/locations/providers/locations_provider.dart';
 import 'package:stockmind/features/products/data/services/product_service.dart';
 import 'package:stockmind/features/products/providers/products_provider.dart';
+import 'package:stockmind/features/users/providers/user_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,11 +43,14 @@ Future<void> main() async {
   final storageService = StorageService();
   final stockAlertService = StockAlertService();
   final authProvider = AuthProvider(AuthService())..start();
+  final alertService = AlertService(stockAlertService: stockAlertService);
+  final userProvider = UserProvider(authProvider: authProvider);
+  final notificationService = NotificationService(authProvider: authProvider);
   final productsProvider = ProductsProvider(
     authProvider: authProvider,
     productService: ProductService(),
     storageService: storageService,
-    stockAlertService: stockAlertService,
+    alertService: alertService,
   );
   final locationsProvider = LocationsProvider(
     authProvider: authProvider,
@@ -54,11 +60,12 @@ Future<void> main() async {
   );
   final alertsProvider = AlertsProvider(
     authProvider: authProvider,
-    stockAlertService: stockAlertService,
+    alertService: alertService,
   );
   final dashboardProvider = DashboardProvider(
     authProvider: authProvider,
     productsProvider: productsProvider,
+    locationsProvider: locationsProvider,
     alertsProvider: alertsProvider,
     stockService: StockService(),
     stockMovementService: StockMovementService(),
@@ -70,7 +77,12 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider<ThemeProvider>(create: (_) => themeProvider),
         Provider<StorageService>.value(value: storageService),
+        Provider<AlertService>.value(value: alertService),
         ChangeNotifierProvider<AuthProvider>(create: (_) => authProvider),
+        ChangeNotifierProvider<UserProvider>(create: (_) => userProvider),
+        ChangeNotifierProvider<NotificationService>.value(
+          value: notificationService,
+        ),
         ChangeNotifierProvider<ProductsProvider>(create: (_) => productsProvider),
         ChangeNotifierProvider<LocationsProvider>(create: (_) => locationsProvider),
         ChangeNotifierProvider<AlertsProvider>(create: (_) => alertsProvider),

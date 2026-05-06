@@ -46,6 +46,12 @@ class Product {
     required this.updatedAt,
     this.expiryDate,
     this.imageUrl,
+    this.barcode,
+    this.qrCode,
+    this.isDeleted = false,
+    this.deletedAt,
+    this.deletedBy,
+    this.deleteReason,
   });
 
   final String id;
@@ -60,6 +66,12 @@ class Product {
   final DateTime updatedAt;
   final DateTime? expiryDate;
   final String? imageUrl;
+  final String? barcode;
+  final String? qrCode;
+  final bool isDeleted;
+  final DateTime? deletedAt;
+  final String? deletedBy;
+  final String? deleteReason;
 
   int get stock => totalStock;
   StockStatusSummary get stockStatus =>
@@ -71,6 +83,9 @@ class Product {
   bool get hasLocationAssignments => locationQuantities.isNotEmpty;
   double get inventoryValue => price * totalStock;
   bool get hasExpiryDate => expiryDate != null;
+  bool get hasBarcode => (barcode?.trim().isNotEmpty ?? false);
+  bool get hasQrCode => (qrCode?.trim().isNotEmpty ?? false);
+  bool get isArchived => isDeleted;
 
   bool get isExpired =>
       expiryDate != null && _dateOnly(expiryDate!).isBefore(_today);
@@ -98,6 +113,12 @@ class Product {
     DateTime? updatedAt,
     DateTime? expiryDate,
     String? imageUrl,
+    String? barcode,
+    String? qrCode,
+    bool? isDeleted,
+    DateTime? deletedAt,
+    String? deletedBy,
+    String? deleteReason,
   }) {
     return Product(
       id: id ?? this.id,
@@ -112,6 +133,12 @@ class Product {
       updatedAt: updatedAt ?? this.updatedAt,
       expiryDate: expiryDate ?? this.expiryDate,
       imageUrl: imageUrl ?? this.imageUrl,
+      barcode: barcode ?? this.barcode,
+      qrCode: qrCode ?? this.qrCode,
+      isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: deletedAt ?? this.deletedAt,
+      deletedBy: deletedBy ?? this.deletedBy,
+      deleteReason: deleteReason ?? this.deleteReason,
     );
   }
 
@@ -126,8 +153,16 @@ class Product {
       'minStock': minStock,
       'status': stockStatus.code,
       'expiryDate': expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
+      'expirationDate':
+          expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
       'locations': _serializeLocations(locationQuantities),
       'imageUrl': imageUrl,
+      'barcode': barcode,
+      'qrCode': qrCode,
+      'isDeleted': isDeleted,
+      'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
+      'deletedBy': deletedBy,
+      'deleteReason': deleteReason,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -144,8 +179,16 @@ class Product {
       'minStock': minStock,
       'status': stockStatus.code,
       'expiryDate': expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
+      'expirationDate':
+          expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
       'locations': _serializeLocations(locationQuantities),
       'imageUrl': imageUrl,
+      'barcode': barcode,
+      'qrCode': qrCode,
+      'isDeleted': isDeleted,
+      'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
+      'deletedBy': deletedBy,
+      'deleteReason': deleteReason,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -185,10 +228,25 @@ class Product {
       locationQuantities: locationQuantities,
       createdAt: _toDate(data['createdAt']),
       updatedAt: _toDate(data['updatedAt']),
-      expiryDate: _toNullableDate(data['expiryDate']),
+      expiryDate:
+          _toNullableDate(data['expirationDate']) ?? _toNullableDate(data['expiryDate']),
       imageUrl: (data['imageUrl'] as String?)?.trim().isEmpty ?? true
           ? null
           : data['imageUrl'] as String,
+      barcode: (data['barcode'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : data['barcode'] as String,
+      qrCode: (data['qrCode'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : data['qrCode'] as String,
+      isDeleted: (data['isDeleted'] ?? false) as bool,
+      deletedAt: _toNullableDate(data['deletedAt']),
+      deletedBy: (data['deletedBy'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : data['deletedBy'] as String,
+      deleteReason: (data['deleteReason'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : data['deleteReason'] as String,
     );
   }
 

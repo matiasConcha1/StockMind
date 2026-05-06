@@ -13,53 +13,65 @@ class AlertsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<AlertsProvider>();
     final width = MediaQuery.sizeOf(context).width;
-    final crossAxisCount = width < 760 ? 1 : width < 1180 ? 2 : 4;
+    final isMobile = width < 760;
+    final crossAxisCount = isMobile ? 1 : width < 1180 ? 2 : 4;
+    final metrics = [
+      _AlertMetric(
+        title: 'Activas',
+        value: provider.activeAlertsCount.toString(),
+        helper: 'Alertas que requieren acción',
+        icon: Icons.notifications_active_outlined,
+      ),
+      _AlertMetric(
+        title: 'Stock bajo',
+        value: provider.lowStockAlertsCount.toString(),
+        helper: 'Productos con 5 unidades o menos',
+        icon: Icons.inventory_2_outlined,
+      ),
+      _AlertMetric(
+        title: 'Por vencer',
+        value: provider.expiringSoonAlertsCount.toString(),
+        helper: 'Vencen dentro de 7 días',
+        icon: Icons.event_available_outlined,
+      ),
+      _AlertMetric(
+        title: 'Vencidos / resueltas',
+        value:
+            '${provider.expiredAlertsCount} / ${provider.resolvedAlertsCount}',
+        helper: '${provider.unreadAlertsCount} sin leer',
+        icon: Icons.task_alt_rounded,
+      ),
+    ];
 
     return DashboardFrame(
       title: 'Alertas',
       subtitle:
-          'Supervisa incidencias de stock en tiempo real y resuelve riesgos antes de afectar tu operación.',
+          'Supervisa incidencias de stock y vencimiento en tiempo real, con resolución auditada y filtros operativos.',
       child: Column(
         children: [
           if (provider.error != null) ...[
             _AlertsErrorBanner(message: provider.error!),
             const SizedBox(height: 16),
           ],
-          GridView.count(
-            crossAxisCount: crossAxisCount,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: width < 760 ? 2.3 : 1.45,
-            children: [
-              _AlertMetric(
-                title: 'Activas',
-                value: provider.activeAlertsCount.toString(),
-                helper: 'Alertas que requieren acción',
-                icon: Icons.notifications_active_outlined,
-              ),
-              _AlertMetric(
-                title: 'Críticas',
-                value: provider.criticalAlertsCount.toString(),
-                helper: 'Productos sin stock disponible',
-                icon: Icons.report_gmailerrorred_rounded,
-              ),
-              _AlertMetric(
-                title: 'Altas / medias',
-                value:
-                    '${provider.highAlertsCount} / ${provider.mediumAlertsCount}',
-                helper: 'Riesgo alto y preventivo',
-                icon: Icons.stacked_line_chart_rounded,
-              ),
-              _AlertMetric(
-                title: 'Resueltas',
-                value: provider.resolvedAlertsCount.toString(),
-                helper: '${provider.unreadAlertsCount} sin leer',
-                icon: Icons.task_alt_rounded,
-              ),
-            ],
-          ),
+          if (isMobile)
+            Column(
+              children: [
+                for (final metric in metrics) ...[
+                  metric,
+                  const SizedBox(height: 16),
+                ],
+              ],
+            )
+          else
+            GridView.count(
+              crossAxisCount: crossAxisCount,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.45,
+              children: metrics,
+            ),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -102,7 +114,7 @@ class AlertsScreen extends StatelessWidget {
                 child: EmptyState(
                   title: provider.filter == AlertsFilter.resolved
                       ? 'No hay alertas resueltas'
-                      : 'Sin alertas activas',
+                      : 'Sin alertas para este filtro',
                   subtitle: provider.filter == AlertsFilter.resolved
                       ? 'Cuando resuelvas incidencias, quedarán registradas aquí.'
                       : 'Tus productos están en un nivel saludable o aún no requieren seguimiento.',
@@ -124,9 +136,10 @@ class AlertsScreen extends StatelessWidget {
   String _filterLabel(AlertsFilter filter) {
     return switch (filter) {
       AlertsFilter.all => 'Todas',
-      AlertsFilter.critical => 'Críticas',
-      AlertsFilter.high => 'Altas',
-      AlertsFilter.medium => 'Medias',
+      AlertsFilter.lowStock => 'Stock bajo',
+      AlertsFilter.expiringSoon => 'Por vencer',
+      AlertsFilter.expired => 'Vencidos',
+      AlertsFilter.active => 'Activas',
       AlertsFilter.resolved => 'Resueltas',
     };
   }

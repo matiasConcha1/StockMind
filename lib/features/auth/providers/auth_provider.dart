@@ -21,6 +21,10 @@ class AuthProvider extends ChangeNotifier {
   bool get initialized => _initialized;
   bool get isLoading => _loading;
   String? get error => _error;
+  bool get isAdmin => _user?.isAdmin ?? false;
+  bool get isEditor => _user?.isEditor ?? false;
+  bool get canEdit => _user?.canEdit ?? false;
+  bool get canDelete => _user?.canDelete ?? false;
 
   void start() {
     if (_subscription != null) return;

@@ -4,6 +4,7 @@ import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
+import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
 import 'package:stockmind/features/locations/presentation/widgets/location_detail_dialog.dart';
@@ -16,6 +17,7 @@ class LocationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LocationsProvider>();
+    final auth = context.watch<AuthProvider>();
     final width = MediaQuery.sizeOf(context).width;
     final crossAxisCount = width < 760 ? 1 : width < 1180 ? 2 : 3;
 
@@ -25,7 +27,8 @@ class LocationsScreen extends StatelessWidget {
           'Gestiona espacios físicos como refrigeradores, congeladoras, cajas y closets.',
       actions: [
         FilledButton.icon(
-          onPressed: provider.isLoading ? null : () => _openDialog(context),
+          onPressed:
+              provider.isLoading || !auth.canEdit ? null : () => _openDialog(context),
           icon: const Icon(Icons.add_location_alt_outlined),
           label: const Text('Nueva ubicación'),
         ),
@@ -82,6 +85,8 @@ class LocationsScreen extends StatelessWidget {
                   location: location,
                   productCount: productCount,
                   totalUnits: totalUnits,
+                  canEdit: auth.canEdit,
+                  canDelete: auth.canDelete,
                   onOpen: () => _openDetail(context, location),
                   onEdit: () => _openDialog(context, location: location),
                   onDelete: () => _confirmDelete(context, location),
@@ -186,6 +191,8 @@ class _LocationCard extends StatelessWidget {
     required this.location,
     required this.productCount,
     required this.totalUnits,
+    required this.canEdit,
+    required this.canDelete,
     required this.onOpen,
     required this.onEdit,
     required this.onDelete,
@@ -194,6 +201,8 @@ class _LocationCard extends StatelessWidget {
   final InventoryLocation location;
   final int productCount;
   final int totalUnits;
+  final bool canEdit;
+  final bool canDelete;
   final VoidCallback onOpen;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -247,16 +256,25 @@ class _LocationCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'edit') onEdit();
-                      if (value == 'delete') onDelete();
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(value: 'edit', child: Text('Editar')),
-                      PopupMenuItem(value: 'delete', child: Text('Eliminar')),
-                    ],
-                  ),
+                  if (canEdit || canDelete)
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') onEdit();
+                        if (value == 'delete') onDelete();
+                      },
+                      itemBuilder: (context) => [
+                        if (canEdit)
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Editar'),
+                          ),
+                        if (canDelete)
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Eliminar'),
+                          ),
+                      ],
+                    ),
                 ],
               ),
               const SizedBox(height: 16),

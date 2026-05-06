@@ -1,13 +1,43 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:stockmind/features/activity_logs/data/services/activity_log_service.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
+import 'package:stockmind/features/products/helpers/product_code_helper.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
+class ProductLookupResult {
+  const ProductLookupResult({
+    required this.product,
+    required this.matchType,
+    required this.code,
+  });
+
+  final Product product;
+  final String matchType;
+  final String code;
+}
+
+class StockAdjustmentResult {
+  const StockAdjustmentResult({
+    required this.product,
+    required this.previousStock,
+    required this.newStock,
+  });
+
+  final Product product;
+  final int previousStock;
+  final int newStock;
+}
+
 class ProductService {
-  ProductService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  ProductService({
+    FirebaseFirestore? firestore,
+    ActivityLogService? activityLogService,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _activityLogService = activityLogService ?? ActivityLogService();
 
   final FirebaseFirestore _firestore;
+  final ActivityLogService _activityLogService;
 
   CollectionReference<Map<String, dynamic>> _collection(String userId) {
     return _firestore.collection('users').doc(userId).collection('products');
@@ -20,17 +50,26 @@ class ProductService {
     return _collection(userId)
         .orderBy('updatedAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(Product.fromFirestore).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(Product.fromFirestore)
+              .where((product) => !product.isArchived)
+              .toList(),
+        );
   }
 
   Future<void> createProduct(String userId, Product product) async {
-    final docRef =
-        product.id.isEmpty ? _collection(userId).doc() : _collection(userId).doc(product.id);
-    final productToCreate = product.copyWith(id: docRef.id);
+    final docRef = product.id.isEmpty
+        ? _collection(userId).doc()
+        : _collection(userId).doc(product.id);
+    final productWithCodes = _ensureCodes(
+      product.copyWith(id: docRef.id),
+      fallbackProductId: docRef.id,
+    );
     debugPrint(
       'ProductService.createProduct: userId=$userId productId=${docRef.id}',
     );
-    await docRef.set(productToCreate.toCreateMap());
+    await docRef.set(productWithCodes.toCreateMap());
   }
 
   Future<void> updateProduct(
@@ -43,32 +82,33 @@ class ProductService {
       'ProductService.updateProduct: userId=$userId productId=${product.id}',
     );
     final productRef = _collection(userId).doc(product.id);
+    final productToUpdate = _ensureCodes(product, fallbackProductId: product.id);
 
     if (previousProduct == null) {
-      await productRef.update(product.toUpdateMap());
+      await productRef.update(productToUpdate.toUpdateMap());
       return;
     }
 
-    final stockChanged = previousProduct.totalStock != product.totalStock;
+    final stockChanged = previousProduct.totalStock != productToUpdate.totalStock;
     final locationChanged = !_sameLocationQuantities(
       previousProduct.locationQuantities,
-      product.locationQuantities,
+      productToUpdate.locationQuantities,
     );
 
     if (!stockChanged && !locationChanged) {
-      await productRef.update(product.toUpdateMap());
+      await productRef.update(productToUpdate.toUpdateMap());
       return;
     }
 
     final movements = _buildMovements(
       userId: userId,
-      product: product,
+      product: productToUpdate,
       previousProduct: previousProduct,
       stockChangeReason: stockChangeReason,
     );
 
     final batch = _firestore.batch();
-    batch.update(productRef, product.toUpdateMap());
+    batch.update(productRef, productToUpdate.toUpdateMap());
     for (final movement in movements) {
       final ref = _firestore
           .collection('users')
@@ -80,11 +120,231 @@ class ProductService {
     await batch.commit();
   }
 
-  Future<void> deleteProduct(String userId, String productId) async {
-    debugPrint(
-      'ProductService.deleteProduct: userId=$userId productId=$productId',
+  Future<void> ensureProductCodes(String userId, Product product) async {
+    final withCodes = _ensureCodes(product, fallbackProductId: product.id);
+    if (withCodes.barcode == product.barcode && withCodes.qrCode == product.qrCode) {
+      return;
+    }
+    await _collection(userId).doc(product.id).update({
+      'barcode': withCodes.barcode,
+      'qrCode': withCodes.qrCode,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<ProductLookupResult?> findProductByCode(String userId, String code) async {
+    final normalized = code.trim();
+    if (normalized.isEmpty) return null;
+
+    final barcodeSnapshot = await _collection(userId)
+        .where('barcode', isEqualTo: normalized)
+        .limit(1)
+        .get();
+    if (barcodeSnapshot.docs.isNotEmpty) {
+      final product = Product.fromFirestore(barcodeSnapshot.docs.first);
+      if (product.isArchived) return null;
+      return ProductLookupResult(
+        product: product,
+        matchType: 'barcode',
+        code: normalized,
+      );
+    }
+
+    final qrSnapshot = await _collection(userId)
+        .where('qrCode', isEqualTo: normalized)
+        .limit(1)
+        .get();
+    if (qrSnapshot.docs.isNotEmpty) {
+      final product = Product.fromFirestore(qrSnapshot.docs.first);
+      if (product.isArchived) return null;
+      return ProductLookupResult(
+        product: product,
+        matchType: 'qrCode',
+        code: normalized,
+      );
+    }
+
+    final docSnapshot = await _collection(userId).doc(normalized).get();
+    if (docSnapshot.exists) {
+      final product = Product.fromFirestore(docSnapshot);
+      if (product.isArchived) return null;
+      return ProductLookupResult(
+        product: product,
+        matchType: 'productId',
+        code: normalized,
+      );
+    }
+
+    return null;
+  }
+
+  Future<StockAdjustmentResult> adjustProductStock({
+    required String userId,
+    required String productId,
+    required String locationId,
+    required String locationName,
+    required int quantity,
+    required bool increase,
+  }) async {
+    final productRef = _collection(userId).doc(productId);
+    final movementRef = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('stock_movements')
+        .doc();
+
+    late final StockAdjustmentResult result;
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(productRef);
+      if (!snapshot.exists) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'not-found',
+          message: 'No encontramos el producto escaneado.',
+        );
+      }
+
+      final currentProduct = Product.fromFirestore(snapshot);
+      if (currentProduct.isArchived) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'failed-precondition',
+          message: 'No puedes ajustar stock de un producto archivado.',
+        );
+      }
+      final existingEntry = currentProduct.locationQuantities[locationId];
+      final previousLocationQuantity = existingEntry?.quantity ?? 0;
+      final previousStock = currentProduct.totalStock;
+      final newStock = increase ? previousStock + quantity : previousStock - quantity;
+
+      if (!increase && quantity > previousStock) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'invalid-argument',
+          message:
+              'No puedes descontar mas unidades que el stock disponible.',
+        );
+      }
+
+      final newLocationQuantity = increase
+          ? previousLocationQuantity + quantity
+          : previousLocationQuantity - quantity;
+      if (newLocationQuantity < 0) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'invalid-argument',
+          message:
+              'No puedes descontar mas unidades que el stock disponible.',
+        );
+      }
+
+      final updatedLocations =
+          Map<String, ProductLocationQuantity>.from(currentProduct.locationQuantities);
+      if (newLocationQuantity == 0) {
+        updatedLocations.remove(locationId);
+      } else {
+        updatedLocations[locationId] = ProductLocationQuantity(
+          locationId: locationId,
+          locationName: locationName,
+          quantity: newLocationQuantity,
+        );
+      }
+
+      final updatedProduct = _ensureCodes(
+        currentProduct.copyWith(
+          totalStock: newStock,
+          locationQuantities: updatedLocations,
+          updatedAt: DateTime.now(),
+        ),
+        fallbackProductId: currentProduct.id,
+      );
+
+      transaction.update(productRef, updatedProduct.toUpdateMap());
+      final movement = StockMovement(
+        id: movementRef.id,
+        productId: currentProduct.id,
+        productName: currentProduct.name,
+        type: increase ? 'entrada' : 'salida',
+        quantity: quantity,
+        previousStock: previousStock,
+        newStock: newStock,
+        reason: increase ? 'Ajuste rápido por escaneo' : 'Descuento rápido por escaneo',
+        locationId: locationId,
+        locationName: locationName,
+        previousQuantityInLocation: previousLocationQuantity,
+        newQuantityInLocation: newLocationQuantity,
+        previousTotalStock: previousStock,
+        newTotalStock: newStock,
+        createdAt: DateTime.now(),
+      );
+      transaction.set(movementRef, movement.toMap());
+
+      result = StockAdjustmentResult(
+        product: updatedProduct,
+        previousStock: previousStock,
+        newStock: newStock,
+      );
+    });
+
+    final action = increase ? 'increase_stock' : 'decrease_stock';
+    final description = increase
+        ? 'Se sumaron $quantity unidades al producto ${result.product.name}. Stock anterior: ${result.previousStock}, stock nuevo: ${result.newStock}.'
+        : 'Se descontaron $quantity unidades del producto ${result.product.name}. Stock anterior: ${result.previousStock}, stock nuevo: ${result.newStock}.';
+    await _activityLogService.createLog(
+      userId: userId,
+      action: action,
+      entityType: 'product',
+      entityId: result.product.id,
+      entityName: result.product.name,
+      description: description,
     );
-    await _collection(userId).doc(productId).delete();
+
+    return result;
+  }
+
+  Future<void> archiveProduct({
+    required String userId,
+    required Product product,
+    required String deletedBy,
+    required String deleteReason,
+  }) async {
+    debugPrint(
+      'ProductService.archiveProduct: userId=$userId productId=${product.id}',
+    );
+    await _collection(userId).doc(product.id).set({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'deletedBy': deletedBy,
+      'deleteReason': deleteReason,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    await _activityLogService.createLog(
+      userId: userId,
+      action: 'delete_product',
+      entityType: 'product',
+      entityId: product.id,
+      entityName: product.name,
+      description:
+          'Se archivó/eliminó manualmente el producto ${product.name}.',
+    );
+  }
+
+  Product _ensureCodes(Product product, {required String fallbackProductId}) {
+    final barcode = (product.barcode?.trim().isNotEmpty ?? false)
+        ? product.barcode!.trim()
+        : generateBarcodeValue();
+    final qrCode = (product.qrCode?.trim().isNotEmpty ?? false)
+        ? product.qrCode!.trim()
+        : generateQrCodeValue(
+            productId: product.id.isNotEmpty ? product.id : fallbackProductId,
+            barcode: barcode,
+          );
+
+    return product.copyWith(
+      barcode: barcode,
+      qrCode: qrCode,
+      status: product.stockStatus.code,
+    );
   }
 
   List<StockMovement> _buildMovements({

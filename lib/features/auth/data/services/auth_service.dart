@@ -14,10 +14,17 @@ class AuthService {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
 
-  AppUser? get currentUser => _mapUser(_auth.currentUser);
+  AppUser? get currentUser => _mapUser(
+        _auth.currentUser,
+        role: 'editor',
+      );
 
   Stream<AppUser?> authStateChanges() {
-    return _auth.authStateChanges().map(_mapUser);
+    return _auth.authStateChanges().asyncMap((user) async {
+      if (user == null) return null;
+      final role = await _fetchUserRole(user.uid);
+      return _mapUser(user, role: role);
+    });
   }
 
   Future<void> signInWithEmail({
@@ -137,7 +144,7 @@ class AuthService {
     }
   }
 
-  AppUser? _mapUser(User? user) {
+  AppUser? _mapUser(User? user, {required String role}) {
     if (user == null) return null;
     return AppUser(
       id: user.uid,
@@ -148,6 +155,7 @@ class AuthService {
       photoUrl: user.photoURL,
       provider: _resolveProvider(user),
       createdAt: user.metadata.creationTime,
+      role: role,
     );
   }
 
@@ -184,6 +192,20 @@ class AuthService {
     }
   }
 
+  Future<String> _fetchUserRole(String uid) async {
+    try {
+      final snapshot = await _firestore.collection('users').doc(uid).get();
+      final value = snapshot.data()?['role'];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim().toLowerCase();
+      }
+    } catch (error, stackTrace) {
+      debugPrint('AuthService._fetchUserRole error: $error');
+      debugPrint('$stackTrace');
+    }
+    return 'editor';
+  }
+
   Future<void> _upsertUserDocument({
     required User user,
     required String provider,
@@ -194,7 +216,7 @@ class AuthService {
         ? user.displayName!.trim()
         : (fallbackName?.trim().isNotEmpty ?? false)
             ? fallbackName!.trim()
-            : 'Usuario StockMind';
+        : 'Usuario StockMind';
 
     debugPrint(
       'AuthService._upsertUserDocument: uid=${user.uid} provider=$provider',
@@ -202,11 +224,17 @@ class AuthService {
 
     final docRef = _firestore.collection('users').doc(user.uid);
     final snapshot = await docRef.get();
+    final existingRole = snapshot.data()?['role'];
+    final role = existingRole is String && existingRole.trim().isNotEmpty
+        ? existingRole.trim().toLowerCase()
+        : 'editor';
+
     final data = <String, dynamic>{
       'uid': user.uid,
       'name': name,
       'email': user.email ?? '',
       'provider': provider,
+      'role': role,
       'photoUrl': (overridePhotoUrl?.isNotEmpty ?? false)
           ? overridePhotoUrl
           : user.photoURL,

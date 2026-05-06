@@ -25,14 +25,77 @@ class StockAlertService {
     debugPrint(
       'StockAlertService.syncProductAlerts: userId=$userId productId=${product.id}',
     );
-    await _syncStockAlert(userId, product);
-    await _syncExpiryAlert(userId, product);
+    if (product.isArchived) {
+      await resolveActiveAlertsForProduct(
+        userId,
+        product.id,
+        resolvedBy: product.deletedBy ?? 'system',
+      );
+      return;
+    }
+    await _syncLowStockAlert(userId, product);
+    await _syncExpiryAlerts(userId, product);
+    await _resolveLegacyAlerts(userId, product.id);
+  }
+
+  Future<void> syncAllProductAlerts(
+    String userId,
+    Iterable<Product> products,
+  ) async {
+    for (final product in products) {
+      await syncProductAlerts(userId, product);
+    }
   }
 
   Future<void> deleteAlertsForProduct(String userId, String productId) async {
     final batch = _firestore.batch();
-    for (final suffix in const ['stock', 'expiry']) {
+    for (final suffix in const [
+      'low_stock',
+      'expiring_soon',
+      'expired',
+      'stock',
+      'expiry',
+    ]) {
       batch.delete(_collection(userId).doc('${productId}_$suffix'));
+    }
+    await batch.commit();
+  }
+
+  Future<List<StockAlert>> getActiveAlertsForProduct(
+    String userId,
+    String productId,
+  ) async {
+    final snapshot = await _collection(userId)
+        .where('productId', isEqualTo: productId)
+        .where('status', isEqualTo: 'active')
+        .get();
+    return snapshot.docs.map(StockAlert.fromFirestore).toList();
+  }
+
+  Future<void> resolveActiveAlertsForProduct(
+    String userId,
+    String productId, {
+    required String resolvedBy,
+  }) async {
+    final snapshot = await _collection(userId)
+        .where('productId', isEqualTo: productId)
+        .where('status', isEqualTo: 'active')
+        .get();
+    if (snapshot.docs.isEmpty) return;
+
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.set(
+        doc.reference,
+        {
+          'status': 'resolved',
+          'isRead': true,
+          'resolvedAt': FieldValue.serverTimestamp(),
+          'resolvedBy': resolvedBy,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
     }
     await batch.commit();
   }
@@ -47,160 +110,223 @@ class StockAlertService {
     );
   }
 
-  Future<void> resolveAlert(String userId, String alertId) async {
+  Future<StockAlert?> getAlertById(String userId, String alertId) async {
+    final snapshot = await _collection(userId).doc(alertId).get();
+    if (!snapshot.exists) return null;
+    return StockAlert.fromFirestore(snapshot);
+  }
+
+  Future<void> resolveAlert(
+    String userId,
+    String alertId, {
+    required String resolvedBy,
+  }) async {
     await _collection(userId).doc(alertId).set(
       {
         'status': 'resolved',
         'isRead': true,
+        'resolvedAt': FieldValue.serverTimestamp(),
+        'resolvedBy': resolvedBy,
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
   }
 
-  Future<void> _syncStockAlert(String userId, Product product) async {
-    final status = product.stockStatus;
-    final docRef = _collection(userId).doc('${product.id}_stock');
+  Future<void> _syncLowStockAlert(String userId, Product product) async {
+    final shouldBeActive = product.totalStock <= 5;
+    final docRef = _collection(userId).doc('${product.id}_low_stock');
     final snapshot = await docRef.get();
-    final existing = snapshot.data() ?? <String, dynamic>{};
-    final currentType = switch (status.code) {
-      'sin_stock' => 'sin_stock',
-      'bajo_stock' => 'bajo_stock',
-      'stock_medio' => 'stock_medio',
-      _ => null,
-    };
+    final existing = snapshot.data() ?? const <String, dynamic>{};
 
-    if (currentType == null) {
-      if (!snapshot.exists) return;
-      await docRef.set(
-        {
-          'status': 'resolved',
-          'isRead': true,
-          'title': 'Stock normalizado',
-          'message': 'El producto volvió a un nivel saludable.',
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
+    if (!shouldBeActive) {
+      await _resolveIfNeeded(
+        docRef: docRef,
+        snapshot: snapshot,
+        title: 'Stock normalizado',
+        message: 'El producto volvió a un nivel saludable de inventario.',
       );
       return;
     }
 
-    final keepRead = existing['status'] == 'active' && existing['type'] == currentType
-        ? (existing['isRead'] ?? false) as bool
-        : false;
+    final severity = product.totalStock <= 0 ? 'high' : 'medium';
+    final title =
+        product.totalStock <= 0 ? 'Producto sin stock' : 'Stock bajo';
+    final message = product.totalStock <= 0
+        ? 'Este producto no tiene unidades disponibles.'
+        : 'Este producto tiene 5 unidades o menos y requiere reposición.';
 
     await docRef.set(
       {
         'id': docRef.id,
         'productId': product.id,
         'productName': product.name,
-        'type': currentType,
-        'title': status.alertTitle,
-        'message': status.message,
-        'severity': status.severity,
+        'type': 'low_stock',
+        'title': title,
+        'message': message,
+        'severity': severity,
         'currentStock': product.totalStock,
         'minStock': product.minStock,
         'status': 'active',
-        'isRead': keepRead,
+        'isRead': _keepRead(existing, 'low_stock'),
         'createdAt': snapshot.exists
             ? (existing['createdAt'] ?? FieldValue.serverTimestamp())
             : FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
+        'resolvedAt': null,
+        'resolvedBy': null,
       },
       SetOptions(merge: true),
     );
   }
 
-  Future<void> _syncExpiryAlert(String userId, Product product) async {
-    final docRef = _collection(userId).doc('${product.id}_expiry');
-    final snapshot = await docRef.get();
-    final existing = snapshot.data() ?? <String, dynamic>{};
+  Future<void> _syncExpiryAlerts(String userId, Product product) async {
+    final expiredRef = _collection(userId).doc('${product.id}_expired');
+    final expiringSoonRef = _collection(userId).doc('${product.id}_expiring_soon');
+    final expiredSnapshot = await expiredRef.get();
+    final expiringSoonSnapshot = await expiringSoonRef.get();
+    final expiredExisting = expiredSnapshot.data() ?? const <String, dynamic>{};
+    final expiringExisting =
+        expiringSoonSnapshot.data() ?? const <String, dynamic>{};
 
-    final expiryType = _resolveExpiryType(product);
-    if (expiryType == null) {
-      if (!snapshot.exists) return;
-      await docRef.set(
-        {
-          'status': 'resolved',
-          'isRead': true,
-          'title': 'Sin riesgo de vencimiento',
-          'message': 'El producto no presenta vencimiento próximo.',
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
+    if (product.expiryDate == null) {
+      await _resolveIfNeeded(
+        docRef: expiredRef,
+        snapshot: expiredSnapshot,
+        title: 'Sin riesgo de vencimiento',
+        message: 'El producto no presenta vencimiento vencido.',
+      );
+      await _resolveIfNeeded(
+        docRef: expiringSoonRef,
+        snapshot: expiringSoonSnapshot,
+        title: 'Sin riesgo de vencimiento',
+        message: 'El producto no presenta vencimiento próximo.',
       );
       return;
     }
 
-    final keepRead = existing['status'] == 'active' && existing['type'] == expiryType.type
-        ? (existing['isRead'] ?? false) as bool
-        : false;
-
-    await docRef.set(
-      {
-        'id': docRef.id,
-        'productId': product.id,
-        'productName': product.name,
-        'type': expiryType.type,
-        'title': expiryType.title,
-        'message': expiryType.message,
-        'severity': expiryType.severity,
-        'currentStock': product.totalStock,
-        'minStock': product.minStock,
-        'expiryDate': product.expiryDate == null
-            ? null
-            : Timestamp.fromDate(product.expiryDate!),
-        'status': 'active',
-        'isRead': keepRead,
-        'createdAt': snapshot.exists
-            ? (existing['createdAt'] ?? FieldValue.serverTimestamp())
-            : FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-  }
-
-  _ExpiryAlertPayload? _resolveExpiryType(Product product) {
-    if (product.expiryDate == null) return null;
     if (product.isExpired) {
-      return const _ExpiryAlertPayload(
-        type: 'producto_vencido',
-        title: 'Producto vencido',
-        message: 'Este producto ya superó su fecha de vencimiento.',
-        severity: 'critical',
+      await expiredRef.set(
+        {
+          'id': expiredRef.id,
+          'productId': product.id,
+          'productName': product.name,
+          'type': 'expired',
+          'title': 'Producto vencido',
+          'message': 'Este producto ya superó su fecha de vencimiento.',
+          'severity': 'high',
+          'currentStock': product.totalStock,
+          'minStock': product.minStock,
+          'expirationDate': Timestamp.fromDate(product.expiryDate!),
+          'expiryDate': Timestamp.fromDate(product.expiryDate!),
+          'status': 'active',
+          'isRead': _keepRead(expiredExisting, 'expired'),
+          'createdAt': expiredSnapshot.exists
+              ? (expiredExisting['createdAt'] ?? FieldValue.serverTimestamp())
+              : FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'resolvedAt': null,
+          'resolvedBy': null,
+        },
+        SetOptions(merge: true),
       );
+      await _resolveIfNeeded(
+        docRef: expiringSoonRef,
+        snapshot: expiringSoonSnapshot,
+        title: 'Vencimiento superado',
+        message: 'El producto ya no está en la ventana de próximo vencimiento.',
+      );
+      return;
     }
+
     if (product.expiresWithin7Days) {
-      return const _ExpiryAlertPayload(
-        type: 'vence_pronto',
-        title: 'Este producto vence pronto',
-        message: 'El producto vencerá dentro de los próximos 7 días.',
-        severity: 'high',
+      await expiringSoonRef.set(
+        {
+          'id': expiringSoonRef.id,
+          'productId': product.id,
+          'productName': product.name,
+          'type': 'expiring_soon',
+          'title': 'Este producto vence pronto',
+          'message': 'El producto vencerá dentro de los próximos 7 días.',
+          'severity': 'medium',
+          'currentStock': product.totalStock,
+          'minStock': product.minStock,
+          'expirationDate': Timestamp.fromDate(product.expiryDate!),
+          'expiryDate': Timestamp.fromDate(product.expiryDate!),
+          'status': 'active',
+          'isRead': _keepRead(expiringExisting, 'expiring_soon'),
+          'createdAt': expiringSoonSnapshot.exists
+              ? (expiringExisting['createdAt'] ??
+                  FieldValue.serverTimestamp())
+              : FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'resolvedAt': null,
+          'resolvedBy': null,
+        },
+        SetOptions(merge: true),
       );
-    }
-    if (product.expiresWithin15Days) {
-      return const _ExpiryAlertPayload(
-        type: 'vencimiento_warning',
-        title: 'Vencimiento próximo',
-        message: 'El producto vencerá dentro de los próximos 15 días.',
-        severity: 'medium',
+      await _resolveIfNeeded(
+        docRef: expiredRef,
+        snapshot: expiredSnapshot,
+        title: 'Producto vigente',
+        message: 'El producto ya no figura como vencido.',
       );
+      return;
     }
-    return null;
+
+    await _resolveIfNeeded(
+      docRef: expiredRef,
+      snapshot: expiredSnapshot,
+      title: 'Producto vigente',
+      message: 'El producto ya no figura como vencido.',
+    );
+    await _resolveIfNeeded(
+      docRef: expiringSoonRef,
+      snapshot: expiringSoonSnapshot,
+      title: 'Sin riesgo de vencimiento',
+      message: 'El producto ya no está próximo a vencer.',
+    );
   }
-}
 
-class _ExpiryAlertPayload {
-  const _ExpiryAlertPayload({
-    required this.type,
-    required this.title,
-    required this.message,
-    required this.severity,
-  });
+  Future<void> _resolveLegacyAlerts(String userId, String productId) async {
+    for (final suffix in const ['stock', 'expiry']) {
+      final ref = _collection(userId).doc('${productId}_$suffix');
+      final snapshot = await ref.get();
+      if (!snapshot.exists) continue;
+      await _resolveIfNeeded(
+        docRef: ref,
+        snapshot: snapshot,
+        title: 'Alerta migrada',
+        message: 'La alerta quedó resuelta por la nueva lógica del sistema.',
+      );
+    }
+  }
 
-  final String type;
-  final String title;
-  final String message;
-  final String severity;
+  bool _keepRead(Map<String, dynamic> existing, String type) {
+    return existing['status'] == 'active' && existing['type'] == type
+        ? (existing['isRead'] ?? false) as bool
+        : false;
+  }
+
+  Future<void> _resolveIfNeeded({
+    required DocumentReference<Map<String, dynamic>> docRef,
+    required DocumentSnapshot<Map<String, dynamic>> snapshot,
+    required String title,
+    required String message,
+  }) async {
+    if (!snapshot.exists) return;
+    final data = snapshot.data() ?? const <String, dynamic>{};
+    if (data['status'] == 'resolved') return;
+    await docRef.set(
+      {
+        'status': 'resolved',
+        'isRead': true,
+        'title': title,
+        'message': message,
+        'resolvedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
 }
