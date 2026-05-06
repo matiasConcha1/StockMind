@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/services/report_export_service.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/export_feedback.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/company_profile_provider.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/dashboard/data/services/stock_movement_service.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
@@ -38,11 +41,15 @@ class _StockMovementsScreenState extends State<StockMovementsScreen> {
 
     return DashboardFrame(
       title: 'Movimientos',
+      onBackPressed: () => context.go(AppRoutePaths.dashboard),
+      backLabel: 'Volver',
       subtitle:
           'Revisa entradas, salidas, ajustes y eventos especiales del inventario en tiempo real.',
       actions: [
         FilledButton.tonalIcon(
-          onPressed: userId == null ? null : () => _exportMovements(context),
+          onPressed: userId == null || !auth.canExport
+              ? null
+              : () => _exportMovements(context),
           icon: const Icon(Icons.download_rounded),
           label: const Text('Exportar'),
         ),
@@ -95,7 +102,7 @@ class _StockMovementsScreenState extends State<StockMovementsScreen> {
                     child: SizedBox(
                       height: 280,
                       child: EmptyState(
-                        title: 'Sin movimientos para este filtro',
+                        title: 'No hay movimientos registrados',
                         subtitle:
                             'Ajusta la búsqueda, el tipo o la fecha para encontrar registros.',
                         icon: Icons.history_toggle_off_rounded,
@@ -261,6 +268,7 @@ class _StockMovementsScreenState extends State<StockMovementsScreen> {
 
   Future<void> _exportMovements(BuildContext context) async {
     final auth = context.read<AuthProvider>();
+    final company = context.read<CompanyProfileProvider>().profile;
     await runExportTask(
       context: context,
       hasData: _lastFilteredMovements.isNotEmpty,
@@ -271,6 +279,7 @@ class _StockMovementsScreenState extends State<StockMovementsScreen> {
       task: () => ReportExportService().exportMovementsCsv(
         movements: _lastFilteredMovements,
         userName: auth.user?.displayName ?? auth.user?.email,
+        companyProfile: company,
       ),
     );
   }

@@ -127,7 +127,7 @@ class StockService {
           .where((product) => product.stockStatus.isMediumStock)
           .length,
       highStockProducts:
-          products.where((product) => product.stockStatus.isHighStock).length,
+          products.where((product) => product.isOptimal).length,
       criticalProducts: products.where((product) => product.isCriticalStock).length,
       activeAlerts: activeAlerts,
       expiringSoonProducts: products

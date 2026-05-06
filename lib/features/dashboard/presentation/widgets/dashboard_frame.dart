@@ -8,6 +8,8 @@ class DashboardFrame extends StatelessWidget {
     required this.subtitle,
     required this.child,
     this.actions = const [],
+    this.onBackPressed,
+    this.backLabel,
     super.key,
   });
 
@@ -15,6 +17,8 @@ class DashboardFrame extends StatelessWidget {
   final String subtitle;
   final Widget child;
   final List<Widget> actions;
+  final VoidCallback? onBackPressed;
+  final String? backLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +47,8 @@ class DashboardFrame extends StatelessWidget {
                 title: title,
                 subtitle: subtitle,
                 actions: actions,
+                onBackPressed: onBackPressed,
+                backLabel: backLabel,
               ),
               const SizedBox(height: 28),
               SizedBox(

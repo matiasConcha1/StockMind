@@ -12,6 +12,7 @@ import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/company_profile_provider.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/category_chart_card.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
@@ -23,6 +24,7 @@ import 'package:stockmind/features/products/models/product.dart';
 import 'package:stockmind/features/products/providers/products_provider.dart';
 import 'package:stockmind/features/replenishment/presentation/widgets/stock_request_dialog.dart';
 import 'package:stockmind/features/replenishment/providers/stock_requests_provider.dart';
+import 'package:stockmind/features/users/providers/user_provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -30,6 +32,9 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<DashboardProvider>();
+    final auth = context.watch<AuthProvider>();
+    final userProvider = context.watch<UserProvider>();
+    final companyProvider = context.watch<CompanyProfileProvider>();
     final alertsProvider = context.watch<AlertsProvider>();
     final requestsProvider = context.watch<StockRequestsProvider>();
     final snapshot = provider.snapshot;
@@ -92,12 +97,14 @@ class DashboardScreen extends StatelessWidget {
     ];
 
     return DashboardFrame(
-      title: 'Dashboard',
-      subtitle:
-          'Vista ejecutiva del inventario con datos reales, alertas persistidas y movimientos recientes.',
+      title:
+          'Hola, ${(userProvider.currentUser?.displayName ?? auth.user?.displayName ?? 'equipo').split(' ').first} 👋',
+      subtitle: companyProvider.isComplete
+          ? 'Gestionando inventario de ${companyProvider.companyName}.'
+          : 'Completa el perfil de empresa para personalizar tu operación en StockMind.',
       actions: [
         FilledButton.tonalIcon(
-          onPressed: () => _exportInventory(context),
+          onPressed: auth.canExport ? () => _exportInventory(context) : null,
           icon: const Icon(Icons.download_rounded),
           label: const Text('Exportar'),
         ),
@@ -137,6 +144,25 @@ class DashboardScreen extends StatelessWidget {
               ),
             )
           else ...[
+            if (!companyProvider.isComplete) ...[
+              SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Personaliza tu espacio',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Completa el perfil de empresa desde Ajustes > Empresa para mostrar el nombre y logo de tu negocio en reportes y dashboard.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             if (isMobile)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -602,6 +628,7 @@ class DashboardScreen extends StatelessWidget {
       task: () => ReportExportService().exportProductsCsv(
         products: products,
         userName: auth.user?.displayName ?? auth.user?.email,
+        companyProfile: context.read<CompanyProfileProvider>().profile,
       ),
     );
     /*

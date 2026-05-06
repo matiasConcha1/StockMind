@@ -10,6 +10,7 @@ import 'package:stockmind/core/theme/theme_provider.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/features/auth/data/models/app_user.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/company_profile_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/users/providers/user_provider.dart';
 
@@ -31,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final notificationService = context.watch<NotificationService>();
     final pwaService = context.watch<PwaService>();
     final userProvider = context.watch<UserProvider>();
+    final companyProvider = context.watch<CompanyProfileProvider>();
     final themeProvider = context.watch<ThemeProvider>();
     final user = userProvider.currentUser ?? auth.user;
     final width = MediaQuery.sizeOf(context).width;
@@ -38,6 +40,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return DashboardFrame(
       title: 'Perfil y configuración',
+      onBackPressed: () => context.go(AppRoutePaths.dashboard),
+      backLabel: 'Volver',
       subtitle: 'Administra tu cuenta, seguridad y preferencias visuales.',
       child: Column(
         children: [
@@ -61,7 +65,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context: context,
             notificationService: notificationService,
           ),
+          SizedBox(height: spacing),
+          _buildOnboardingSection(
+            context: context,
+            userProvider: userProvider,
+            companyProvider: companyProvider,
+          ),
           if (userProvider.isAdmin) ...[
+            SizedBox(height: spacing),
+            _buildCompanySection(
+              context: context,
+              companyProvider: companyProvider,
+            ),
             SizedBox(height: spacing),
             _buildAutoArchiveSection(context),
             SizedBox(height: spacing),
@@ -204,7 +219,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context, snapshot) {
         final settings =
             snapshot.data ??
-            const AppSettingsSnapshot(autoArchiveExpiredProducts: false);
+            const AppSettingsSnapshot(
+              autoArchiveExpiredProducts: false,
+              defaultMinStock: 5,
+            );
         final currentValue =
             _pendingAutoArchiveValue ?? settings.autoArchiveExpiredProducts;
         final isSaving = _isUpdatingAutoArchive ||
@@ -431,6 +449,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                             ),
                             if (notificationService.token != null) ...[
+                              if (notificationService.statusMessage != null) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  notificationService.statusMessage!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 8),
                               Text(
                                 'Token guardado correctamente en este dispositivo.',
@@ -438,8 +465,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   color: colorScheme.primary,
                                 ),
                               ),
+                            ] else if (notificationService.statusMessage != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                notificationService.statusMessage!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.primary,
+                                ),
+                              ),
                             ],
-                            if (notificationService.error != null) ...[
+                            if (notificationService.error != null &&
+                                notificationService.token == null) ...[
                               const SizedBox(height: 8),
                               Text(
                                 notificationService.error!,
@@ -714,6 +750,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCompanySection({
+    required BuildContext context,
+    required CompanyProfileProvider companyProvider,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: colorScheme.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(Icons.business_outlined, color: colorScheme.primary),
+        ),
+        title: Text(
+          companyProvider.hasProfile ? companyProvider.companyName : 'Configurar empresa',
+          style: theme.textTheme.titleMedium,
+        ),
+        subtitle: Text(
+          companyProvider.hasProfile
+              ? 'Edita logo, rubro y datos del negocio.'
+              : 'Completa el perfil de empresa para personalizar StockMind.',
+        ),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: () => context.go(AppRoutePaths.company),
+      ),
+    );
+  }
+
+  Widget _buildOnboardingSection({
+    required BuildContext context,
+    required UserProvider userProvider,
+    required CompanyProfileProvider companyProvider,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final pending = !userProvider.hasCompletedOnboarding || !companyProvider.isComplete;
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppAlertType.info == AppAlertType.info
+                ? colorScheme.secondary.withValues(alpha: 0.12)
+                : colorScheme.secondary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(Icons.auto_awesome_outlined, color: colorScheme.secondary),
+        ),
+        title: Text(
+          pending ? 'Completar onboarding' : 'Reabrir onboarding',
+          style: theme.textTheme.titleMedium,
+        ),
+        subtitle: Text(
+          pending
+              ? 'Te faltan pasos de configuración inicial.'
+              : 'Vuelve a recorrer la configuración guiada cuando quieras.',
+        ),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: () async {
+          await userProvider.setOnboardingCompleted(false);
+          if (!context.mounted) return;
+          context.go(AppRoutePaths.dashboard);
+        },
       ),
     );
   }
