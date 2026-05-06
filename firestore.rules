@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function currentUserRole() {
+      return isSignedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return currentUserRole() == 'admin';
+    }
+
+    function isAdminOrEditor() {
+      return currentUserRole() in ['admin', 'editor'];
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+
+      allow create: if isOwner(userId)
+        && request.resource.data.role == 'editor';
+
+      allow update: if (
+          isOwner(userId)
+          && !('role' in request.resource.data.diff(resource.data).changedKeys())
+        ) || isAdmin();
+
+      allow delete: if false;
+
+      match /products/{productId} {
+        allow read, create, update: if isOwner(userId) && isAdminOrEditor();
+        allow delete: if isOwner(userId) && isAdmin();
+      }
+
+      match /locations/{locationId} {
+        allow read, create, update: if isOwner(userId) && isAdminOrEditor();
+        allow delete: if isOwner(userId) && isAdmin();
+      }
+
+      match /location_types/{typeId} {
+        allow read, create, update: if isOwner(userId) && isAdminOrEditor();
+        allow delete: if isOwner(userId) && isAdmin();
+      }
+
+      match /alerts/{alertId} {
+        allow read, create, update: if isOwner(userId) && isAdminOrEditor();
+        allow delete: if false;
+      }
+
+      match /stock_movements/{movementId} {
+        allow read, create, update: if isOwner(userId) && isAdminOrEditor();
+        allow delete: if false;
+      }
+
+      match /activity_logs/{logId} {
+        allow create: if isOwner(userId) && isAdminOrEditor();
+        allow read: if isOwner(userId) && isAdmin();
+        allow update, delete: if false;
+      }
+    }
+  }
+}
