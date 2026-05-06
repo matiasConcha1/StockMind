@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
+import 'package:stockmind/core/services/app_config_service.dart';
 import 'package:stockmind/core/services/notification_service.dart';
 import 'package:stockmind/core/theme/theme_provider.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
@@ -18,6 +19,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final AppConfigService _appConfigService = AppConfigService();
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -50,10 +53,114 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           if (userProvider.isAdmin) ...[
             SizedBox(height: spacing),
+            _buildAutoArchiveSection(context),
+            SizedBox(height: spacing),
             _buildAdminSection(context),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildAutoArchiveSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 768;
+    final padding = isMobile ? 18.0 : 24.0;
+
+    return StreamBuilder<AppSettingsSnapshot>(
+      stream: _appConfigService.watchSettings(),
+      builder: (context, snapshot) {
+        final settings =
+            snapshot.data ??
+            const AppSettingsSnapshot(autoArchiveExpiredProducts: false);
+        final isSaving = snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData;
+
+        return Card(
+          child: Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Archivado automático',
+                  style: theme.textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Cuando está activo, StockMind archivará automáticamente los productos vencidos durante la revisión diaria.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.24,
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: colorScheme.outlineVariant),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: colorScheme.error.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          Icons.inventory_2_outlined,
+                          color: colorScheme.error,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Archivar productos vencidos automáticamente',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              settings.autoArchiveExpiredProducts
+                                  ? 'Activo para la revisión diaria del sistema.'
+                                  : 'Desactivado por seguridad. Los productos vencidos no se archivarán solos.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.72,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: settings.autoArchiveExpiredProducts,
+                        onChanged: isSaving
+                            ? null
+                            : (value) async {
+                                await _appConfigService
+                                    .updateAutoArchiveExpiredProducts(value);
+                              },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

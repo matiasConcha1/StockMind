@@ -25,6 +25,14 @@ class StockAlertService {
     debugPrint(
       'StockAlertService.syncProductAlerts: userId=$userId productId=${product.id}',
     );
+    if (product.isArchived) {
+      await resolveActiveAlertsForProduct(
+        userId,
+        product.id,
+        resolvedBy: product.deletedBy ?? 'system',
+      );
+      return;
+    }
     await _syncLowStockAlert(userId, product);
     await _syncExpiryAlerts(userId, product);
     await _resolveLegacyAlerts(userId, product.id);
@@ -49,6 +57,45 @@ class StockAlertService {
       'expiry',
     ]) {
       batch.delete(_collection(userId).doc('${productId}_$suffix'));
+    }
+    await batch.commit();
+  }
+
+  Future<List<StockAlert>> getActiveAlertsForProduct(
+    String userId,
+    String productId,
+  ) async {
+    final snapshot = await _collection(userId)
+        .where('productId', isEqualTo: productId)
+        .where('status', isEqualTo: 'active')
+        .get();
+    return snapshot.docs.map(StockAlert.fromFirestore).toList();
+  }
+
+  Future<void> resolveActiveAlertsForProduct(
+    String userId,
+    String productId, {
+    required String resolvedBy,
+  }) async {
+    final snapshot = await _collection(userId)
+        .where('productId', isEqualTo: productId)
+        .where('status', isEqualTo: 'active')
+        .get();
+    if (snapshot.docs.isEmpty) return;
+
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.set(
+        doc.reference,
+        {
+          'status': 'resolved',
+          'isRead': true,
+          'resolvedAt': FieldValue.serverTimestamp(),
+          'resolvedBy': resolvedBy,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
     }
     await batch.commit();
   }
