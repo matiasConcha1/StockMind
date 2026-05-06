@@ -29,6 +29,18 @@ class StockAdjustmentResult {
   final int newStock;
 }
 
+class LocationStockAdjustmentResult {
+  const LocationStockAdjustmentResult({
+    required this.product,
+    required this.previousStock,
+    required this.newStock,
+  });
+
+  final Product product;
+  final int previousStock;
+  final int newStock;
+}
+
 class ProductService {
   ProductService({
     FirebaseFirestore? firestore,
@@ -66,6 +78,10 @@ class ProductService {
       product.copyWith(id: docRef.id),
       fallbackProductId: docRef.id,
     );
+    await _assertBarcodeAvailable(
+      userId: userId,
+      barcode: productWithCodes.barcode,
+    );
     debugPrint(
       'ProductService.createProduct: userId=$userId productId=${docRef.id}',
     );
@@ -77,12 +93,19 @@ class ProductService {
     Product product, {
     Product? previousProduct,
     String? stockChangeReason,
+    String? actorUserId,
+    String? actorUserName,
   }) async {
     debugPrint(
       'ProductService.updateProduct: userId=$userId productId=${product.id}',
     );
     final productRef = _collection(userId).doc(product.id);
     final productToUpdate = _ensureCodes(product, fallbackProductId: product.id);
+    await _assertBarcodeAvailable(
+      userId: userId,
+      barcode: productToUpdate.barcode,
+      excludeProductId: product.id,
+    );
 
     if (previousProduct == null) {
       await productRef.update(productToUpdate.toUpdateMap());
@@ -105,6 +128,8 @@ class ProductService {
       product: productToUpdate,
       previousProduct: previousProduct,
       stockChangeReason: stockChangeReason,
+      actorUserId: actorUserId,
+      actorUserName: actorUserName,
     );
 
     final batch = _firestore.batch();
@@ -185,6 +210,10 @@ class ProductService {
     required String locationName,
     required int quantity,
     required bool increase,
+    String movementType = 'adjustment',
+    String? reason,
+    String? actorUserId,
+    String? actorUserName,
   }) async {
     final productRef = _collection(userId).doc(productId);
     final movementRef = _firestore
@@ -264,11 +293,15 @@ class ProductService {
         id: movementRef.id,
         productId: currentProduct.id,
         productName: currentProduct.name,
-        type: increase ? 'entrada' : 'salida',
+        barcode: currentProduct.barcode,
+        type: movementType,
         quantity: quantity,
         previousStock: previousStock,
         newStock: newStock,
-        reason: increase ? 'Ajuste rápido por escaneo' : 'Descuento rápido por escaneo',
+        reason: reason ??
+            (increase
+                ? 'Ajuste rápido por escaneo'
+                : 'Descuento rápido por escaneo'),
         locationId: locationId,
         locationName: locationName,
         previousQuantityInLocation: previousLocationQuantity,
@@ -276,6 +309,9 @@ class ProductService {
         previousTotalStock: previousStock,
         newTotalStock: newStock,
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        userId: actorUserId,
+        userName: actorUserName,
       );
       transaction.set(movementRef, movement.toMap());
 
@@ -299,6 +335,261 @@ class ProductService {
       description: description,
     );
 
+    return result;
+  }
+
+  Future<LocationStockAdjustmentResult> setProductLocationStock({
+    required String userId,
+    required String productId,
+    required String locationId,
+    required String locationName,
+    required int newQuantity,
+    String? reason,
+    String? actorUserId,
+    String? actorUserName,
+  }) async {
+    final productRef = _collection(userId).doc(productId);
+    final movementRef = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('stock_movements')
+        .doc();
+
+    late final LocationStockAdjustmentResult result;
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(productRef);
+      if (!snapshot.exists) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'not-found',
+          message: 'No encontramos el producto escaneado.',
+        );
+      }
+
+      final currentProduct = Product.fromFirestore(snapshot);
+      if (currentProduct.isArchived) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'failed-precondition',
+          message: 'No puedes ajustar stock de un producto archivado.',
+        );
+      }
+
+      if (newQuantity < 0) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'invalid-argument',
+          message: 'La cantidad ajustada no puede ser negativa.',
+        );
+      }
+
+      final previousStock = currentProduct.totalStock;
+      final previousLocationQuantity =
+          currentProduct.locationQuantities[locationId]?.quantity ?? 0;
+      final delta = newQuantity - previousLocationQuantity;
+      final updatedLocations =
+          Map<String, ProductLocationQuantity>.from(currentProduct.locationQuantities);
+
+      if (newQuantity == 0) {
+        updatedLocations.remove(locationId);
+      } else {
+        updatedLocations[locationId] = ProductLocationQuantity(
+          locationId: locationId,
+          locationName: locationName,
+          quantity: newQuantity,
+        );
+      }
+
+      final updatedProduct = _ensureCodes(
+        currentProduct.copyWith(
+          totalStock: previousStock + delta,
+          locationQuantities: updatedLocations,
+          updatedAt: DateTime.now(),
+        ),
+        fallbackProductId: currentProduct.id,
+      );
+
+      transaction.update(productRef, updatedProduct.toUpdateMap());
+      final movement = StockMovement(
+        id: movementRef.id,
+        productId: currentProduct.id,
+        productName: currentProduct.name,
+        barcode: currentProduct.barcode,
+        type: 'adjustment',
+        quantity: delta.abs(),
+        previousStock: previousStock,
+        newStock: updatedProduct.totalStock,
+        reason: reason ?? 'Ajuste rápido desde escáner',
+        locationId: locationId,
+        locationName: locationName,
+        previousQuantityInLocation: previousLocationQuantity,
+        newQuantityInLocation: newQuantity,
+        previousTotalStock: previousStock,
+        newTotalStock: updatedProduct.totalStock,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        userId: actorUserId,
+        userName: actorUserName,
+      );
+      transaction.set(movementRef, movement.toMap());
+
+      result = LocationStockAdjustmentResult(
+        product: updatedProduct,
+        previousStock: previousStock,
+        newStock: updatedProduct.totalStock,
+      );
+    });
+
+    await _activityLogService.createLog(
+      userId: userId,
+      action: 'adjust_stock',
+      entityType: 'product',
+      entityId: result.product.id,
+      entityName: result.product.name,
+      description:
+          'Se ajustó el stock del producto ${result.product.name}. Stock anterior: ${result.previousStock}, stock nuevo: ${result.newStock}.',
+    );
+
+    return result;
+  }
+
+  Future<StockAdjustmentResult> transferProductStock({
+    required String userId,
+    required String productId,
+    required String sourceLocationId,
+    required String sourceLocationName,
+    required String targetLocationId,
+    required String targetLocationName,
+    required int quantity,
+    String? actorUserId,
+    String? actorUserName,
+  }) async {
+    final productRef = _collection(userId).doc(productId);
+    final movementRef = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('stock_movements')
+        .doc();
+
+    late final StockAdjustmentResult result;
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(productRef);
+      if (!snapshot.exists) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'not-found',
+          message: 'No encontramos el producto escaneado.',
+        );
+      }
+
+      final currentProduct = Product.fromFirestore(snapshot);
+      if (currentProduct.isArchived) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'failed-precondition',
+          message: 'No puedes mover stock de un producto archivado.',
+        );
+      }
+      if (quantity < 1) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'invalid-argument',
+          message: 'La transferencia mínima es de 1 unidad.',
+        );
+      }
+      if (sourceLocationId == targetLocationId) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'invalid-argument',
+          message: 'Debes elegir ubicaciones diferentes para la transferencia.',
+        );
+      }
+
+      final sourcePrevious =
+          currentProduct.locationQuantities[sourceLocationId]?.quantity ?? 0;
+      final targetPrevious =
+          currentProduct.locationQuantities[targetLocationId]?.quantity ?? 0;
+      if (quantity > sourcePrevious) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'invalid-argument',
+          message: 'No puedes mover más stock del disponible en la ubicación origen.',
+        );
+      }
+
+      final updatedLocations =
+          Map<String, ProductLocationQuantity>.from(currentProduct.locationQuantities);
+      final sourceNew = sourcePrevious - quantity;
+      final targetNew = targetPrevious + quantity;
+
+      if (sourceNew == 0) {
+        updatedLocations.remove(sourceLocationId);
+      } else {
+        updatedLocations[sourceLocationId] = ProductLocationQuantity(
+          locationId: sourceLocationId,
+          locationName: sourceLocationName,
+          quantity: sourceNew,
+        );
+      }
+      updatedLocations[targetLocationId] = ProductLocationQuantity(
+        locationId: targetLocationId,
+        locationName: targetLocationName,
+        quantity: targetNew,
+      );
+
+      final updatedProduct = _ensureCodes(
+        currentProduct.copyWith(
+          locationQuantities: updatedLocations,
+          updatedAt: DateTime.now(),
+        ),
+        fallbackProductId: currentProduct.id,
+      );
+
+      transaction.update(productRef, updatedProduct.toUpdateMap());
+      final movement = StockMovement(
+        id: movementRef.id,
+        productId: currentProduct.id,
+        productName: currentProduct.name,
+        barcode: currentProduct.barcode,
+        type: 'transfer',
+        quantity: quantity,
+        previousStock: currentProduct.totalStock,
+        newStock: updatedProduct.totalStock,
+        reason:
+            'Transferencia de $sourceLocationName a $targetLocationName',
+        locationId: targetLocationId,
+        locationName: targetLocationName,
+        sourceLocationId: sourceLocationId,
+        sourceLocationName: sourceLocationName,
+        targetLocationId: targetLocationId,
+        targetLocationName: targetLocationName,
+        previousQuantityInLocation: sourcePrevious,
+        newQuantityInLocation: sourceNew,
+        previousTotalStock: currentProduct.totalStock,
+        newTotalStock: updatedProduct.totalStock,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        userId: actorUserId,
+        userName: actorUserName,
+      );
+      transaction.set(movementRef, movement.toMap());
+
+      result = StockAdjustmentResult(
+        product: updatedProduct,
+        previousStock: currentProduct.totalStock,
+        newStock: updatedProduct.totalStock,
+      );
+    });
+
+    await _activityLogService.createLog(
+      userId: userId,
+      action: 'transfer_stock',
+      entityType: 'product',
+      entityId: result.product.id,
+      entityName: result.product.name,
+      description:
+          'Se movieron $quantity unidades del producto ${result.product.name} entre ubicaciones.',
+    );
     return result;
   }
 
@@ -333,12 +624,10 @@ class ProductService {
     final barcode = (product.barcode?.trim().isNotEmpty ?? false)
         ? product.barcode!.trim()
         : generateBarcodeValue();
-    final qrCode = (product.qrCode?.trim().isNotEmpty ?? false)
-        ? product.qrCode!.trim()
-        : generateQrCodeValue(
-            productId: product.id.isNotEmpty ? product.id : fallbackProductId,
-            barcode: barcode,
-          );
+    final qrCode = generateQrCodeValue(
+      productId: product.id.isNotEmpty ? product.id : fallbackProductId,
+      barcode: barcode,
+    );
 
     return product.copyWith(
       barcode: barcode,
@@ -347,11 +636,42 @@ class ProductService {
     );
   }
 
+  Future<void> _assertBarcodeAvailable({
+    required String userId,
+    required String? barcode,
+    String? excludeProductId,
+  }) async {
+    final normalized = barcode?.trim() ?? '';
+    if (normalized.isEmpty) return;
+
+    final snapshot = await _collection(userId)
+        .where('barcode', isEqualTo: normalized)
+        .limit(5)
+        .get();
+
+    for (final doc in snapshot.docs) {
+      if (excludeProductId != null && doc.id == excludeProductId) {
+        continue;
+      }
+      final existing = Product.fromFirestore(doc);
+      if (existing.isArchived) {
+        continue;
+      }
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'already-exists',
+        message: 'Ya existe un producto con ese código.',
+      );
+    }
+  }
+
   List<StockMovement> _buildMovements({
     required String userId,
     required Product product,
     required Product previousProduct,
     String? stockChangeReason,
+    String? actorUserId,
+    String? actorUserName,
   }) {
     final movementCollection = _firestore
         .collection('users')
@@ -377,7 +697,8 @@ class ProductService {
           id: ref.id,
           productId: product.id,
           productName: product.name,
-          type: newQuantity > previousQuantity ? 'entrada' : 'salida',
+          barcode: product.barcode,
+          type: 'adjustment',
           quantity: (newQuantity - previousQuantity).abs(),
           previousStock: previousProduct.totalStock,
           newStock: product.totalStock,
@@ -390,6 +711,9 @@ class ProductService {
           previousTotalStock: previousProduct.totalStock,
           newTotalStock: product.totalStock,
           createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          userId: actorUserId,
+          userName: actorUserName,
         ),
       );
     }
@@ -401,9 +725,8 @@ class ProductService {
           id: ref.id,
           productId: product.id,
           productName: product.name,
-          type: product.totalStock > previousProduct.totalStock
-              ? 'entrada'
-              : 'salida',
+          barcode: product.barcode,
+          type: 'adjustment',
           quantity: (product.totalStock - previousProduct.totalStock).abs(),
           previousStock: previousProduct.totalStock,
           newStock: product.totalStock,
@@ -415,6 +738,9 @@ class ProductService {
           previousTotalStock: previousProduct.totalStock,
           newTotalStock: product.totalStock,
           createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          userId: actorUserId,
+          userName: actorUserName,
         ),
       );
     }

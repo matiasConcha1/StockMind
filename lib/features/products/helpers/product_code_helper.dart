@@ -11,6 +11,6 @@ String generateQrCodeValue({
   required String productId,
   required String barcode,
 }) {
-  return productId.isNotEmpty ? productId : barcode;
+  return barcode.isNotEmpty ? barcode : productId;
 }
 

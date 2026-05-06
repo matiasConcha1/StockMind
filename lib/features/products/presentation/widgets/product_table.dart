@@ -10,6 +10,7 @@ class ProductTable extends StatelessWidget {
     required this.products,
     required this.onEdit,
     required this.onDelete,
+    this.onRequestReplenishment,
     required this.canEdit,
     required this.canDelete,
     super.key,
@@ -18,6 +19,7 @@ class ProductTable extends StatelessWidget {
   final List<Product> products;
   final ValueChanged<Product> onEdit;
   final ValueChanged<Product> onDelete;
+  final ValueChanged<Product>? onRequestReplenishment;
   final bool canEdit;
   final bool canDelete;
 
@@ -54,6 +56,9 @@ class ProductTable extends StatelessWidget {
                     canDelete: canDelete,
                     onEdit: () => onEdit(product),
                     onDelete: () => onDelete(product),
+                    onRequestReplenishment: onRequestReplenishment == null
+                        ? null
+                        : () => onRequestReplenishment!(product),
                   ),
                 )
                 .toList(),
@@ -75,6 +80,9 @@ class ProductTable extends StatelessWidget {
                     canDelete: canDelete,
                     onEdit: () => onEdit(product),
                     onDelete: () => onDelete(product),
+                    onRequestReplenishment: onRequestReplenishment == null
+                        ? null
+                        : () => onRequestReplenishment!(product),
                   ),
               ],
             ),
@@ -152,6 +160,7 @@ class _DesktopProductRow extends StatefulWidget {
     required this.canDelete,
     required this.onEdit,
     required this.onDelete,
+    this.onRequestReplenishment,
   });
 
   final Product product;
@@ -160,6 +169,7 @@ class _DesktopProductRow extends StatefulWidget {
   final bool canDelete;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onRequestReplenishment;
 
   @override
   State<_DesktopProductRow> createState() => _DesktopProductRowState();
@@ -291,6 +301,14 @@ class _DesktopProductRowState extends State<_DesktopProductRow> {
                         icon: const Icon(Icons.edit_outlined, size: 18),
                         label: const Text('Editar'),
                       ),
+                    if (widget.canEdit && widget.onRequestReplenishment != null) ...[
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: widget.onRequestReplenishment,
+                        icon: const Icon(Icons.add_alert_outlined, size: 18),
+                        label: const Text('Reposición'),
+                      ),
+                    ],
                     if (widget.canEdit && widget.canDelete)
                       const SizedBox(height: 8),
                     if (widget.canDelete)
@@ -325,6 +343,7 @@ class _CompactProductCard extends StatelessWidget {
     required this.canDelete,
     required this.onEdit,
     required this.onDelete,
+    this.onRequestReplenishment,
   });
 
   final Product product;
@@ -333,6 +352,7 @@ class _CompactProductCard extends StatelessWidget {
   final bool canDelete;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onRequestReplenishment;
 
   @override
   Widget build(BuildContext context) {
@@ -358,6 +378,7 @@ class _CompactProductCard extends StatelessWidget {
                   PopupMenuButton<String>(
                     onSelected: (value) {
                       if (value == 'edit') onEdit();
+                      if (value == 'request') onRequestReplenishment?.call();
                       if (value == 'delete') onDelete();
                     },
                     itemBuilder: (context) => [
@@ -365,6 +386,11 @@ class _CompactProductCard extends StatelessWidget {
                         const PopupMenuItem(
                           value: 'edit',
                           child: Text('Editar'),
+                        ),
+                      if (canEdit && onRequestReplenishment != null)
+                        const PopupMenuItem(
+                          value: 'request',
+                          child: Text('Solicitar reposición'),
                         ),
                       if (canDelete)
                         PopupMenuItem(

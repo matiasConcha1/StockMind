@@ -165,6 +165,8 @@ class ProductsProvider extends ChangeNotifier {
         productToUpdate,
         previousProduct: previousProduct,
         stockChangeReason: stockChangeReason,
+        actorUserId: _authProvider.user?.id,
+        actorUserName: _authProvider.user?.displayName,
       );
       await _syncProductAlertBestEffort(userId, productToUpdate);
     });
@@ -253,6 +255,77 @@ class ProductsProvider extends ChangeNotifier {
         locationName: locationName,
         quantity: quantity,
         increase: increase,
+        movementType: increase ? 'entry' : 'exit',
+        reason: increase
+            ? 'Entrada rápida desde escáner'
+            : 'Salida rápida desde escáner',
+        actorUserId: _authProvider.user?.id,
+        actorUserName: _authProvider.user?.displayName,
+      );
+      await _syncProductAlertBestEffort(userId, result.product);
+      success = true;
+    });
+    return success && _error == null;
+  }
+
+  Future<bool> setProductLocationStock({
+    required String productId,
+    required String locationId,
+    required String locationName,
+    required int quantity,
+  }) async {
+    final userId = _authProvider.user?.id;
+    if (userId == null) {
+      _error = 'Debes iniciar sesión para actualizar el stock.';
+      notifyListeners();
+      return false;
+    }
+
+    var success = false;
+    await _execute(() async {
+      final result = await _productService.setProductLocationStock(
+        userId: userId,
+        productId: productId,
+        locationId: locationId,
+        locationName: locationName,
+        newQuantity: quantity,
+        reason: 'Ajuste rápido desde escáner',
+        actorUserId: _authProvider.user?.id,
+        actorUserName: _authProvider.user?.displayName,
+      );
+      await _syncProductAlertBestEffort(userId, result.product);
+      success = true;
+    });
+    return success && _error == null;
+  }
+
+  Future<bool> transferProductStock({
+    required String productId,
+    required String sourceLocationId,
+    required String sourceLocationName,
+    required String targetLocationId,
+    required String targetLocationName,
+    required int quantity,
+  }) async {
+    final userId = _authProvider.user?.id;
+    if (userId == null) {
+      _error = 'Debes iniciar sesión para actualizar el stock.';
+      notifyListeners();
+      return false;
+    }
+
+    var success = false;
+    await _execute(() async {
+      final result = await _productService.transferProductStock(
+        userId: userId,
+        productId: productId,
+        sourceLocationId: sourceLocationId,
+        sourceLocationName: sourceLocationName,
+        targetLocationId: targetLocationId,
+        targetLocationName: targetLocationName,
+        quantity: quantity,
+        actorUserId: _authProvider.user?.id,
+        actorUserName: _authProvider.user?.displayName,
       );
       await _syncProductAlertBestEffort(userId, result.product);
       success = true;
@@ -398,6 +471,8 @@ class ProductsProvider extends ChangeNotifier {
         return 'Firebase no está disponible en este momento. Intenta nuevamente.';
       case 'not-found':
         return 'No encontramos el recurso solicitado en Firestore.';
+      case 'already-exists':
+        return 'Ya existe otro producto con ese código. Usa uno diferente.';
       case 'failed-precondition':
         return 'Firestore requiere una configuración adicional para completar la operación.';
       default:

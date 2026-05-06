@@ -86,6 +86,9 @@ class Product {
   bool get hasBarcode => (barcode?.trim().isNotEmpty ?? false);
   bool get hasQrCode => (qrCode?.trim().isNotEmpty ?? false);
   bool get isArchived => isDeleted;
+  List<ProductLocationQuantity> get locationsStock =>
+      locationQuantities.values.toList()
+        ..sort((a, b) => a.locationName.compareTo(b.locationName));
 
   bool get isExpired =>
       expiryDate != null && _dateOnly(expiryDate!).isBefore(_today);
@@ -156,6 +159,7 @@ class Product {
       'expirationDate':
           expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
       'locations': _serializeLocations(locationQuantities),
+      'locationsStock': _serializeLocationsStock(locationQuantities),
       'imageUrl': imageUrl,
       'barcode': barcode,
       'qrCode': qrCode,
@@ -182,6 +186,7 @@ class Product {
       'expirationDate':
           expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
       'locations': _serializeLocations(locationQuantities),
+      'locationsStock': _serializeLocationsStock(locationQuantities),
       'imageUrl': imageUrl,
       'barcode': barcode,
       'qrCode': qrCode,
@@ -211,6 +216,27 @@ class Product {
           entry.key,
           value.map((key, item) => MapEntry(key.toString(), item)),
         );
+      }
+    }
+
+    if (locationQuantities.isEmpty) {
+      final rawLocationsStock = data['locationsStock'];
+      if (rawLocationsStock is List) {
+        for (final item in rawLocationsStock) {
+          if (item is Map<String, dynamic>) {
+            final locationId = (item['locationId'] ?? '').toString();
+            if (locationId.isEmpty) continue;
+            locationQuantities[locationId] =
+                ProductLocationQuantity.fromMap(locationId, item);
+          } else if (item is Map) {
+            final normalized =
+                item.map((key, value) => MapEntry(key.toString(), value));
+            final locationId = (normalized['locationId'] ?? '').toString();
+            if (locationId.isEmpty) continue;
+            locationQuantities[locationId] =
+                ProductLocationQuantity.fromMap(locationId, normalized);
+          }
+        }
       }
     }
 
@@ -256,6 +282,12 @@ class Product {
     return {
       for (final entry in items.entries) entry.key: entry.value.toMap(),
     };
+  }
+
+  static List<Map<String, dynamic>> _serializeLocationsStock(
+    Map<String, ProductLocationQuantity> items,
+  ) {
+    return items.values.map((item) => item.toMap()).toList();
   }
 
   static DateTime _toDate(dynamic value) {

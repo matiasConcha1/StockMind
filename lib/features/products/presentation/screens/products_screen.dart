@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
+import 'package:stockmind/core/services/report_export_service.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
+import 'package:stockmind/core/widgets/export_feedback.dart';
 import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
@@ -12,6 +14,7 @@ import 'package:stockmind/features/products/models/product.dart';
 import 'package:stockmind/features/products/presentation/widgets/product_dialog.dart';
 import 'package:stockmind/features/products/presentation/widgets/product_table.dart';
 import 'package:stockmind/features/products/providers/products_provider.dart';
+import 'package:stockmind/features/replenishment/presentation/widgets/stock_request_dialog.dart';
 
 class ProductsScreen extends StatelessWidget {
   const ProductsScreen({super.key});
@@ -27,6 +30,18 @@ class ProductsScreen extends StatelessWidget {
       subtitle:
           'Gestiona tu catalogo por usuario, con filtros, exportacion y control inteligente del stock.',
       actions: [
+        FilledButton.tonalIcon(
+          onPressed: exportItems.isEmpty ? null : () => _exportCsv(context),
+          icon: const Icon(Icons.download_rounded),
+          label: const Text('Exportar CSV'),
+        ),
+        OutlinedButton.icon(
+          onPressed: exportItems.isEmpty
+              ? null
+              : () => _exportLocationStockCsv(context),
+          icon: const Icon(Icons.location_on_outlined),
+          label: const Text('Stock x ubicaciÃ³n'),
+        ),
         OutlinedButton.icon(
           onPressed: exportItems.isEmpty ? null : () => _exportExcel(context),
           icon: const Icon(Icons.table_chart_outlined),
@@ -48,6 +63,13 @@ class ProductsScreen extends StatelessWidget {
           onPressed: auth.canEdit ? () => context.go(AppRoutePaths.scan) : null,
           icon: const Icon(Icons.qr_code_scanner_rounded),
           label: const Text('Escanear'),
+        ),
+        FilledButton.tonalIcon(
+          onPressed: auth.canEdit
+              ? () => context.go(AppRoutePaths.replenishment)
+              : null,
+          icon: const Icon(Icons.add_alert_outlined),
+          label: const Text('Reposición'),
         ),
       ],
       child: LayoutBuilder(
@@ -247,6 +269,12 @@ class ProductsScreen extends StatelessWidget {
                       canDelete: auth.canDelete,
                       onEdit: (product) => _openDialog(context, product: product),
                       onDelete: (product) => _confirmDelete(context, product),
+                      onRequestReplenishment: auth.canEdit
+                          ? (product) => showStockRequestDialog(
+                                context,
+                                initialProduct: product,
+                              )
+                          : null,
                     ),
                     if (provider.isLoading && provider.hasProducts)
                       const Positioned(
@@ -267,10 +295,17 @@ class ProductsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _openDialog(BuildContext context, {Product? product}) async {
+  Future<void> _openDialog(
+    BuildContext context, {
+    Product? product,
+    String? initialBarcode,
+  }) async {
     final result = await showDialog<ProductDialogResult>(
       context: context,
-      builder: (_) => ProductDialog(product: product),
+      builder: (_) => ProductDialog(
+        product: product,
+        initialBarcode: initialBarcode,
+      ),
     );
 
     if (result == null || !context.mounted) return;
@@ -357,6 +392,38 @@ class ProductsScreen extends StatelessWidget {
         context.read<ProductsProvider>().filteredProducts,
       ),
       successMessage: 'El inventario fue exportado correctamente en PDF.',
+    );
+  }
+
+  Future<void> _exportCsv(BuildContext context) async {
+    final auth = context.read<AuthProvider>();
+    await runExportTask(
+      context: context,
+      hasData: context.read<ProductsProvider>().filteredProducts.isNotEmpty,
+      noDataTitle: 'No hay datos para exportar',
+      noDataMessage: 'Ajusta los filtros o crea productos antes de exportar.',
+      successMessage: 'Los productos fueron descargados correctamente en CSV.',
+      task: () => ReportExportService().exportProductsCsv(
+        products: context.read<ProductsProvider>().filteredProducts,
+        userName: auth.user?.displayName ?? auth.user?.email,
+      ),
+    );
+  }
+
+  Future<void> _exportLocationStockCsv(BuildContext context) async {
+    final auth = context.read<AuthProvider>();
+    await runExportTask(
+      context: context,
+      hasData: context.read<ProductsProvider>().filteredProducts.isNotEmpty,
+      noDataTitle: 'No hay datos para exportar',
+      noDataMessage:
+          'Necesitas productos visibles en el filtro actual para exportar.',
+      successMessage:
+          'El stock distribuido por ubicaciÃ³n fue descargado correctamente.',
+      task: () => ReportExportService().exportLocationStockCsv(
+        products: context.read<ProductsProvider>().filteredProducts,
+        userName: auth.user?.displayName ?? auth.user?.email,
+      ),
     );
   }
 

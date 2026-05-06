@@ -33,10 +33,12 @@ class ProductDialogResult {
 class ProductDialog extends StatefulWidget {
   const ProductDialog({
     this.product,
+    this.initialBarcode,
     super.key,
   });
 
   final Product? product;
+  final String? initialBarcode;
 
   @override
   State<ProductDialog> createState() => _ProductDialogState();
@@ -49,14 +51,22 @@ class _ProductDialogState extends State<ProductDialog> {
   late final TextEditingController _priceController;
   late final TextEditingController _minStockController;
   late final TextEditingController _reasonController;
+  late final TextEditingController _codeController;
   final Map<String, TextEditingController> _locationControllers = {};
   DateTime? _expiryDate;
-  late final String _draftBarcode;
-  late final String _draftQrCode;
+  late final String _generatedFallbackCode;
 
   PickedImageFile? _pickedImage;
   bool _removeExistingImage = false;
   bool _isPickingImage = false;
+
+  String get _resolvedProductCode {
+    final manualCode = _codeController.text.trim();
+    return manualCode.isNotEmpty ? manualCode : _generatedFallbackCode;
+  }
+
+  String get _draftBarcode => _resolvedProductCode;
+  String get _draftQrCode => _resolvedProductCode;
 
   @override
   void initState() {
@@ -70,15 +80,15 @@ class _ProductDialogState extends State<ProductDialog> {
     );
     _reasonController = TextEditingController();
     _expiryDate = product?.expiryDate;
-    _draftBarcode = (product?.barcode?.trim().isNotEmpty ?? false)
+    final initialCode = (product?.barcode?.trim().isNotEmpty ?? false)
         ? product!.barcode!.trim()
+        : (product?.qrCode?.trim().isNotEmpty ?? false)
+            ? product!.qrCode!.trim()
+            : (widget.initialBarcode?.trim() ?? '');
+    _generatedFallbackCode = initialCode.isNotEmpty
+        ? initialCode
         : generateBarcodeValue();
-    _draftQrCode = (product?.qrCode?.trim().isNotEmpty ?? false)
-        ? product!.qrCode!.trim()
-        : generateQrCodeValue(
-            productId: product?.id ?? '',
-            barcode: _draftBarcode,
-          );
+    _codeController = TextEditingController(text: initialCode);
   }
 
   @override
@@ -88,6 +98,7 @@ class _ProductDialogState extends State<ProductDialog> {
     _priceController.dispose();
     _minStockController.dispose();
     _reasonController.dispose();
+    _codeController.dispose();
     for (final controller in _locationControllers.values) {
       controller.dispose();
     }
@@ -562,7 +573,22 @@ class _ProductDialogState extends State<ProductDialog> {
                 ],
               );
 
-              if (compact) return codeInfo;
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    codeInfo,
+                    const SizedBox(height: 16),
+                    Center(
+                      child: _CodePreviewRail(
+                        barcodeValue: _draftBarcode,
+                        qrValue: _draftQrCode,
+                        compact: true,
+                      ),
+                    ),
+                  ],
+                );
+              }
 
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -587,13 +613,43 @@ class _ProductDialogState extends State<ProductDialog> {
     required String label,
     required String value,
   }) {
+    final isBarcodeField = label.toLowerCase().contains('barras');
+    if (isBarcodeField) {
+      return TextFormField(
+        controller: _codeController,
+        keyboardType: TextInputType.number,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+        ],
+        onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(
+          labelText: 'Código del producto',
+          helperText:
+              'Solo números. Se usará también para el QR y el copiado.',
+          suffixIcon: IconButton(
+            onPressed: () => _copyCode(context, _resolvedProductCode),
+            icon: const Icon(Icons.copy_rounded),
+          ),
+        ),
+        validator: (fieldValue) {
+          final trimmed = fieldValue?.trim() ?? '';
+          if (trimmed.isEmpty) return null;
+          if (!RegExp(r'^\d+$').hasMatch(trimmed)) {
+            return 'El código solo puede contener números.';
+          }
+          return null;
+        },
+      );
+    }
+
     return TextFormField(
-      initialValue: value,
+      key: ValueKey('$label-${_resolvedProductCode}'),
+      initialValue: _resolvedProductCode,
       readOnly: true,
       decoration: InputDecoration(
         labelText: label,
         suffixIcon: IconButton(
-          onPressed: () => _copyCode(context, value),
+          onPressed: () => _copyCode(context, _resolvedProductCode),
           icon: const Icon(Icons.copy_rounded),
         ),
       ),
@@ -978,6 +1034,7 @@ class _ProductDialogState extends State<ProductDialog> {
     );
     final minStock = int.parse(_minStockController.text.trim());
     final now = DateTime.now();
+    final productCode = _resolvedProductCode;
 
     final product = Product(
       id: widget.product?.id ?? '',
@@ -995,8 +1052,8 @@ class _ProductDialogState extends State<ProductDialog> {
       updatedAt: now,
       imageUrl: _removeExistingImage ? null : widget.product?.imageUrl,
       expiryDate: _expiryDate,
-      barcode: widget.product?.barcode ?? _draftBarcode,
-      qrCode: widget.product?.qrCode ?? _draftQrCode,
+      barcode: productCode,
+      qrCode: productCode,
     );
 
     Navigator.of(context).pop(
@@ -1131,18 +1188,20 @@ class _CodePreviewRail extends StatelessWidget {
   const _CodePreviewRail({
     required this.barcodeValue,
     required this.qrValue,
+    this.compact = false,
   });
 
   final String barcodeValue;
   final String qrValue;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      width: 180,
-      padding: const EdgeInsets.all(16),
+      width: compact ? 220 : 180,
+      padding: EdgeInsets.all(compact ? 14 : 16),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
@@ -1156,7 +1215,7 @@ class _CodePreviewRail extends StatelessWidget {
             child: QrImageView(
               data: qrValue,
               version: QrVersions.auto,
-              size: 110,
+              size: compact ? 132 : 110,
               backgroundColor: Colors.white,
             ),
           ),
@@ -1167,9 +1226,9 @@ class _CodePreviewRail extends StatelessWidget {
             child: BarcodeWidget(
               barcode: Barcode.code128(),
               data: barcodeValue,
-              width: 132,
-              height: 56,
-              drawText: false,
+              width: compact ? 164 : 132,
+              height: compact ? 64 : 56,
+              drawText: compact,
             ),
           ),
         ],
