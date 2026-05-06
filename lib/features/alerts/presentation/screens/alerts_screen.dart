@@ -48,6 +48,7 @@ class AlertsScreen extends StatelessWidget {
       subtitle:
           'Supervisa incidencias de stock y vencimiento en tiempo real, con resolución auditada y filtros operativos.',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (provider.error != null) ...[
             _AlertsErrorBanner(message: provider.error!),
@@ -55,10 +56,11 @@ class AlertsScreen extends StatelessWidget {
           ],
           if (isMobile)
             Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (final metric in metrics) ...[
                   metric,
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                 ],
               ],
             )
@@ -162,30 +164,61 @@ class _AlertMetric extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 760;
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      constraints: BoxConstraints(minHeight: isMobile ? 148 : 0),
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(isMobile ? 24 : 22),
         border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: colorScheme.primary),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.all(isMobile ? 9 : 10),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  icon,
+                  color: colorScheme.primary,
+                  size: isMobile ? 20 : 24,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                value,
+                style: isMobile
+                    ? theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      )
+                    : theme.textTheme.headlineMedium,
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
-          Text(title, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(value, style: theme.textTheme.headlineMedium),
-          const SizedBox(height: 6),
-          Text(helper, style: theme.textTheme.bodyMedium),
+          SizedBox(height: isMobile ? 12 : 16),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleMedium,
+          ),
+          SizedBox(height: isMobile ? 6 : 8),
+          Text(
+            helper,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: isMobile ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium,
+          ),
         ],
       ),
     );

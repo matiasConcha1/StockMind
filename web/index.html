@@ -9,10 +9,10 @@
       name="description"
       content="StockMind, sistema moderno de gestion de inventario."
     />
-    <meta name="theme-color" content="#2563EB" />
+    <meta name="theme-color" content="#1D4ED8" />
 
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="StockMind" />
     <link rel="apple-touch-icon" href="icons/Icon-192.png" />
 
@@ -300,9 +300,104 @@
 
         window.addEventListener("flutter-first-frame", hideLoader);
 
+        let deferredInstallPrompt = null;
+        let flutterServiceWorkerRegistration = null;
+        let updateReady = false;
+
+        function emitPwaEvent(name) {
+          window.dispatchEvent(new CustomEvent(name));
+        }
+
+        function emitPwaState() {
+          emitPwaEvent("stockmind-pwa-state");
+        }
+
+        function setupFlutterServiceWorker(registration) {
+          flutterServiceWorkerRegistration = registration;
+
+          function attachWaitingWorker(worker) {
+            if (!worker) return;
+            updateReady = true;
+            emitPwaEvent("stockmind-pwa-update-available");
+          }
+
+          if (registration.waiting) {
+            attachWaitingWorker(registration.waiting);
+          }
+
+          registration.addEventListener("updatefound", function () {
+            const newWorker = registration.installing;
+            if (!newWorker) return;
+            newWorker.addEventListener("statechange", function () {
+              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                attachWaitingWorker(newWorker);
+              }
+            });
+          });
+
+          navigator.serviceWorker.addEventListener("controllerchange", function () {
+            if (!updateReady) return;
+            updateReady = false;
+            window.location.reload();
+          });
+
+          window.setInterval(function () {
+            registration.update().catch(function (error) {
+              console.debug("Flutter SW update check failed", error);
+            });
+          }, 60000);
+        }
+
+        window.addEventListener("beforeinstallprompt", function (event) {
+          event.preventDefault();
+          deferredInstallPrompt = event;
+          emitPwaEvent("stockmind-pwa-installable");
+          emitPwaState();
+        });
+
+        window.addEventListener("appinstalled", function () {
+          deferredInstallPrompt = null;
+          emitPwaEvent("stockmind-pwa-installed");
+          emitPwaState();
+        });
+
+        window.addEventListener("stockmind-request-install", async function () {
+          if (!deferredInstallPrompt) return;
+          deferredInstallPrompt.prompt();
+          try {
+            await deferredInstallPrompt.userChoice;
+          } catch (error) {
+            console.debug("Install prompt dismissed", error);
+          }
+        });
+
+        window.addEventListener("stockmind-request-update", function () {
+          const waitingWorker = flutterServiceWorkerRegistration?.waiting;
+          if (!waitingWorker) {
+            window.location.reload();
+            return;
+          }
+          waitingWorker.postMessage({ type: "SKIP_WAITING" });
+        });
+
+        window.addEventListener("stockmind-pwa-state-request", function () {
+          emitPwaState();
+          if (deferredInstallPrompt) {
+            emitPwaEvent("stockmind-pwa-installable");
+          }
+          if (flutterServiceWorkerRegistration?.waiting) {
+            emitPwaEvent("stockmind-pwa-update-available");
+          }
+        });
+
         if ("serviceWorker" in navigator) {
           window.addEventListener("flutter-first-frame", function () {
-            navigator.serviceWorker.register("flutter_service_worker.js");
+            navigator.serviceWorker
+              .register("flutter_service_worker.js")
+              .then(setupFlutterServiceWorker)
+              .catch(function (error) {
+                console.error("Flutter service worker registration failed", error);
+              });
           });
         }
       })();

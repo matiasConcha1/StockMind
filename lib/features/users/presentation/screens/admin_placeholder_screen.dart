@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/widgets/permission_guard.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/users/providers/user_provider.dart';
@@ -24,6 +26,18 @@ class AdminPlaceholderScreen extends StatelessWidget {
     return DashboardFrame(
       title: title,
       subtitle: subtitle,
+      actions: [
+        OutlinedButton.icon(
+          onPressed: () => context.go(AppRoutePaths.settings),
+          icon: const Icon(Icons.arrow_back_rounded),
+          label: const Text('Volver a Ajustes'),
+        ),
+        FilledButton.tonalIcon(
+          onPressed: () => context.go(AppRoutePaths.dashboard),
+          icon: const Icon(Icons.dashboard_rounded),
+          label: const Text('Ir al inicio'),
+        ),
+      ],
       child: PermissionGuard(
         allowed: context.watch<UserProvider>().isAdmin,
         child: Card(

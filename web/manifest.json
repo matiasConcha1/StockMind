@@ -1,10 +1,11 @@
 {
   "name": "StockMind",
   "short_name": "StockMind",
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0B1220",
-  "theme_color": "#2563EB",
+  "theme_color": "#1D4ED8",
   "description": "StockMind, sistema moderno de gestion de inventario.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,

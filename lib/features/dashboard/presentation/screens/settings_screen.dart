@@ -1,9 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/services/app_config_service.dart';
 import 'package:stockmind/core/services/notification_service.dart';
+import 'package:stockmind/core/services/pwa_service.dart';
 import 'package:stockmind/core/theme/theme_provider.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/features/auth/data/models/app_user.dart';
@@ -20,11 +22,14 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final AppConfigService _appConfigService = AppConfigService();
+  bool _isUpdatingAutoArchive = false;
+  bool? _pendingAutoArchiveValue;
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final notificationService = context.watch<NotificationService>();
+    final pwaService = context.watch<PwaService>();
     final userProvider = context.watch<UserProvider>();
     final themeProvider = context.watch<ThemeProvider>();
     final user = userProvider.currentUser ?? auth.user;
@@ -47,6 +52,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             auth: auth,
           ),
           SizedBox(height: spacing),
+          _buildPwaSection(
+            context: context,
+            pwaService: pwaService,
+          ),
+          SizedBox(height: spacing),
           _buildNotificationsSection(
             context: context,
             notificationService: notificationService,
@@ -58,6 +68,126 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildAdminSection(context),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildPwaSection({
+    required BuildContext context,
+    required PwaService pwaService,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 768;
+    final padding = isMobile ? 18.0 : 24.0;
+
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(padding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('App instalada', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              'Instala StockMind para abrirlo como app real, con mejor experiencia móvil y acceso rápido.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.72),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.24),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: colorScheme.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          pwaService.isInstalled
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.install_mobile_rounded,
+                          color: pwaService.isInstalled
+                              ? colorScheme.secondary
+                              : colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              pwaService.isInstalled
+                                  ? 'App instalada'
+                                  : 'Instalar StockMind',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              pwaService.installHelpText,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurface.withValues(alpha: 0.72),
+                              ),
+                            ),
+                            if (pwaService.updateAvailable) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                'Nueva versión disponible. Puedes actualizarla ahora.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (pwaService.canInstall)
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () => pwaService.promptInstall(),
+                        icon: const Icon(Icons.download_for_offline_rounded),
+                        label: const Text('Instalar StockMind'),
+                      ),
+                    )
+                  else if (pwaService.updateAvailable)
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.tonalIcon(
+                        onPressed: () => pwaService.applyUpdate(),
+                        icon: const Icon(Icons.system_update_rounded),
+                        label: const Text('Actualizar ahora'),
+                      ),
+                    )
+                  else if (pwaService.showIosInstallHint)
+                    Text(
+                      'En iPhone, usa Compartir > Agregar a pantalla de inicio.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -75,8 +205,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final settings =
             snapshot.data ??
             const AppSettingsSnapshot(autoArchiveExpiredProducts: false);
-        final isSaving = snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData;
+        final currentValue =
+            _pendingAutoArchiveValue ?? settings.autoArchiveExpiredProducts;
+        final isSaving = _isUpdatingAutoArchive ||
+            (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData);
 
         return Card(
           child: Padding(
@@ -132,7 +265,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              settings.autoArchiveExpiredProducts
+                              currentValue
                                   ? 'Activo para la revisión diaria del sistema.'
                                   : 'Desactivado por seguridad. Los productos vencidos no se archivarán solos.',
                               style: theme.textTheme.bodySmall?.copyWith(
@@ -145,12 +278,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       Switch.adaptive(
-                        value: settings.autoArchiveExpiredProducts,
+                        value: currentValue,
                         onChanged: isSaving
                             ? null
                             : (value) async {
-                                await _appConfigService
-                                    .updateAutoArchiveExpiredProducts(value);
+                                await _updateAutoArchiveSetting(
+                                  context,
+                                  value,
+                                );
                               },
                       ),
                     ],
@@ -162,6 +297,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       },
     );
+  }
+
+  Future<void> _updateAutoArchiveSetting(
+    BuildContext context,
+    bool value,
+  ) async {
+    setState(() {
+      _isUpdatingAutoArchive = true;
+      _pendingAutoArchiveValue = value;
+    });
+
+    try {
+      await _appConfigService.updateAutoArchiveExpiredProducts(value);
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint(
+        'SettingsScreen._updateAutoArchiveSetting FirebaseException: ${error.code} ${error.message}',
+      );
+      debugPrint('$stackTrace');
+      if (!context.mounted) return;
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.error,
+        title: 'No se pudo actualizar',
+        message: _mapAppConfigError(error),
+      );
+    } catch (error, stackTrace) {
+      debugPrint('SettingsScreen._updateAutoArchiveSetting error: $error');
+      debugPrint('$stackTrace');
+      if (!context.mounted) return;
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.error,
+        title: 'No se pudo actualizar',
+        message: 'Ocurrió un error inesperado al guardar esta configuración.',
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isUpdatingAutoArchive = false;
+        _pendingAutoArchiveValue = null;
+      });
+    }
+  }
+
+  String _mapAppConfigError(FirebaseException error) {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'No tienes permisos para cambiar esta configuración. Revisa tu rol y despliega las reglas de Firestore.';
+      case 'unavailable':
+        return 'Firebase no está disponible en este momento. Intenta nuevamente.';
+      case 'failed-precondition':
+        return 'La configuración no pudo guardarse por una restricción de Firestore.';
+      default:
+        return error.message?.trim().isNotEmpty == true
+            ? error.message!.trim()
+            : 'No pudimos guardar esta configuración.';
+    }
   }
 
   Widget _buildNotificationsSection({

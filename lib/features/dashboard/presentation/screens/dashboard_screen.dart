@@ -31,8 +31,60 @@ class DashboardScreen extends StatelessWidget {
     final snapshot = provider.snapshot;
     final currency = NumberFormat.currency(symbol: '\$');
     final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 768;
     final statCrossAxisCount = width < 720 ? 1 : width < 1180 ? 2 : 3;
     final movementPoints = _buildMovementPoints(snapshot.recentMovements);
+
+    final statCards = [
+      StatCard(
+        label: 'Total productos',
+        value: snapshot.totalProducts.toString(),
+        helper: 'Catálogo sincronizado',
+        icon: Icons.inventory_2_outlined,
+        color: AppTheme.brand,
+        trend: '${snapshot.totalUnits} unidades',
+      ),
+      StatCard(
+        label: 'Stock bajo',
+        value: snapshot.lowStockProducts.toString(),
+        helper: '5 unidades o menos',
+        icon: Icons.warning_amber_rounded,
+        color: AppTheme.warning,
+        trend: '${snapshot.activeAlerts} alertas activas',
+      ),
+      StatCard(
+        label: 'Próximos a vencer',
+        value: snapshot.expiringSoonProducts.toString(),
+        helper: 'Vencen en 7 días',
+        icon: Icons.event_available_outlined,
+        color: const Color(0xFFF97316),
+        trend: '${snapshot.expiredProducts} vencidos',
+      ),
+      StatCard(
+        label: 'Ubicaciones',
+        value: snapshot.totalLocations.toString(),
+        helper: 'Espacios físicos registrados',
+        icon: Icons.location_on_outlined,
+        color: const Color(0xFF38BDF8),
+        trend: '${snapshot.categories} categorías',
+      ),
+      StatCard(
+        label: 'Alertas activas',
+        value: snapshot.activeAlerts.toString(),
+        helper: 'Incidencias abiertas en Firebase',
+        icon: Icons.notifications_active_outlined,
+        color: AppTheme.brandViolet,
+        trend: '${alertsProvider.unreadAlertsCount} sin leer',
+      ),
+      StatCard(
+        label: 'Valor inventario',
+        value: currency.format(snapshot.totalInventoryValue),
+        helper: 'Capital comprometido',
+        icon: Icons.attach_money_rounded,
+        color: AppTheme.success,
+        trend: '${snapshot.recentMovements.length} movimientos',
+      ),
+    ];
 
     return DashboardFrame(
       title: 'Dashboard',
@@ -46,6 +98,7 @@ class DashboardScreen extends StatelessWidget {
         ),
       ],
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (provider.error != null) ...[
             _DashboardErrorBanner(message: provider.error!),
@@ -79,64 +132,26 @@ class DashboardScreen extends StatelessWidget {
               ),
             )
           else ...[
-            GridView.count(
-              crossAxisCount: statCrossAxisCount,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.35,
-              children: [
-                StatCard(
-                  label: 'Total productos',
-                  value: snapshot.totalProducts.toString(),
-                  helper: 'Catálogo sincronizado',
-                  icon: Icons.inventory_2_outlined,
-                  color: AppTheme.brand,
-                  trend: '${snapshot.totalUnits} unidades',
-                ),
-                StatCard(
-                  label: 'Stock bajo',
-                  value: snapshot.lowStockProducts.toString(),
-                  helper: '5 unidades o menos',
-                  icon: Icons.warning_amber_rounded,
-                  color: AppTheme.warning,
-                  trend: '${snapshot.activeAlerts} alertas activas',
-                ),
-                StatCard(
-                  label: 'Próximos a vencer',
-                  value: snapshot.expiringSoonProducts.toString(),
-                  helper: 'Vencen en 7 días',
-                  icon: Icons.event_available_outlined,
-                  color: const Color(0xFFF97316),
-                  trend: '${snapshot.expiredProducts} vencidos',
-                ),
-                StatCard(
-                  label: 'Ubicaciones',
-                  value: snapshot.totalLocations.toString(),
-                  helper: 'Espacios físicos registrados',
-                  icon: Icons.location_on_outlined,
-                  color: const Color(0xFF38BDF8),
-                  trend: '${snapshot.categories} categorías',
-                ),
-                StatCard(
-                  label: 'Alertas activas',
-                  value: snapshot.activeAlerts.toString(),
-                  helper: 'Incidencias abiertas en Firebase',
-                  icon: Icons.notifications_active_outlined,
-                  color: AppTheme.brandViolet,
-                  trend: '${alertsProvider.unreadAlertsCount} sin leer',
-                ),
-                StatCard(
-                  label: 'Valor inventario',
-                  value: currency.format(snapshot.totalInventoryValue),
-                  helper: 'Capital comprometido',
-                  icon: Icons.attach_money_rounded,
-                  color: AppTheme.success,
-                  trend: '${snapshot.recentMovements.length} movimientos',
-                ),
-              ],
-            ),
+            if (isMobile)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final card in statCards) ...[
+                    card,
+                    const SizedBox(height: 14),
+                  ],
+                ],
+              )
+            else
+              GridView.count(
+                crossAxisCount: statCrossAxisCount,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.35,
+                children: statCards,
+              ),
             const SizedBox(height: 16),
             SectionCard(
               gradient: LinearGradient(
@@ -147,35 +162,58 @@ class DashboardScreen extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _ExecutiveKpi(
-                      title: 'Stock health score',
-                      value: '${snapshot.stockHealthScore.toStringAsFixed(0)}%',
-                      helper: 'Cobertura saludable del catálogo',
+              child: isMobile
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ExecutiveKpi(
+                          title: 'Stock health score',
+                          value: '${snapshot.stockHealthScore.toStringAsFixed(0)}%',
+                          helper: 'Cobertura saludable del catálogo',
+                        ),
+                        const SizedBox(height: 16),
+                        _ExecutiveKpi(
+                          title: 'Alertas sin leer',
+                          value: alertsProvider.unreadAlertsCount.toString(),
+                          helper: 'Pendientes de revisión del equipo',
+                        ),
+                        const SizedBox(height: 16),
+                        _ExecutiveKpi(
+                          title: 'Productos vencidos',
+                          value: snapshot.expiredProducts.toString(),
+                          helper: 'Requieren revisión inmediata',
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: _ExecutiveKpi(
+                            title: 'Stock health score',
+                            value: '${snapshot.stockHealthScore.toStringAsFixed(0)}%',
+                            helper: 'Cobertura saludable del catálogo',
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _ExecutiveKpi(
+                            title: 'Alertas sin leer',
+                            value: alertsProvider.unreadAlertsCount.toString(),
+                            helper: 'Pendientes de revisión del equipo',
+                          ),
+                        ),
+                        if (width > 920) ...[
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _ExecutiveKpi(
+                              title: 'Productos vencidos',
+                              value: snapshot.expiredProducts.toString(),
+                              helper: 'Requieren revisión inmediata',
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _ExecutiveKpi(
-                      title: 'Alertas sin leer',
-                      value: alertsProvider.unreadAlertsCount.toString(),
-                      helper: 'Pendientes de revisión del equipo',
-                    ),
-                  ),
-                  if (width > 920) ...[
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _ExecutiveKpi(
-                        title: 'Productos vencidos',
-                        value: snapshot.expiredProducts.toString(),
-                        helper: 'Requieren revisión inmediata',
-                      ),
-                    ),
-                  ],
-                ],
-              ),
             ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
             const SizedBox(height: 16),
             if (width < 1100) ...[
@@ -320,7 +358,7 @@ class DashboardScreen extends StatelessWidget {
       await showAppAlertDialog(
         context,
         type: AppAlertType.error,
-        title: 'No se pudo exportar el reporte',
+        title: 'Error al exportar',
         message: error.toString().trim().isNotEmpty
             ? error.toString().trim()
             : 'No pudimos completar la exportación del inventario.',

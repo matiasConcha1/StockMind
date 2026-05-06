@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:stockmind/app/app.dart';
 import 'package:stockmind/core/services/alert_service.dart';
 import 'package:stockmind/core/services/notification_service.dart';
+import 'package:stockmind/core/services/pwa_service.dart';
 import 'package:stockmind/core/theme/theme_provider.dart';
 import 'package:stockmind/core/utils/firebase_bootstrap.dart';
 import 'package:stockmind/core/services/storage_service.dart';
@@ -46,6 +47,7 @@ Future<void> main() async {
   final alertService = AlertService(stockAlertService: stockAlertService);
   final userProvider = UserProvider(authProvider: authProvider);
   final notificationService = NotificationService(authProvider: authProvider);
+  final pwaService = PwaService();
   final productsProvider = ProductsProvider(
     authProvider: authProvider,
     productService: ProductService(),
@@ -83,6 +85,7 @@ Future<void> main() async {
         ChangeNotifierProvider<NotificationService>.value(
           value: notificationService,
         ),
+        ChangeNotifierProvider<PwaService>.value(value: pwaService),
         ChangeNotifierProvider<ProductsProvider>(create: (_) => productsProvider),
         ChangeNotifierProvider<LocationsProvider>(create: (_) => locationsProvider),
         ChangeNotifierProvider<AlertsProvider>(create: (_) => alertsProvider),

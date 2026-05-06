@@ -19,8 +19,13 @@ class DashboardFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final horizontalPadding = width < 768 ? 16.0 : 24.0;
-    final verticalPadding = width < 768 ? 16.0 : 24.0;
+    final mediaQuery = MediaQuery.of(context);
+    final isMobile = width < 768;
+    final horizontalPadding = isMobile ? 16.0 : 24.0;
+    final verticalPadding = isMobile ? 12.0 : 24.0;
+    final bottomPadding = width < 768
+        ? (mediaQuery.padding.bottom + 92)
+        : verticalPadding;
 
     return SafeArea(
       child: Builder(
@@ -29,7 +34,7 @@ class DashboardFrame extends StatelessWidget {
             horizontalPadding,
             verticalPadding,
             horizontalPadding,
-            verticalPadding,
+            bottomPadding,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,7 +45,10 @@ class DashboardFrame extends StatelessWidget {
                 actions: actions,
               ),
               const SizedBox(height: 28),
-              child.animate().fadeIn(duration: 320.ms),
+              SizedBox(
+                width: double.infinity,
+                child: child.animate().fadeIn(duration: 320.ms),
+              ),
             ],
           ),
         ),
