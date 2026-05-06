@@ -11,6 +11,8 @@ import 'package:stockmind/features/dashboard/presentation/screens/dashboard_scre
 import 'package:stockmind/features/dashboard/presentation/screens/settings_screen.dart';
 import 'package:stockmind/features/locations/presentation/screens/locations_screen.dart';
 import 'package:stockmind/features/products/presentation/screens/products_screen.dart';
+import 'package:stockmind/features/products/presentation/screens/scan_product_screen.dart';
+import 'package:stockmind/features/users/presentation/screens/admin_placeholder_screen.dart';
 
 final class AppRoutePaths {
   static const loading = '/loading';
@@ -22,6 +24,11 @@ final class AppRoutePaths {
   static const alerts = '/alerts';
   static const locations = '/locations';
   static const settings = '/settings';
+  static const users = '/users';
+  static const usersLegacy = '/usuarios';
+  static const activity = '/activity';
+  static const activityLegacy = '/historial';
+  static const scan = '/scan';
 }
 
 final class AppRouteNames {
@@ -34,6 +41,11 @@ final class AppRouteNames {
   static const alerts = 'alerts';
   static const locations = 'locations';
   static const settings = 'settings';
+  static const users = 'users';
+  static const usersLegacy = 'usuarios';
+  static const activity = 'activity';
+  static const activityLegacy = 'historial';
+  static const scan = 'scan';
 }
 
 class AppRoutes {
@@ -126,6 +138,12 @@ class AppRoutes {
                   pageBuilder: (context, state) =>
                       _buildPage(state, const ProductsScreen()),
                 ),
+                GoRoute(
+                  path: AppRoutePaths.scan,
+                  name: AppRouteNames.scan,
+                  pageBuilder: (context, state) =>
+                      _buildPage(state, const ScanProductScreen()),
+                ),
               ],
             ),
             StatefulShellBranch(
@@ -155,6 +173,54 @@ class AppRoutes {
                   name: AppRouteNames.settings,
                   pageBuilder: (context, state) =>
                       _buildPage(state, const SettingsScreen()),
+                ),
+                GoRoute(
+                  path: AppRoutePaths.users,
+                  name: AppRouteNames.users,
+                  pageBuilder: (context, state) => _buildPage(
+                    state,
+                    const AdminPlaceholderScreen(
+                      title: 'Usuarios',
+                      subtitle: 'Gestiona usuarios y permisos del sistema.',
+                      icon: Icons.group_outlined,
+                    ),
+                  ),
+                ),
+                GoRoute(
+                  path: AppRoutePaths.usersLegacy,
+                  name: AppRouteNames.usersLegacy,
+                  pageBuilder: (context, state) => _buildPage(
+                    state,
+                    const AdminPlaceholderScreen(
+                      title: 'Usuarios',
+                      subtitle: 'Gestiona usuarios y permisos del sistema.',
+                      icon: Icons.group_outlined,
+                    ),
+                  ),
+                ),
+                GoRoute(
+                  path: AppRoutePaths.activity,
+                  name: AppRouteNames.activity,
+                  pageBuilder: (context, state) => _buildPage(
+                    state,
+                    const AdminPlaceholderScreen(
+                      title: 'Historial de actividad',
+                      subtitle: 'Revisa movimientos recientes del sistema.',
+                      icon: Icons.history_rounded,
+                    ),
+                  ),
+                ),
+                GoRoute(
+                  path: AppRoutePaths.activityLegacy,
+                  name: AppRouteNames.activityLegacy,
+                  pageBuilder: (context, state) => _buildPage(
+                    state,
+                    const AdminPlaceholderScreen(
+                      title: 'Historial de actividad',
+                      subtitle: 'Revisa movimientos recientes del sistema.',
+                      icon: Icons.history_rounded,
+                    ),
+                  ),
                 ),
               ],
             ),
