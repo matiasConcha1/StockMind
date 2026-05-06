@@ -17,7 +17,7 @@ class StockMovementService {
 
   Stream<List<StockMovement>> watchRecentMovements(
     String userId, {
-    int limit = 8,
+    int limit = 20,
   }) {
     debugPrint(
       'StockMovementService.watchRecentMovements: userId=$userId limit=$limit',
@@ -29,6 +29,16 @@ class StockMovementService {
         .map(
           (snapshot) =>
               snapshot.docs.map(StockMovement.fromFirestore).toList(),
+        );
+  }
+
+  Stream<List<StockMovement>> watchMovements(String userId) {
+    debugPrint('StockMovementService.watchMovements: userId=$userId');
+    return _collection(userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map(StockMovement.fromFirestore).toList(),
         );
   }
 

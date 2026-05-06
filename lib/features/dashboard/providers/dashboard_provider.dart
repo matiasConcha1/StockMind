@@ -10,6 +10,7 @@ import 'package:stockmind/features/dashboard/data/services/stock_service.dart';
 import 'package:stockmind/features/locations/providers/locations_provider.dart';
 import 'package:stockmind/features/products/models/product.dart';
 import 'package:stockmind/features/products/providers/products_provider.dart';
+import 'package:stockmind/features/replenishment/providers/stock_requests_provider.dart';
 
 class DashboardProvider extends ChangeNotifier {
   DashboardProvider({
@@ -17,18 +18,21 @@ class DashboardProvider extends ChangeNotifier {
     required ProductsProvider productsProvider,
     required LocationsProvider locationsProvider,
     required AlertsProvider alertsProvider,
+    required StockRequestsProvider stockRequestsProvider,
     required StockService stockService,
     required StockMovementService stockMovementService,
   })  : _authProvider = authProvider,
         _productsProvider = productsProvider,
         _locationsProvider = locationsProvider,
         _alertsProvider = alertsProvider,
+        _stockRequestsProvider = stockRequestsProvider,
         _stockService = stockService,
         _stockMovementService = stockMovementService {
     _authProvider.addListener(_handleAuthChanged);
     _productsProvider.addListener(_syncFromSources);
     _locationsProvider.addListener(_syncFromSources);
     _alertsProvider.addListener(_syncFromSources);
+    _stockRequestsProvider.addListener(_syncFromSources);
     _handleAuthChanged();
     _syncFromSources();
   }
@@ -37,6 +41,7 @@ class DashboardProvider extends ChangeNotifier {
   final ProductsProvider _productsProvider;
   final LocationsProvider _locationsProvider;
   final AlertsProvider _alertsProvider;
+  final StockRequestsProvider _stockRequestsProvider;
   final StockService _stockService;
   final StockMovementService _stockMovementService;
 
@@ -63,6 +68,17 @@ class DashboardProvider extends ChangeNotifier {
     lowestStockProducts: [],
     recentlyUpdatedProducts: [],
     recentMovements: [],
+    entriesToday: 0,
+    exitsToday: 0,
+    topMovedProductNames: [],
+    lowStockLocations: [],
+    outOfStockByLocation: [],
+    movementLocationNames: [],
+    pendingRequests: 0,
+    completedRequestsThisWeek: 0,
+    productsWithMoreRequests: [],
+    criticalWithoutRequest: 0,
+    requests: [],
   );
 
   DashboardSnapshot get snapshot => _snapshot;
@@ -115,6 +131,7 @@ class DashboardProvider extends ChangeNotifier {
       _locationsProvider.locations.length,
       _recentMovements,
       _alertsProvider.activeAlertsCount,
+      _stockRequestsProvider.requests,
     );
     notifyListeners();
   }
@@ -125,6 +142,7 @@ class DashboardProvider extends ChangeNotifier {
     _productsProvider.removeListener(_syncFromSources);
     _locationsProvider.removeListener(_syncFromSources);
     _alertsProvider.removeListener(_syncFromSources);
+    _stockRequestsProvider.removeListener(_syncFromSources);
     _movementSubscription?.cancel();
     super.dispose();
   }

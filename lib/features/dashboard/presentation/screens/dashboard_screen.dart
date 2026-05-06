@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/core/services/report_export_service.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
-import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
+import 'package:stockmind/core/widgets/export_feedback.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/stat_card.dart';
 import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
+import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/category_chart_card.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
@@ -17,9 +19,10 @@ import 'package:stockmind/features/dashboard/presentation/widgets/inventory_move
 import 'package:stockmind/features/dashboard/presentation/widgets/recent_stock_movements_card.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/stock_bar_chart_card.dart';
 import 'package:stockmind/features/dashboard/providers/dashboard_provider.dart';
-import 'package:stockmind/features/products/data/services/inventory_export_service.dart';
 import 'package:stockmind/features/products/models/product.dart';
 import 'package:stockmind/features/products/providers/products_provider.dart';
+import 'package:stockmind/features/replenishment/presentation/widgets/stock_request_dialog.dart';
+import 'package:stockmind/features/replenishment/providers/stock_requests_provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -28,11 +31,13 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<DashboardProvider>();
     final alertsProvider = context.watch<AlertsProvider>();
+    final requestsProvider = context.watch<StockRequestsProvider>();
     final snapshot = provider.snapshot;
     final currency = NumberFormat.currency(symbol: '\$');
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 768;
-    final statCrossAxisCount = width < 720 ? 1 : width < 1180 ? 2 : 3;
+    final statCrossAxisCount = width < 900 ? 1 : width < 1260 ? 2 : 3;
+    final statAspectRatio = width >= 1260 ? 1.26 : width >= 900 ? 1.14 : 1.0;
     final movementPoints = _buildMovementPoints(snapshot.recentMovements);
 
     final statCards = [
@@ -149,7 +154,7 @@ class DashboardScreen extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
-                childAspectRatio: 1.35,
+                childAspectRatio: statAspectRatio,
                 children: statCards,
               ),
             const SizedBox(height: 16),
@@ -216,6 +221,236 @@ class DashboardScreen extends StatelessWidget {
                     ),
             ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
             const SizedBox(height: 16),
+            SectionCard(
+              child: isMobile
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ExecutiveKpi(
+                          title: 'Entradas hoy',
+                          value: '${snapshot.entriesToday}',
+                          helper: 'Unidades ingresadas hoy',
+                        ),
+                        const SizedBox(height: 16),
+                        _ExecutiveKpi(
+                          title: 'Salidas hoy',
+                          value: '${snapshot.exitsToday}',
+                          helper: 'Unidades retiradas hoy',
+                        ),
+                        const SizedBox(height: 16),
+                        _ExecutiveKpi(
+                          title: 'Solicitudes pendientes',
+                          value: '${snapshot.pendingRequests}',
+                          helper: 'Reposiciones esperando gestión',
+                        ),
+                        const SizedBox(height: 16),
+                        _ExecutiveKpi(
+                          title: 'Críticos sin solicitud',
+                          value: '${snapshot.criticalWithoutRequest}',
+                          helper: 'Productos con stock bajo sin reposición',
+                        ),
+                        if (snapshot.topMovedProductNames.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            'Productos con más movimientos',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: snapshot.topMovedProductNames
+                                .map((name) => _movementChip(context, name))
+                                .toList(),
+                          ),
+                        ],
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _ExecutiveKpi(
+                            title: 'Entradas hoy',
+                            value: '${snapshot.entriesToday}',
+                            helper: 'Unidades ingresadas hoy',
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _ExecutiveKpi(
+                            title: 'Salidas hoy',
+                            value: '${snapshot.exitsToday}',
+                            helper: 'Unidades retiradas hoy',
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _ExecutiveKpi(
+                            title: 'Solicitudes pendientes',
+                            value: '${snapshot.pendingRequests}',
+                            helper: 'Reposiciones esperando gestión',
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _ExecutiveKpi(
+                            title: 'Críticos sin solicitud',
+                            value: '${snapshot.criticalWithoutRequest}',
+                            helper: 'Productos con stock bajo sin reposición',
+                          ),
+                        ),
+                        if (snapshot.topMovedProductNames.isNotEmpty) ...[
+                          const SizedBox(width: 16),
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Productos con más movimientos',
+                                  style: Theme.of(context).textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: snapshot.topMovedProductNames
+                                      .map((name) => _movementChip(context, name))
+                                      .toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+            ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
+            const SizedBox(height: 16),
+            SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Reposición',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Solicitudes abiertas, completadas y productos que más reposición concentran esta semana.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  if (isMobile)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ExecutiveKpi(
+                          title: 'Completadas esta semana',
+                          value: '${snapshot.completedRequestsThisWeek}',
+                          helper: 'Reposiciones cerradas recientemente',
+                        ),
+                        const SizedBox(height: 16),
+                        _LocationInsightBlock(
+                          title: 'Productos con más reposiciones',
+                          items: snapshot.productsWithMoreRequests,
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _ExecutiveKpi(
+                            title: 'Completadas esta semana',
+                            value: '${snapshot.completedRequestsThisWeek}',
+                            helper: 'Reposiciones cerradas recientemente',
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 2,
+                          child: _LocationInsightBlock(
+                            title: 'Productos con más reposiciones',
+                            items: snapshot.productsWithMoreRequests,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
+            const SizedBox(height: 16),
+            SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Distribución por ubicación',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Lectura rápida de ubicaciones con menos stock, productos agotados por ubicación y movimientos recientes por espacio.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  if (isMobile)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _LocationInsightBlock(
+                          title: 'Ubicaciones con menos stock',
+                          items: snapshot.lowStockLocations
+                              .map((item) => '${item.label} · ${item.quantity} unid.')
+                              .toList(),
+                        ),
+                        const SizedBox(height: 14),
+                        _LocationInsightBlock(
+                          title: 'Agotados por ubicación',
+                          items: snapshot.outOfStockByLocation,
+                        ),
+                        const SizedBox(height: 14),
+                        _LocationInsightBlock(
+                          title: 'Movimientos por ubicación',
+                          items: snapshot.movementLocationNames,
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _LocationInsightBlock(
+                            title: 'Ubicaciones con menos stock',
+                            items: snapshot.lowStockLocations
+                                .map((item) =>
+                                    '${item.label} · ${item.quantity} unid.')
+                                .toList(),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _LocationInsightBlock(
+                            title: 'Agotados por ubicación',
+                            items: snapshot.outOfStockByLocation,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _LocationInsightBlock(
+                            title: 'Movimientos por ubicación',
+                            items: snapshot.movementLocationNames,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
+            const SizedBox(height: 16),
             if (width < 1100) ...[
               InventoryMovementChartCard(points: movementPoints),
               const SizedBox(height: 16),
@@ -231,6 +466,17 @@ class DashboardScreen extends StatelessWidget {
                 alerts: alertsProvider.activeAlerts.take(6).toList(),
                 onMarkAsRead: (alert) => alertsProvider.markAsRead(alert.id),
                 onResolve: (alert) => alertsProvider.resolveAlert(alert.id),
+                onCreateRequest: (alert) {
+                  if (requestsProvider.hasPendingRequestForProduct(alert.productId)) {
+                    return;
+                  }
+                  showStockRequestDialog(
+                    context,
+                    initialProductId: alert.productId,
+                  );
+                },
+                canCreateRequest: (alert) =>
+                    !requestsProvider.hasPendingRequestForProduct(alert.productId),
               ),
             ] else
               Column(
@@ -282,6 +528,18 @@ class DashboardScreen extends StatelessWidget {
                               alertsProvider.markAsRead(alert.id),
                           onResolve: (alert) =>
                               alertsProvider.resolveAlert(alert.id),
+                          onCreateRequest: (alert) {
+                            if (requestsProvider
+                                .hasPendingRequestForProduct(alert.productId)) {
+                              return;
+                            }
+                            showStockRequestDialog(
+                              context,
+                              initialProductId: alert.productId,
+                            );
+                          },
+                          canCreateRequest: (alert) => !requestsProvider
+                              .hasPendingRequestForProduct(alert.productId),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -334,6 +592,19 @@ class DashboardScreen extends StatelessWidget {
 
   Future<void> _exportInventory(BuildContext context) async {
     final products = context.read<ProductsProvider>().products;
+    final auth = context.read<AuthProvider>();
+    await runExportTask(
+      context: context,
+      hasData: products.isNotEmpty,
+      noDataTitle: 'No hay datos para exportar',
+      noDataMessage: 'Crea productos antes de generar un reporte.',
+      successMessage: 'El inventario fue descargado correctamente.',
+      task: () => ReportExportService().exportProductsCsv(
+        products: products,
+        userName: auth.user?.displayName ?? auth.user?.email,
+      ),
+    );
+    /*
     if (products.isEmpty) {
       await showAppAlertDialog(
         context,
@@ -364,6 +635,27 @@ class DashboardScreen extends StatelessWidget {
             : 'No pudimos completar la exportación del inventario.',
       );
     }
+    */
+  }
+
+  Widget _movementChip(BuildContext context, String label) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.primary.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+      ),
+    );
   }
 }
 
@@ -394,6 +686,57 @@ class _ExecutiveKpi extends StatelessWidget {
         Text(value, style: theme.textTheme.headlineMedium),
         const SizedBox(height: 6),
         Text(helper, style: theme.textTheme.bodyMedium),
+      ],
+    );
+  }
+}
+
+class _LocationInsightBlock extends StatelessWidget {
+  const _LocationInsightBlock({
+    required this.title,
+    required this.items,
+  });
+
+  final String title;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: theme.textTheme.titleMedium),
+        const SizedBox(height: 10),
+        if (items.isEmpty)
+          Text(
+            'Sin datos todavía.',
+            style: theme.textTheme.bodyMedium,
+          )
+        else
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: items
+                .map(
+                  (item) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      item,
+                      style: theme.textTheme.labelLarge,
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
       ],
     );
   }

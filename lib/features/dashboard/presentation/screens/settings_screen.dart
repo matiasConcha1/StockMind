@@ -390,66 +390,99 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(color: colorScheme.outlineVariant),
               ),
-              child: Row(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      Icons.notifications_active_outlined,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Alertas push',
-                          style: theme.textTheme.titleMedium,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          notificationService.notificationsEnabled
-                              ? 'Activas en este dispositivo'
-                              : 'Desactivadas en este dispositivo',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface.withValues(alpha: 0.72),
-                          ),
+                        child: Icon(
+                          Icons.notifications_active_outlined,
+                          color: colorScheme.primary,
                         ),
-                        if (notificationService.token != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Token guardado correctamente en tu usuario.',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Alertas push',
+                              style: theme.textTheme.titleMedium,
                             ),
-                          ),
-                        ],
-                        if (notificationService.error != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            notificationService.error!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.error,
+                            const SizedBox(height: 4),
+                            Text(
+                              notificationService.notificationStatusLabel,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurface.withValues(alpha: 0.72),
+                              ),
                             ),
-                          ),
-                        ],
-                      ],
-                    ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Recibe avisos cuando un producto esté por vencer, vencido, con stock bajo o cuando existan reposiciones pendientes.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurface.withValues(alpha: 0.72),
+                              ),
+                            ),
+                            if (notificationService.token != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Token guardado correctamente en este dispositivo.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                            if (notificationService.error != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                notificationService.error!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.error,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  Switch.adaptive(
-                    value: notificationService.notificationsEnabled,
-                    onChanged: notificationService.isLoading
-                        ? null
-                        : (value) {
-                            notificationService.setNotificationsEnabled(value);
-                          },
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      FilledButton.tonalIcon(
+                        onPressed: notificationService.isLoading
+                            ? null
+                            : () => notificationService.setNotificationsEnabled(true),
+                        icon: const Icon(Icons.notifications_active_outlined),
+                        label: const Text('Activar notificaciones'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: notificationService.isLoading
+                            ? null
+                            : () => notificationService.setNotificationsEnabled(false),
+                        icon: const Icon(Icons.notifications_off_outlined),
+                        label: const Text('Desactivar'),
+                      ),
+                      TextButton.icon(
+                        onPressed: notificationService.isLoading
+                            ? null
+                            : () async {
+                                await notificationService.resetDeferredPrompt();
+                                await notificationService.setNotificationsEnabled(true);
+                              },
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Volver a solicitar permiso'),
+                      ),
+                    ],
                   ),
                 ],
               ),

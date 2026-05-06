@@ -77,7 +77,7 @@ class RecentStockMovementsCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                '${movement.isEntry ? '+' : '-'}${movement.quantity}',
+                                '${_movementSign(movement)}${movement.quantity}',
                                 style: theme.textTheme.titleMedium,
                               ),
                               const SizedBox(height: 4),
@@ -102,6 +102,12 @@ class RecentStockMovementsCard extends StatelessWidget {
       ),
     );
   }
+
+  String _movementSign(StockMovement movement) {
+    if (movement.isEntry) return '+';
+    if (movement.isExit) return '-';
+    return '±';
+  }
 }
 
 class _MovementTypeBadge extends StatelessWidget {
@@ -111,8 +117,20 @@ class _MovementTypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isEntry = type == 'entrada';
-    final color = isEntry ? Colors.green : Colors.orange;
+    final normalizedType = switch (type) {
+      'entrada' => 'entry',
+      'salida' => 'exit',
+      _ => type,
+    };
+    final (color, label) = switch (normalizedType) {
+      'entry' => (Colors.green, 'Entrada'),
+      'exit' => (Colors.red, 'Salida'),
+      'adjustment' => (Colors.amber, 'Ajuste'),
+      'transfer' => (Colors.cyan, 'Transferencia'),
+      'expired' => (Colors.deepOrange, 'Vencido'),
+      'damaged' => (Colors.orange, 'Dañado'),
+      _ => (Colors.blue, 'Movimiento'),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -120,9 +138,9 @@ class _MovementTypeBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
       ),
       child: Text(
-        isEntry ? 'Entrada' : 'Salida',
+        label,
         style: TextStyle(
-          color: color.shade700,
+          color: color,
           fontWeight: FontWeight.w700,
         ),
       ),
