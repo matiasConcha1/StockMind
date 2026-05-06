@@ -7,6 +7,7 @@ import 'package:stockmind/features/auth/presentation/screens/forgot_password_scr
 import 'package:stockmind/features/auth/presentation/screens/login_screen.dart';
 import 'package:stockmind/features/auth/presentation/screens/register_screen.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/presentation/screens/company_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/settings_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/stock_movements_screen.dart';
@@ -14,7 +15,7 @@ import 'package:stockmind/features/locations/presentation/screens/locations_scre
 import 'package:stockmind/features/products/presentation/screens/products_screen.dart';
 import 'package:stockmind/features/products/presentation/screens/scan_product_screen.dart';
 import 'package:stockmind/features/replenishment/presentation/screens/replenishment_screen.dart';
-import 'package:stockmind/features/users/presentation/screens/admin_placeholder_screen.dart';
+import 'package:stockmind/features/users/presentation/screens/users_management_screen.dart';
 
 final class AppRoutePaths {
   static const loading = '/loading';
@@ -26,6 +27,8 @@ final class AppRoutePaths {
   static const alerts = '/alerts';
   static const locations = '/locations';
   static const settings = '/settings';
+  static const company = '/company';
+  static const companyLegacy = '/empresa';
   static const users = '/users';
   static const usersLegacy = '/usuarios';
   static const activity = '/activity';
@@ -45,6 +48,8 @@ final class AppRouteNames {
   static const alerts = 'alerts';
   static const locations = 'locations';
   static const settings = 'settings';
+  static const company = 'company';
+  static const companyLegacy = 'empresa';
   static const users = 'users';
   static const usersLegacy = 'usuarios';
   static const activity = 'activity';
@@ -193,28 +198,28 @@ class AppRoutes {
                       _buildPage(state, const SettingsScreen()),
                 ),
                 GoRoute(
+                  path: AppRoutePaths.company,
+                  name: AppRouteNames.company,
+                  pageBuilder: (context, state) =>
+                      _buildPage(state, const CompanyScreen()),
+                ),
+                GoRoute(
+                  path: AppRoutePaths.companyLegacy,
+                  name: AppRouteNames.companyLegacy,
+                  pageBuilder: (context, state) =>
+                      _buildPage(state, const CompanyScreen()),
+                ),
+                GoRoute(
                   path: AppRoutePaths.users,
                   name: AppRouteNames.users,
-                  pageBuilder: (context, state) => _buildPage(
-                    state,
-                    const AdminPlaceholderScreen(
-                      title: 'Usuarios',
-                      subtitle: 'Gestiona usuarios y permisos del sistema.',
-                      icon: Icons.group_outlined,
-                    ),
-                  ),
+                  pageBuilder: (context, state) =>
+                      _buildPage(state, const UsersManagementScreen()),
                 ),
                 GoRoute(
                   path: AppRoutePaths.usersLegacy,
                   name: AppRouteNames.usersLegacy,
-                  pageBuilder: (context, state) => _buildPage(
-                    state,
-                    const AdminPlaceholderScreen(
-                      title: 'Usuarios',
-                      subtitle: 'Gestiona usuarios y permisos del sistema.',
-                      icon: Icons.group_outlined,
-                    ),
-                  ),
+                  pageBuilder: (context, state) =>
+                      _buildPage(state, const UsersManagementScreen()),
                 ),
                 GoRoute(
                   path: AppRoutePaths.activity,

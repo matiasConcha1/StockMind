@@ -21,7 +21,7 @@ class NotificationService extends ChangeNotifier {
     _handleAuthChanged();
   }
 
-  static const String _webVapidKey =
+  static const String fcmWebVapidKey =
       String.fromEnvironment('FCM_WEB_VAPID_KEY');
   static const _deferredPromptKey = 'notification_prompt_deferred_until';
   static const _deviceIdKey = 'notification_device_id';
@@ -39,12 +39,14 @@ class NotificationService extends ChangeNotifier {
   bool _promptStateLoaded = false;
   String? _token;
   String? _error;
+  String? _statusMessage;
   String? _deviceId;
 
   bool get isLoading => _loading;
   bool get notificationsEnabled => _notificationsEnabled;
   String? get token => _token;
   String? get error => _error;
+  String? get statusMessage => _statusMessage;
   bool get isSupported => true;
   bool get canPromptForNotifications =>
       !_loading && !_notificationsEnabled && !_isPromptDeferred;
@@ -65,12 +67,14 @@ class NotificationService extends ChangeNotifier {
     final userId = _authProvider.user?.id;
     if (userId == null) {
       _error = 'Debes iniciar sesión para gestionar notificaciones.';
+      _statusMessage = null;
       notifyListeners();
       return;
     }
 
     _loading = true;
     _error = null;
+    _statusMessage = null;
     notifyListeners();
 
     try {
@@ -82,14 +86,16 @@ class NotificationService extends ChangeNotifier {
         );
         _notificationsEnabled = false;
         _token = null;
+        _statusMessage = 'Notificaciones desactivadas.';
         return;
       }
 
       final permission = await _messaging.requestPermission();
       if (permission.authorizationStatus == AuthorizationStatus.denied ||
           permission.authorizationStatus == AuthorizationStatus.notDetermined) {
-        _error = 'Debes permitir las notificaciones para activar este canal.';
+        _error = 'Debes permitir notificaciones desde el navegador.';
         _notificationsEnabled = false;
+        _token = null;
         return;
       }
 
@@ -98,6 +104,7 @@ class NotificationService extends ChangeNotifier {
         _error = _error ??
             'No se pudo obtener el token de notificaciones para este dispositivo.';
         _notificationsEnabled = false;
+        _token = null;
         return;
       }
 
@@ -108,6 +115,7 @@ class NotificationService extends ChangeNotifier {
       );
       _notificationsEnabled = true;
       _token = token;
+      _statusMessage = 'Notificaciones activadas correctamente.';
       await _prefs?.remove(_deferredPromptKey);
     } catch (error, stackTrace) {
       debugPrint('NotificationService.setNotificationsEnabled error: $error');
@@ -122,7 +130,8 @@ class NotificationService extends ChangeNotifier {
 
   Future<void> deferPrompt({int days = 3}) async {
     await _ensurePrefs();
-    final until = DateTime.now().add(Duration(days: days)).millisecondsSinceEpoch;
+    final until =
+        DateTime.now().add(Duration(days: days)).millisecondsSinceEpoch;
     await _prefs?.setInt(_deferredPromptKey, until);
     notifyListeners();
   }
@@ -140,6 +149,7 @@ class NotificationService extends ChangeNotifier {
       _notificationsEnabled = false;
       _token = null;
       _error = null;
+      _statusMessage = null;
       notifyListeners();
       return;
     }
@@ -154,6 +164,7 @@ class NotificationService extends ChangeNotifier {
       _token = (data['fcmToken'] as String?)?.trim().isEmpty ?? true
           ? null
           : (data['fcmToken'] as String).trim();
+
       if (_notificationsEnabled && (_token == null || _token!.isEmpty)) {
         final refreshedToken = await _getToken();
         if (refreshedToken != null && refreshedToken.isNotEmpty) {
@@ -163,9 +174,17 @@ class NotificationService extends ChangeNotifier {
             enabled: true,
             token: refreshedToken,
           );
+          _statusMessage = 'Notificaciones activadas correctamente.';
         }
+      } else if (_notificationsEnabled && _token != null && _token!.isNotEmpty) {
+        _statusMessage = 'Notificaciones activadas correctamente.';
+      } else {
+        _statusMessage = null;
       }
-      _error = null;
+
+      if (_token != null && _token!.isNotEmpty) {
+        _error = null;
+      }
     } catch (error, stackTrace) {
       debugPrint('NotificationService._loadUserNotificationState error: $error');
       debugPrint('$stackTrace');
@@ -178,12 +197,11 @@ class NotificationService extends ChangeNotifier {
   Future<String?> _getToken() async {
     try {
       if (kIsWeb) {
-        if (_webVapidKey.trim().isEmpty) {
-          _error =
-              'Falta configurar FCM_WEB_VAPID_KEY para obtener el token web.';
+        if (fcmWebVapidKey.trim().isEmpty) {
+          _error = 'Falta configurar la clave web de notificaciones.';
           return null;
         }
-        return await _messaging.getToken(vapidKey: _webVapidKey);
+        return await _messaging.getToken(vapidKey: fcmWebVapidKey);
       }
       return await _messaging.getToken();
     } catch (error, stackTrace) {

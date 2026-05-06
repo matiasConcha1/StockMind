@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import 'package:stockmind/core/utils/web_file_downloader.dart';
 import 'package:stockmind/features/alerts/data/models/stock_alert.dart';
+import 'package:stockmind/features/company/models/company_profile.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/products/models/product.dart';
 import 'package:stockmind/features/replenishment/models/stock_request.dart';
@@ -12,12 +13,10 @@ class ReportExportService {
   Future<void> exportProductsCsv({
     required List<Product> products,
     String? userName,
+    CompanyProfile? companyProfile,
   }) async {
     final rows = <List<String>>[
-      _metaRow('Reporte', 'Productos'),
-      _metaRow('Fecha exportación', _formatDateTime(DateTime.now())),
-      _metaRow('Usuario', userName ?? ''),
-      const [],
+      ..._metaRows('Productos', userName, companyProfile),
       const [
         'Nombre',
         'Código',
@@ -37,25 +36,20 @@ class ReportExportService {
           _locationsSummary(product),
           product.minStock.toString(),
           _formatDate(product.expiryDate),
-          product.isExpired ? 'Vencido' : product.stockStatus.label,
+          product.operationalStatusLabel,
         ],
       ),
     ];
-    await _downloadCsv(
-      rows: rows,
-      fileName: _fileName('stockmind_productos'),
-    );
+    await _downloadCsv(rows: rows, fileName: _fileName('stockmind_productos'));
   }
 
   Future<void> exportLocationStockCsv({
     required List<Product> products,
     String? userName,
+    CompanyProfile? companyProfile,
   }) async {
     final rows = <List<String>>[
-      _metaRow('Reporte', 'Stock por ubicación'),
-      _metaRow('Fecha exportación', _formatDateTime(DateTime.now())),
-      _metaRow('Usuario', userName ?? ''),
-      const [],
+      ..._metaRows('Stock por ubicación', userName, companyProfile),
       const [
         'Producto',
         'Código',
@@ -74,7 +68,7 @@ class ReportExportService {
           'Sin asignar',
           '0',
           product.totalStock.toString(),
-          product.isExpired ? 'Vencido' : product.stockStatus.label,
+          product.operationalStatusLabel,
         ]);
         continue;
       }
@@ -85,7 +79,7 @@ class ReportExportService {
           item.locationName,
           item.quantity.toString(),
           product.totalStock.toString(),
-          product.isExpired ? 'Vencido' : product.stockStatus.label,
+          product.operationalStatusLabel,
         ]);
       }
     }
@@ -99,12 +93,10 @@ class ReportExportService {
   Future<void> exportMovementsCsv({
     required List<StockMovement> movements,
     String? userName,
+    CompanyProfile? companyProfile,
   }) async {
     final rows = <List<String>>[
-      _metaRow('Reporte', 'Movimientos de stock'),
-      _metaRow('Fecha exportación', _formatDateTime(DateTime.now())),
-      _metaRow('Usuario', userName ?? ''),
-      const [],
+      ..._metaRows('Movimientos de stock', userName, companyProfile),
       const [
         'Fecha',
         'Producto',
@@ -139,12 +131,10 @@ class ReportExportService {
   Future<void> exportRequestsCsv({
     required List<StockRequest> requests,
     String? userName,
+    CompanyProfile? companyProfile,
   }) async {
     final rows = <List<String>>[
-      _metaRow('Reporte', 'Solicitudes de reposición'),
-      _metaRow('Fecha exportación', _formatDateTime(DateTime.now())),
-      _metaRow('Usuario', userName ?? ''),
-      const [],
+      ..._metaRows('Solicitudes de reposición', userName, companyProfile),
       const [
         'Fecha',
         'Producto',
@@ -179,12 +169,10 @@ class ReportExportService {
   Future<void> exportAlertsCsv({
     required List<StockAlert> alerts,
     String? userName,
+    CompanyProfile? companyProfile,
   }) async {
     final rows = <List<String>>[
-      _metaRow('Reporte', 'Alertas'),
-      _metaRow('Fecha exportación', _formatDateTime(DateTime.now())),
-      _metaRow('Usuario', userName ?? ''),
-      const [],
+      ..._metaRows('Alertas', userName, companyProfile),
       const [
         'Tipo alerta',
         'Producto',
@@ -208,10 +196,29 @@ class ReportExportService {
         ],
       ),
     ];
-    await _downloadCsv(
-      rows: rows,
-      fileName: _fileName('stockmind_alertas'),
-    );
+    await _downloadCsv(rows: rows, fileName: _fileName('stockmind_alertas'));
+  }
+
+  List<List<String>> _metaRows(
+    String report,
+    String? userName,
+    CompanyProfile? companyProfile,
+  ) {
+    return [
+      _metaRow('Reporte', report),
+      _metaRow(
+        'Empresa',
+        companyProfile?.name.trim().isNotEmpty == true
+            ? companyProfile!.name
+            : 'StockMind',
+      ),
+      _metaRow('Rubro', companyProfile?.industry ?? ''),
+      _metaRow('Correo empresa', companyProfile?.email ?? ''),
+      _metaRow('Fecha exportación', _formatDateTime(DateTime.now())),
+      _metaRow('Usuario', userName ?? ''),
+      _metaRow('Fuente', 'Exportado desde StockMind'),
+      const [],
+    ];
   }
 
   Future<void> _downloadCsv({

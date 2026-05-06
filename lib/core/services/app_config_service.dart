@@ -4,9 +4,11 @@ import 'package:flutter/foundation.dart';
 class AppSettingsSnapshot {
   const AppSettingsSnapshot({
     required this.autoArchiveExpiredProducts,
+    required this.defaultMinStock,
   });
 
   final bool autoArchiveExpiredProducts;
+  final int defaultMinStock;
 }
 
 class AppConfigService {
@@ -24,6 +26,7 @@ class AppConfigService {
       return AppSettingsSnapshot(
         autoArchiveExpiredProducts:
             (data['autoArchiveExpiredProducts'] ?? false) as bool,
+        defaultMinStock: ((data['defaultMinStock'] ?? 5) as num).toInt(),
       );
     });
   }
@@ -34,6 +37,7 @@ class AppConfigService {
     return AppSettingsSnapshot(
       autoArchiveExpiredProducts:
           (data['autoArchiveExpiredProducts'] ?? false) as bool,
+      defaultMinStock: ((data['defaultMinStock'] ?? 5) as num).toInt(),
     );
   }
 
@@ -62,5 +66,12 @@ class AppConfigService {
       debugPrint('$stackTrace');
       rethrow;
     }
+  }
+
+  Future<void> updateDefaultMinStock(int value) async {
+    await _settingsRef.set({
+      'defaultMinStock': value < 0 ? 0 : value,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

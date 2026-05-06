@@ -7,6 +7,8 @@ import 'package:stockmind/core/services/pwa_service.dart';
 import 'package:stockmind/core/theme/theme_provider.dart';
 import 'package:stockmind/core/utils/firebase_bootstrap.dart';
 import 'package:stockmind/core/services/storage_service.dart';
+import 'package:stockmind/features/company/data/services/company_profile_service.dart';
+import 'package:stockmind/features/company/providers/company_profile_provider.dart';
 import 'package:stockmind/features/alerts/data/services/stock_alert_service.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/auth/data/services/auth_service.dart';
@@ -50,6 +52,11 @@ Future<void> main() async {
   final userProvider = UserProvider(authProvider: authProvider);
   final notificationService = NotificationService(authProvider: authProvider);
   final pwaService = PwaService();
+  final companyProfileProvider = CompanyProfileProvider(
+    authProvider: authProvider,
+    service: CompanyProfileService(),
+    storageService: storageService,
+  );
   final productsProvider = ProductsProvider(
     authProvider: authProvider,
     productService: ProductService(),
@@ -93,6 +100,9 @@ Future<void> main() async {
           value: notificationService,
         ),
         ChangeNotifierProvider<PwaService>.value(value: pwaService),
+        ChangeNotifierProvider<CompanyProfileProvider>.value(
+          value: companyProfileProvider,
+        ),
         ChangeNotifierProvider<ProductsProvider>(create: (_) => productsProvider),
         ChangeNotifierProvider<LocationsProvider>(create: (_) => locationsProvider),
         ChangeNotifierProvider<AlertsProvider>(create: (_) => alertsProvider),

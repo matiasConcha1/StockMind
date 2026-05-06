@@ -97,6 +97,19 @@ class StorageService {
     return ref.getDownloadURL();
   }
 
+  Future<String> uploadCompanyLogo({
+    required String uid,
+    required PickedImageFile file,
+  }) async {
+    _validateImage(file);
+    final ref = _storage.ref().child('users/$uid/company/logo.jpg');
+    await ref.putData(
+      file.bytes,
+      SettableMetadata(contentType: file.mimeType),
+    );
+    return ref.getDownloadURL();
+  }
+
   Future<void> deleteImageByUrl(String? url) async {
     if (url == null || url.trim().isEmpty) return;
     await _storage.refFromURL(url).delete();

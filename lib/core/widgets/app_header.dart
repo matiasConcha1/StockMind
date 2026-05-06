@@ -6,6 +6,8 @@ class AppHeader extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.actions = const [],
+    this.onBackPressed,
+    this.backLabel,
     this.onMenuPressed,
     this.trailing,
     super.key,
@@ -14,6 +16,8 @@ class AppHeader extends StatelessWidget {
   final String title;
   final String subtitle;
   final List<Widget> actions;
+  final VoidCallback? onBackPressed;
+  final String? backLabel;
   final VoidCallback? onMenuPressed;
   final Widget? trailing;
 
@@ -59,6 +63,15 @@ class AppHeader extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (onBackPressed != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: FilledButton.tonalIcon(
+                  onPressed: onBackPressed,
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  label: Text(backLabel ?? 'Volver'),
+                ),
+              ),
             if (isCompact && onMenuPressed != null)
               Padding(
                 padding: const EdgeInsets.only(right: 12),
