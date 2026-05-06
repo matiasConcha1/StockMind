@@ -31,7 +31,9 @@ class StatCard extends StatelessWidget {
       padding: EdgeInsets.all(isSmallPhone ? 16 : isMobile ? 18 : 24),
       borderRadius: isMobile ? 24 : 28,
       child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: isSmallPhone ? 120 : isMobile ? 150 : 210),
+        constraints: BoxConstraints(
+          minHeight: isSmallPhone ? 118 : isMobile ? 140 : 188,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.start,
@@ -89,7 +91,7 @@ class StatCard extends StatelessWidget {
             SizedBox(height: isSmallPhone ? 10 : isMobile ? 14 : 18),
             Text(
               label,
-              maxLines: 1,
+              maxLines: isMobile ? 2 : 1,
               overflow: TextOverflow.ellipsis,
               style: (isMobile
                       ? theme.textTheme.titleMedium
@@ -107,7 +109,7 @@ class StatCard extends StatelessWidget {
             SizedBox(height: isSmallPhone ? 3 : isMobile ? 4 : 6),
             Text(
               helper,
-              maxLines: 2,
+              maxLines: isSmallPhone ? 1 : 2,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontSize: isSmallPhone ? 13 : null,

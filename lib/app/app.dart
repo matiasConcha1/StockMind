@@ -11,6 +11,7 @@ import 'package:stockmind/core/services/pwa_service.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
 import 'package:stockmind/core/theme/theme_provider.dart';
 import 'package:stockmind/core/utils/firebase_bootstrap.dart';
+import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/firebase_setup_screen.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
@@ -32,17 +33,23 @@ class _StockMindAppState extends State<StockMindApp> {
       GlobalKey<ScaffoldMessengerState>();
   StreamSubscription<RemoteMessage>? _messageSubscription;
   bool _updateBannerVisible = false;
+  bool _notificationPromptShownThisSession = false;
   late final VoidCallback _pwaListener;
   PwaService? _pwaService;
+  Timer? _notificationPromptTimer;
+  late final AuthProvider _authProvider;
+  late final NotificationService _notificationService;
 
   @override
   void initState() {
     super.initState();
+    _authProvider = context.read<AuthProvider>();
+    _notificationService = context.read<NotificationService>();
     _router = AppRoutes.createRouter(
-      authProvider: context.read<AuthProvider>(),
+      authProvider: _authProvider,
     );
     _messageSubscription =
-        context.read<NotificationService>().foregroundMessages.listen((message) {
+        _notificationService.foregroundMessages.listen((message) {
       final title = message.notification?.title?.trim();
       final body = message.notification?.body?.trim();
       final text = [
@@ -58,11 +65,19 @@ class _StockMindAppState extends State<StockMindApp> {
     _pwaListener = _handlePwaStateChanged;
     _pwaService = context.read<PwaService>();
     _pwaService?.addListener(_pwaListener);
+    _authProvider.addListener(_handleNotificationPromptState);
+    _notificationService.addListener(_handleNotificationPromptState);
+    _router.routeInformationProvider.addListener(_handleNotificationPromptState);
+    _handleNotificationPromptState();
   }
 
   @override
   void dispose() {
     _messageSubscription?.cancel();
+    _notificationPromptTimer?.cancel();
+    _authProvider.removeListener(_handleNotificationPromptState);
+    _notificationService.removeListener(_handleNotificationPromptState);
+    _router.routeInformationProvider.removeListener(_handleNotificationPromptState);
     _pwaService?.removeListener(_pwaListener);
     _router.dispose();
     super.dispose();
@@ -102,6 +117,59 @@ class _StockMindAppState extends State<StockMindApp> {
       _updateBannerVisible = false;
       messenger.hideCurrentMaterialBanner();
     }
+  }
+
+  void _handleNotificationPromptState() {
+    final isAuthenticated = _authProvider.isAuthenticated;
+    final currentPath = _router.routeInformationProvider.value.uri.path;
+    final onPrivateArea = currentPath != AppRoutePaths.login &&
+        currentPath != AppRoutePaths.register &&
+        currentPath != AppRoutePaths.forgotPassword &&
+        currentPath != AppRoutePaths.loading;
+
+    if (!isAuthenticated) {
+      _notificationPromptTimer?.cancel();
+      _notificationPromptShownThisSession = false;
+      return;
+    }
+
+    if (_notificationPromptShownThisSession ||
+        !_notificationService.canPromptForNotifications ||
+        !onPrivateArea) {
+      _notificationPromptTimer?.cancel();
+      return;
+    }
+
+    if (_notificationPromptTimer?.isActive ?? false) {
+      return;
+    }
+
+    _notificationPromptTimer = Timer(const Duration(seconds: 4), () async {
+      if (!mounted ||
+          _notificationPromptShownThisSession ||
+          !_authProvider.isAuthenticated ||
+          !_notificationService.canPromptForNotifications) {
+        return;
+      }
+
+      _notificationPromptShownThisSession = true;
+      final accepted = await showAppAlertDialog(
+        context,
+        type: AppAlertType.confirm,
+        title: 'Activa las notificaciones',
+        message:
+            'Recibe alertas de stock bajo, productos por vencer y reposiciones pendientes.',
+        confirmLabel: 'Activar notificaciones',
+        cancelLabel: 'Ahora no',
+      );
+      if (!mounted) return;
+      if (accepted == true) {
+        await _notificationService.resetDeferredPrompt();
+        await _notificationService.setNotificationsEnabled(true);
+      } else {
+        await _notificationService.deferPrompt();
+      }
+    });
   }
 
   @override

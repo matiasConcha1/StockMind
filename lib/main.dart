@@ -18,6 +18,8 @@ import 'package:stockmind/features/locations/data/services/location_service.dart
 import 'package:stockmind/features/locations/providers/locations_provider.dart';
 import 'package:stockmind/features/products/data/services/product_service.dart';
 import 'package:stockmind/features/products/providers/products_provider.dart';
+import 'package:stockmind/features/replenishment/data/services/stock_request_service.dart';
+import 'package:stockmind/features/replenishment/providers/stock_requests_provider.dart';
 import 'package:stockmind/features/users/providers/user_provider.dart';
 
 Future<void> main() async {
@@ -64,11 +66,16 @@ Future<void> main() async {
     authProvider: authProvider,
     alertService: alertService,
   );
+  final stockRequestsProvider = StockRequestsProvider(
+    authProvider: authProvider,
+    stockRequestService: StockRequestService(),
+  );
   final dashboardProvider = DashboardProvider(
     authProvider: authProvider,
     productsProvider: productsProvider,
     locationsProvider: locationsProvider,
     alertsProvider: alertsProvider,
+    stockRequestsProvider: stockRequestsProvider,
     stockService: StockService(),
     stockMovementService: StockMovementService(),
   );
@@ -89,6 +96,9 @@ Future<void> main() async {
         ChangeNotifierProvider<ProductsProvider>(create: (_) => productsProvider),
         ChangeNotifierProvider<LocationsProvider>(create: (_) => locationsProvider),
         ChangeNotifierProvider<AlertsProvider>(create: (_) => alertsProvider),
+        ChangeNotifierProvider<StockRequestsProvider>(
+          create: (_) => stockRequestsProvider,
+        ),
         ChangeNotifierProvider<DashboardProvider>(create: (_) => dashboardProvider),
       ],
       child: StockMindApp(bootstrap: bootstrap),

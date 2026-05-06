@@ -9,9 +9,11 @@ import 'package:stockmind/features/auth/presentation/screens/register_screen.dar
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/settings_screen.dart';
+import 'package:stockmind/features/dashboard/presentation/screens/stock_movements_screen.dart';
 import 'package:stockmind/features/locations/presentation/screens/locations_screen.dart';
 import 'package:stockmind/features/products/presentation/screens/products_screen.dart';
 import 'package:stockmind/features/products/presentation/screens/scan_product_screen.dart';
+import 'package:stockmind/features/replenishment/presentation/screens/replenishment_screen.dart';
 import 'package:stockmind/features/users/presentation/screens/admin_placeholder_screen.dart';
 
 final class AppRoutePaths {
@@ -29,6 +31,8 @@ final class AppRoutePaths {
   static const activity = '/activity';
   static const activityLegacy = '/historial';
   static const scan = '/scan';
+  static const replenishment = '/replenishment';
+  static const replenishmentLegacy = '/reposicion';
 }
 
 final class AppRouteNames {
@@ -46,6 +50,8 @@ final class AppRouteNames {
   static const activity = 'activity';
   static const activityLegacy = 'historial';
   static const scan = 'scan';
+  static const replenishment = 'replenishment';
+  static const replenishmentLegacy = 'reposicion';
 }
 
 class AppRoutes {
@@ -144,6 +150,18 @@ class AppRoutes {
                   pageBuilder: (context, state) =>
                       _buildPage(state, const ScanProductScreen()),
                 ),
+                GoRoute(
+                  path: AppRoutePaths.replenishment,
+                  name: AppRouteNames.replenishment,
+                  pageBuilder: (context, state) =>
+                      _buildPage(state, const ReplenishmentScreen()),
+                ),
+                GoRoute(
+                  path: AppRoutePaths.replenishmentLegacy,
+                  name: AppRouteNames.replenishmentLegacy,
+                  pageBuilder: (context, state) =>
+                      _buildPage(state, const ReplenishmentScreen()),
+                ),
               ],
             ),
             StatefulShellBranch(
@@ -201,26 +219,14 @@ class AppRoutes {
                 GoRoute(
                   path: AppRoutePaths.activity,
                   name: AppRouteNames.activity,
-                  pageBuilder: (context, state) => _buildPage(
-                    state,
-                    const AdminPlaceholderScreen(
-                      title: 'Historial de actividad',
-                      subtitle: 'Revisa movimientos recientes del sistema.',
-                      icon: Icons.history_rounded,
-                    ),
-                  ),
+                  pageBuilder: (context, state) =>
+                      _buildPage(state, const StockMovementsScreen()),
                 ),
                 GoRoute(
                   path: AppRoutePaths.activityLegacy,
                   name: AppRouteNames.activityLegacy,
-                  pageBuilder: (context, state) => _buildPage(
-                    state,
-                    const AdminPlaceholderScreen(
-                      title: 'Historial de actividad',
-                      subtitle: 'Revisa movimientos recientes del sistema.',
-                      icon: Icons.history_rounded,
-                    ),
-                  ),
+                  pageBuilder: (context, state) =>
+                      _buildPage(state, const StockMovementsScreen()),
                 ),
               ],
             ),

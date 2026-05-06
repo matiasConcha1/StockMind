@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stockmind/core/widgets/stockmind_brand.dart';
 
 class AppHeader extends StatelessWidget {
   const AppHeader({
@@ -34,6 +35,27 @@ class AppHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (isCompact) ...[
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: isSmallPhone ? 14 : 16,
+              vertical: isSmallPhone ? 12 : 14,
+            ),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.24,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            child: StockMindBrandRow(
+              iconSize: isSmallPhone ? 22 : 24,
+              subtitle: 'Inventory SaaS',
+            ),
+          ),
+          SizedBox(height: isSmallPhone ? 14 : 18),
+        ],
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
