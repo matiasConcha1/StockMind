@@ -93,6 +93,11 @@ class StockRequestsProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+    if (!_authProvider.canEdit) {
+      _error = 'No tienes permisos para crear solicitudes de reposicion.';
+      notifyListeners();
+      return false;
+    }
     var success = false;
     await _runAction(() async {
       await _stockRequestService.createRequest(userId, request);
@@ -105,6 +110,11 @@ class StockRequestsProvider extends ChangeNotifier {
     final userId = _authProvider.user?.id;
     if (userId == null) {
       _error = 'Debes iniciar sesión para aprobar solicitudes.';
+      notifyListeners();
+      return false;
+    }
+    if (!_authProvider.canApproveRequests) {
+      _error = 'Solo un administrador puede aprobar solicitudes.';
       notifyListeners();
       return false;
     }
@@ -123,6 +133,11 @@ class StockRequestsProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+    if (!_authProvider.canApproveRequests) {
+      _error = 'Solo un administrador puede cancelar solicitudes.';
+      notifyListeners();
+      return false;
+    }
     var success = false;
     await _runAction(() async {
       await _stockRequestService.cancelRequest(userId: userId, request: request);
@@ -137,6 +152,11 @@ class StockRequestsProvider extends ChangeNotifier {
         _authProvider.user?.displayName ?? _authProvider.user?.email ?? 'Usuario';
     if (userId == null) {
       _error = 'Debes iniciar sesión para completar solicitudes.';
+      notifyListeners();
+      return false;
+    }
+    if (!_authProvider.canApproveRequests) {
+      _error = 'Solo un administrador puede completar solicitudes.';
       notifyListeners();
       return false;
     }

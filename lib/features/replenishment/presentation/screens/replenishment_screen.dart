@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/services/report_export_service.dart';
+import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/export_feedback.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/company_profile_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/replenishment/models/stock_request.dart';
 import 'package:stockmind/features/replenishment/presentation/widgets/stock_request_dialog.dart';
@@ -39,16 +43,20 @@ class _ReplenishmentScreenState extends State<ReplenishmentScreen> {
 
     return DashboardFrame(
       title: 'Reposición',
+      onBackPressed: () => context.go(AppRoutePaths.products),
+      backLabel: 'Volver',
       subtitle:
           'Gestiona solicitudes de reposición, completa ingresos de stock y mantiene historial operativo por ubicación.',
       actions: [
         FilledButton.tonalIcon(
-          onPressed: () => _exportRequests(context, visibleRequests, auth),
+          onPressed: auth.canExport
+              ? () => _exportRequests(context, visibleRequests, auth)
+              : null,
           icon: const Icon(Icons.download_rounded),
           label: const Text('Exportar'),
         ),
         FilledButton.icon(
-          onPressed: () => showStockRequestDialog(context),
+          onPressed: auth.canEdit ? () => showStockRequestDialog(context) : null,
           icon: const Icon(Icons.add_rounded),
           label: const Text('Nueva solicitud'),
         ),
@@ -147,7 +155,7 @@ class _ReplenishmentScreenState extends State<ReplenishmentScreen> {
               child: SizedBox(
                 height: 280,
                 child: EmptyState(
-                  title: 'Sin solicitudes',
+                  title: 'No hay solicitudes de reposición',
                   subtitle:
                       'Crea una solicitud de reposición desde esta pantalla, un producto, una alerta o el scanner.',
                   icon: Icons.inventory_rounded,
@@ -196,6 +204,7 @@ class _ReplenishmentScreenState extends State<ReplenishmentScreen> {
     List<StockRequest> requests,
     AuthProvider auth,
   ) async {
+    final company = context.read<CompanyProfileProvider>().profile;
     await runExportTask(
       context: context,
       hasData: requests.isNotEmpty,
@@ -207,6 +216,7 @@ class _ReplenishmentScreenState extends State<ReplenishmentScreen> {
       task: () => ReportExportService().exportRequestsCsv(
         requests: requests,
         userName: auth.user?.displayName ?? auth.user?.email,
+        companyProfile: company,
       ),
     );
   }
@@ -267,6 +277,7 @@ class _RequestCard extends StatelessWidget {
     final theme = Theme.of(context);
     final formatter = DateFormat('dd/MM · HH:mm');
     final provider = context.read<StockRequestsProvider>();
+    final auth = context.watch<AuthProvider>();
     final color = _statusColor(context, request.status);
 
     return SectionCard(
@@ -328,19 +339,52 @@ class _RequestCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              if (request.isPending)
+              if (request.isPending && auth.canApproveRequests)
                 FilledButton.tonal(
-                  onPressed: () => provider.approveRequest(request),
+                  onPressed: () async {
+                    final ok = await showAppConfirmDialog(
+                      context,
+                      title: '¿Aprobar reposición?',
+                      message: 'La solicitud quedará lista para completar el ingreso de stock.',
+                      confirmLabel: 'Aprobar',
+                    );
+                    if (ok) {
+                      await provider.approveRequest(request);
+                    }
+                  },
                   child: const Text('Aprobar'),
                 ),
-              if (request.isPending || request.isApproved)
+              if ((request.isPending || request.isApproved) &&
+                  auth.canApproveRequests)
                 FilledButton(
-                  onPressed: () => provider.completeRequest(request),
+                  onPressed: () async {
+                    final ok = await showAppConfirmDialog(
+                      context,
+                      title: '¿Completar reposición?',
+                      message: 'Esta acción sumará stock automáticamente a la ubicación de la solicitud.',
+                      confirmLabel: 'Completar',
+                    );
+                    if (ok) {
+                      await provider.completeRequest(request);
+                    }
+                  },
                   child: const Text('Completar'),
                 ),
-              if (!request.isCompleted && !request.isCancelled)
+              if (!request.isCompleted &&
+                  !request.isCancelled &&
+                  auth.canApproveRequests)
                 OutlinedButton(
-                  onPressed: () => provider.cancelRequest(request),
+                  onPressed: () async {
+                    final ok = await showAppConfirmDialog(
+                      context,
+                      title: '¿Cancelar solicitud?',
+                      message: 'La solicitud será cancelada y no modificará stock.',
+                      confirmLabel: 'Cancelar solicitud',
+                    );
+                    if (ok) {
+                      await provider.cancelRequest(request);
+                    }
+                  },
                   child: const Text('Cancelar'),
                 ),
             ],
