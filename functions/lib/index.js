@@ -56,18 +56,20 @@ exports.dailyInventoryAlerts = (0, scheduler_1.onSchedule)({
     retryCount: 0,
 }, async () => {
     logger.info("dailyInventoryAlerts started");
-    const usersSnapshot = await db
-        .collection("users")
-        .where("notificationsEnabled", "==", true)
+    const usersSnapshot = await db.collection("users").get();
+    const settingsSnapshot = await db
+        .collection("app_config")
+        .doc("settings")
         .get();
+    const autoArchiveExpiredProducts = (settingsSnapshot.data()?.autoArchiveExpiredProducts ?? false) === true;
     for (const userDoc of usersSnapshot.docs) {
-        await processUserInventoryAlerts(db, userDoc.id, userDoc.data());
+        await processUserInventoryAlerts(db, userDoc.id, userDoc.data(), autoArchiveExpiredProducts);
     }
     logger.info("dailyInventoryAlerts finished", {
         usersProcessed: usersSnapshot.size,
     });
 });
-async function processUserInventoryAlerts(firestore, userId, userData) {
+async function processUserInventoryAlerts(firestore, userId, userData, autoArchiveExpiredProducts) {
     const fcmToken = normalizeToken(userData.fcmToken);
     logger.info("Processing user alerts", {
         userId,
@@ -80,6 +82,13 @@ async function processUserInventoryAlerts(firestore, userId, userData) {
         .get();
     for (const productDoc of productsSnapshot.docs) {
         const product = normalizeProduct(productDoc.id, productDoc.data());
+        if (product.isDeleted) {
+            continue;
+        }
+        if (autoArchiveExpiredProducts && isExpiredProduct(product)) {
+            await archiveExpiredProduct(firestore, userId, product);
+            continue;
+        }
         const evaluations = evaluateProductAlerts(product);
         for (const evaluation of evaluations) {
             const alertId = `${product.id}_${evaluation.type}`;
@@ -125,6 +134,7 @@ function normalizeProduct(productId, data) {
             : "Producto sin nombre",
         stock: toInt(data.totalStock ?? data.stock),
         expirationDate: toDate(data.expirationDate ?? data.expiryDate),
+        isDeleted: data.isDeleted === true,
     };
 }
 function evaluateProductAlerts(product) {
@@ -190,6 +200,58 @@ async function sendPushNotification({ token, type, body, userId, productId, }) {
             error: error instanceof Error ? error.message : String(error),
         });
     }
+}
+async function archiveExpiredProduct(firestore, userId, product) {
+    const productRef = firestore
+        .collection("users")
+        .doc(userId)
+        .collection("products")
+        .doc(product.id);
+    await productRef.set({
+        isDeleted: true,
+        deletedAt: firestore_1.FieldValue.serverTimestamp(),
+        deletedBy: "system",
+        deleteReason: "expired",
+        updatedAt: firestore_1.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    const alertsSnapshot = await firestore
+        .collection("users")
+        .doc(userId)
+        .collection("alerts")
+        .where("productId", "==", product.id)
+        .where("status", "==", ALERT_STATUS_ACTIVE)
+        .get();
+    if (!alertsSnapshot.empty) {
+        const batch = firestore.batch();
+        for (const alertDoc of alertsSnapshot.docs) {
+            batch.set(alertDoc.ref, {
+                status: "resolved",
+                resolvedAt: firestore_1.FieldValue.serverTimestamp(),
+                resolvedBy: "system",
+                updatedAt: firestore_1.FieldValue.serverTimestamp(),
+                isRead: true,
+            }, { merge: true });
+        }
+        await batch.commit();
+    }
+    await firestore
+        .collection("users")
+        .doc(userId)
+        .collection("activity_logs")
+        .add({
+        action: "auto_archive_expired_product",
+        entityType: "product",
+        entityId: product.id,
+        entityName: product.name,
+        description: `El producto ${product.name} fue archivado automáticamente porque estaba vencido.`,
+        createdAt: firestore_1.FieldValue.serverTimestamp(),
+    });
+}
+function isExpiredProduct(product) {
+    const expirationDate = product.expirationDate
+        ? startOfDay(product.expirationDate)
+        : null;
+    return Boolean(expirationDate && expirationDate < startOfDay(new Date()));
 }
 function normalizeToken(value) {
     if (typeof value !== "string") {

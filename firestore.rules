@@ -24,6 +24,21 @@ service cloud.firestore {
       return currentUserRole() in ['admin', 'editor'];
     }
 
+    function touchesDeleteFields() {
+      return request.resource.data.diff(resource.data).changedKeys().hasAny([
+        'isDeleted',
+        'deletedAt',
+        'deletedBy',
+        'deleteReason',
+      ]);
+    }
+
+    match /app_config/{docId} {
+      allow read: if isSignedIn() && isAdminOrEditor();
+      allow create, update: if isSignedIn() && isAdmin();
+      allow delete: if false;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
 
@@ -38,7 +53,12 @@ service cloud.firestore {
       allow delete: if false;
 
       match /products/{productId} {
-        allow read, create, update: if isOwner(userId) && isAdminOrEditor();
+        allow read, create: if isOwner(userId) && isAdminOrEditor();
+        allow update: if isOwner(userId)
+          && (
+            (isAdminOrEditor() && !touchesDeleteFields())
+            || isAdmin()
+          );
         allow delete: if isOwner(userId) && isAdmin();
       }
 

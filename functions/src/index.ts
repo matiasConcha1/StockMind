@@ -35,6 +35,7 @@ interface ProductRecord {
   name: string;
   stock: number;
   expirationDate: Date | null;
+  isDeleted: boolean;
 }
 
 interface AlertEvaluation {
@@ -55,13 +56,22 @@ export const dailyInventoryAlerts = onSchedule(
   async () => {
     logger.info("dailyInventoryAlerts started");
 
-    const usersSnapshot = await db
-      .collection("users")
-      .where("notificationsEnabled", "==", true)
+    const usersSnapshot = await db.collection("users").get();
+
+    const settingsSnapshot = await db
+      .collection("app_config")
+      .doc("settings")
       .get();
+    const autoArchiveExpiredProducts =
+      (settingsSnapshot.data()?.autoArchiveExpiredProducts ?? false) === true;
 
     for (const userDoc of usersSnapshot.docs) {
-      await processUserInventoryAlerts(db, userDoc.id, userDoc.data());
+      await processUserInventoryAlerts(
+        db,
+        userDoc.id,
+        userDoc.data(),
+        autoArchiveExpiredProducts,
+      );
     }
 
     logger.info("dailyInventoryAlerts finished", {
@@ -74,6 +84,7 @@ async function processUserInventoryAlerts(
   firestore: Firestore,
   userId: string,
   userData: FirebaseFirestore.DocumentData,
+  autoArchiveExpiredProducts: boolean,
 ): Promise<void> {
   const fcmToken = normalizeToken(userData.fcmToken);
 
@@ -90,6 +101,15 @@ async function processUserInventoryAlerts(
 
   for (const productDoc of productsSnapshot.docs) {
     const product = normalizeProduct(productDoc.id, productDoc.data());
+    if (product.isDeleted) {
+      continue;
+    }
+
+    if (autoArchiveExpiredProducts && isExpiredProduct(product)) {
+      await archiveExpiredProduct(firestore, userId, product);
+      continue;
+    }
+
     const evaluations = evaluateProductAlerts(product);
 
     for (const evaluation of evaluations) {
@@ -148,6 +168,7 @@ function normalizeProduct(
         : "Producto sin nombre",
     stock: toInt(data.totalStock ?? data.stock),
     expirationDate: toDate(data.expirationDate ?? data.expiryDate),
+    isDeleted: data.isDeleted === true,
   };
 }
 
@@ -230,6 +251,75 @@ async function sendPushNotification({
       error: error instanceof Error ? error.message : String(error),
     });
   }
+}
+
+async function archiveExpiredProduct(
+  firestore: Firestore,
+  userId: string,
+  product: ProductRecord,
+): Promise<void> {
+  const productRef = firestore
+    .collection("users")
+    .doc(userId)
+    .collection("products")
+    .doc(product.id);
+
+  await productRef.set(
+    {
+      isDeleted: true,
+      deletedAt: FieldValue.serverTimestamp(),
+      deletedBy: "system",
+      deleteReason: "expired",
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  const alertsSnapshot = await firestore
+    .collection("users")
+    .doc(userId)
+    .collection("alerts")
+    .where("productId", "==", product.id)
+    .where("status", "==", ALERT_STATUS_ACTIVE)
+    .get();
+
+  if (!alertsSnapshot.empty) {
+    const batch = firestore.batch();
+    for (const alertDoc of alertsSnapshot.docs) {
+      batch.set(
+        alertDoc.ref,
+        {
+          status: "resolved",
+          resolvedAt: FieldValue.serverTimestamp(),
+          resolvedBy: "system",
+          updatedAt: FieldValue.serverTimestamp(),
+          isRead: true,
+        },
+        { merge: true },
+      );
+    }
+    await batch.commit();
+  }
+
+  await firestore
+    .collection("users")
+    .doc(userId)
+    .collection("activity_logs")
+    .add({
+      action: "auto_archive_expired_product",
+      entityType: "product",
+      entityId: product.id,
+      entityName: product.name,
+      description: `El producto ${product.name} fue archivado automáticamente porque estaba vencido.`,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+}
+
+function isExpiredProduct(product: ProductRecord): boolean {
+  const expirationDate = product.expirationDate
+    ? startOfDay(product.expirationDate)
+    : null;
+  return Boolean(expirationDate && expirationDate < startOfDay(new Date()));
 }
 
 function normalizeToken(value: unknown): string | null {
