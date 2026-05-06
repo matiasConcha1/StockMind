@@ -27,9 +27,16 @@ class UserProvider extends ChangeNotifier {
   bool get isLoading => _loading;
   String? get error => _error;
   bool get isAdmin => _currentUser?.isAdmin ?? false;
+  bool get isOperator => _currentUser?.isOperator ?? false;
   bool get isEditor => _currentUser?.isEditor ?? false;
   bool get canEdit => _currentUser?.canEdit ?? false;
   bool get canDelete => _currentUser?.canDelete ?? false;
+  bool get canExport => _currentUser?.canExport ?? false;
+  bool get canManageUsers => _currentUser?.canManageUsers ?? false;
+  bool get canManageSettings => _currentUser?.canManageSettings ?? false;
+  bool get canApproveRequests => _currentUser?.canApproveRequests ?? false;
+  bool get hasCompletedOnboarding =>
+      _currentUser?.hasCompletedOnboarding ?? false;
 
   Future<void> loadCurrentUser() {
     _pendingLoad ??= _loadCurrentUserInternal().whenComplete(() {
@@ -53,7 +60,11 @@ class UserProvider extends ChangeNotifier {
       final docRef = _firestore.collection('users').doc(authUser.id);
       final snapshot = await docRef.get();
       final existingData = snapshot.data() ?? const <String, dynamic>{};
-      final role = _resolveRole(existingData['role']);
+      final role = await _resolveUserRole(
+        uid: authUser.id,
+        exists: snapshot.exists,
+        rawRole: existingData['role'],
+      );
 
       final payload = <String, dynamic>{
         'uid': authUser.id,
@@ -61,7 +72,9 @@ class UserProvider extends ChangeNotifier {
         'name': authUser.displayName,
         'photoUrl': authUser.photoUrl,
         'provider': authUser.provider,
-        'role': snapshot.exists ? role : 'editor',
+        'role': role,
+        'isActive': (existingData['isActive'] ?? true) == true,
+        'lastLoginAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -88,14 +101,21 @@ class UserProvider extends ChangeNotifier {
             ? (data['provider'] as String).trim()
             : authUser.provider,
         createdAt: _toDateTime(data['createdAt']) ?? authUser.createdAt,
-        role: _resolveRole(data['role']),
+        role: data['role'] is String &&
+                (data['role'] as String).trim().toLowerCase() == 'admin'
+            ? 'admin'
+            : 'operator',
+        isActive: (data['isActive'] ?? true) == true,
+        hasCompletedOnboarding:
+            (data['hasCompletedOnboarding'] ?? false) == true,
       );
       _error = null;
     } catch (error, stackTrace) {
       debugPrint('UserProvider.loadCurrentUser error: $error');
       debugPrint('$stackTrace');
-      _error = 'No fue posible cargar el usuario actual.';
-      _currentUser = _authProvider.user?.copyWith(role: 'editor');
+      _error =
+          'No fue posible cargar o sincronizar tu perfil en Firestore.';
+      _currentUser = null;
     } finally {
       _loading = false;
       notifyListeners();
@@ -117,14 +137,87 @@ class UserProvider extends ChangeNotifier {
     unawaited(loadCurrentUser());
   }
 
-  String _resolveRole(dynamic value) {
-    if (value is String) {
-      final normalized = value.trim().toLowerCase();
-      if (normalized == 'admin' || normalized == 'editor') {
-        return normalized;
-      }
+  Future<String> _resolveUserRole({
+    required String uid,
+    required bool exists,
+    required dynamic rawRole,
+  }) async {
+    if (rawRole is String) {
+      final normalized = rawRole.trim().toLowerCase();
+      if (normalized == 'admin') return 'admin';
+      if (normalized == 'operator' || normalized == 'editor') return 'operator';
     }
-    return 'editor';
+    final usersSnapshot = await _firestore.collection('users').limit(2).get();
+    if (usersSnapshot.docs.isEmpty) return 'admin';
+    if (exists &&
+        usersSnapshot.docs.length == 1 &&
+        usersSnapshot.docs.first.id == uid) {
+      return 'admin';
+    }
+    return 'operator';
+  }
+
+  Future<void> setOnboardingCompleted(bool value) async {
+    final userId = _authProvider.user?.id;
+    if (userId == null) return;
+    await _firestore.collection('users').doc(userId).set({
+      'hasCompletedOnboarding': value,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    if (_currentUser != null) {
+      _currentUser = _currentUser!.copyWith(hasCompletedOnboarding: value);
+      notifyListeners();
+    }
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchUsers() {
+    if (!isAdmin) {
+      return Stream<QuerySnapshot<Map<String, dynamic>>>.error(
+        FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'permission-denied',
+          message: 'Solo un administrador puede cargar usuarios.',
+        ),
+      );
+    }
+    return FirebaseFirestore.instance
+        .collection('users')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  Future<void> updateUserRole({
+    required String userId,
+    required String role,
+  }) async {
+    if (!isAdmin) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'permission-denied',
+        message: 'Solo un administrador puede cambiar roles.',
+      );
+    }
+    await _firestore.collection('users').doc(userId).set({
+      'role': role.trim().toLowerCase() == 'admin' ? 'admin' : 'operator',
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> setUserActive({
+    required String userId,
+    required bool isActive,
+  }) async {
+    if (!isAdmin) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'permission-denied',
+        message: 'Solo un administrador puede activar o desactivar usuarios.',
+      );
+    }
+    await _firestore.collection('users').doc(userId).set({
+      'isActive': isActive,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   DateTime? _toDateTime(dynamic value) {
