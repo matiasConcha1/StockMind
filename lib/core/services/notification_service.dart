@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
 class NotificationService extends ChangeNotifier {
@@ -22,6 +23,8 @@ class NotificationService extends ChangeNotifier {
 
   static const String _webVapidKey =
       String.fromEnvironment('FCM_WEB_VAPID_KEY');
+  static const _deferredPromptKey = 'notification_prompt_deferred_until';
+  static const _deviceIdKey = 'notification_device_id';
 
   final AuthProvider _authProvider;
   final FirebaseFirestore _firestore;
@@ -30,19 +33,35 @@ class NotificationService extends ChangeNotifier {
       StreamController<RemoteMessage>.broadcast();
 
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
+  SharedPreferences? _prefs;
   bool _loading = false;
   bool _notificationsEnabled = false;
+  bool _promptStateLoaded = false;
   String? _token;
   String? _error;
+  String? _deviceId;
 
   bool get isLoading => _loading;
   bool get notificationsEnabled => _notificationsEnabled;
   String? get token => _token;
   String? get error => _error;
   bool get isSupported => true;
+  bool get canPromptForNotifications =>
+      !_loading && !_notificationsEnabled && !_isPromptDeferred;
+  String get notificationStatusLabel => _notificationsEnabled
+      ? 'Notificaciones activadas'
+      : 'Notificaciones desactivadas';
   Stream<RemoteMessage> get foregroundMessages => _foregroundController.stream;
 
+  bool get _isPromptDeferred {
+    if (!_promptStateLoaded) return true;
+    final raw = _prefs?.getInt(_deferredPromptKey);
+    if (raw == null) return false;
+    return DateTime.now().millisecondsSinceEpoch < raw;
+  }
+
   Future<void> setNotificationsEnabled(bool value) async {
+    await _ensurePrefs();
     final userId = _authProvider.user?.id;
     if (userId == null) {
       _error = 'Debes iniciar sesión para gestionar notificaciones.';
@@ -56,13 +75,10 @@ class NotificationService extends ChangeNotifier {
 
     try {
       if (!value) {
-        await _firestore.collection('users').doc(userId).set(
-          {
-            'notificationsEnabled': false,
-            'fcmToken': null,
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
+        await _persistNotificationState(
+          userId: userId,
+          enabled: false,
+          token: null,
         );
         _notificationsEnabled = false;
         _token = null;
@@ -85,16 +101,14 @@ class NotificationService extends ChangeNotifier {
         return;
       }
 
-      await _firestore.collection('users').doc(userId).set(
-        {
-          'notificationsEnabled': true,
-          'fcmToken': token,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
+      await _persistNotificationState(
+        userId: userId,
+        enabled: true,
+        token: token,
       );
       _notificationsEnabled = true;
       _token = token;
+      await _prefs?.remove(_deferredPromptKey);
     } catch (error, stackTrace) {
       debugPrint('NotificationService.setNotificationsEnabled error: $error');
       debugPrint('$stackTrace');
@@ -106,7 +120,21 @@ class NotificationService extends ChangeNotifier {
     }
   }
 
+  Future<void> deferPrompt({int days = 3}) async {
+    await _ensurePrefs();
+    final until = DateTime.now().add(Duration(days: days)).millisecondsSinceEpoch;
+    await _prefs?.setInt(_deferredPromptKey, until);
+    notifyListeners();
+  }
+
+  Future<void> resetDeferredPrompt() async {
+    await _ensurePrefs();
+    await _prefs?.remove(_deferredPromptKey);
+    notifyListeners();
+  }
+
   Future<void> _handleAuthChanged() async {
+    await _ensurePrefs();
     final userId = _authProvider.user?.id;
     if (userId == null) {
       _notificationsEnabled = false;
@@ -130,13 +158,10 @@ class NotificationService extends ChangeNotifier {
         final refreshedToken = await _getToken();
         if (refreshedToken != null && refreshedToken.isNotEmpty) {
           _token = refreshedToken;
-          await _firestore.collection('users').doc(userId).set(
-            {
-              'notificationsEnabled': true,
-              'fcmToken': refreshedToken,
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true),
+          await _persistNotificationState(
+            userId: userId,
+            enabled: true,
+            token: refreshedToken,
           );
         }
       }
@@ -167,6 +192,48 @@ class NotificationService extends ChangeNotifier {
       _error = 'No se pudo obtener el token de notificaciones.';
       return null;
     }
+  }
+
+  Future<void> _persistNotificationState({
+    required String userId,
+    required bool enabled,
+    required String? token,
+  }) async {
+    final userRef = _firestore.collection('users').doc(userId);
+    final batch = _firestore.batch();
+    batch.set(
+      userRef,
+      {
+        'notificationsEnabled': enabled,
+        'fcmToken': token,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+    final tokenRef = userRef.collection('notification_tokens').doc(_deviceId);
+    batch.set(
+      tokenRef,
+      {
+        'deviceId': _deviceId,
+        'token': token,
+        'enabled': enabled,
+        'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+    await batch.commit();
+  }
+
+  Future<void> _ensurePrefs() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    _deviceId ??= _prefs!.getString(_deviceIdKey);
+    if (_deviceId == null || _deviceId!.isEmpty) {
+      _deviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';
+      await _prefs!.setString(_deviceIdKey, _deviceId!);
+    }
+    _promptStateLoaded = true;
   }
 
   @override
