@@ -32,7 +32,7 @@ class InventoryExportService {
           product.price.toStringAsFixed(2),
           product.totalStock.toString(),
           product.minStock.toString(),
-          product.isExpired ? 'Vencido' : product.stockStatus.label,
+          product.operationalStatusLabel,
           _locationsSummary(product),
           _formatDate(product.expiryDate),
           _formatDate(product.createdAt),

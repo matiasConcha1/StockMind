@@ -15,15 +15,24 @@ class StockStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final status = product.stockStatus;
-    final isExpired = product.isExpired;
-    final foreground = isExpired
-        ? colorScheme.error
-        : status.foregroundColor(colorScheme);
-    final background = isExpired
-        ? colorScheme.error.withValues(alpha: 0.12)
-        : status.backgroundColor(colorScheme);
-    final icon = isExpired ? Icons.event_busy_outlined : status.icon;
-    final label = isExpired ? 'Vencido' : status.label;
+    final criticalRisk = product.isExpired || status.isOutOfStock;
+    final warningRisk =
+        !criticalRisk &&
+        (product.isExpiringSoon || product.totalStock <= product.minStock);
+    final foreground = product.isOptimal
+        ? const Color(0xFF16A34A)
+        : criticalRisk
+            ? colorScheme.error
+            : warningRisk
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFFF97316);
+    final background = foreground.withValues(alpha: 0.14);
+    final icon = product.isOptimal
+        ? Icons.check_circle_rounded
+        : criticalRisk
+            ? Icons.error_outline_rounded
+            : Icons.warning_amber_rounded;
+    final label = product.operationalStatusLabel;
 
     return Container(
       padding: EdgeInsets.symmetric(

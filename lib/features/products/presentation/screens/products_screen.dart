@@ -8,6 +8,7 @@ import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/export_feedback.dart';
 import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/company_profile_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/products/data/services/inventory_export_service.dart';
 import 'package:stockmind/features/products/models/product.dart';
@@ -31,24 +32,30 @@ class ProductsScreen extends StatelessWidget {
           'Gestiona tu catalogo por usuario, con filtros, exportacion y control inteligente del stock.',
       actions: [
         FilledButton.tonalIcon(
-          onPressed: exportItems.isEmpty ? null : () => _exportCsv(context),
+          onPressed: exportItems.isEmpty || !auth.canExport
+              ? null
+              : () => _exportCsv(context),
           icon: const Icon(Icons.download_rounded),
           label: const Text('Exportar CSV'),
         ),
         OutlinedButton.icon(
-          onPressed: exportItems.isEmpty
+          onPressed: exportItems.isEmpty || !auth.canExport
               ? null
               : () => _exportLocationStockCsv(context),
           icon: const Icon(Icons.location_on_outlined),
-          label: const Text('Stock x ubicaciÃ³n'),
+          label: const Text('Stock x ubicación'),
         ),
         OutlinedButton.icon(
-          onPressed: exportItems.isEmpty ? null : () => _exportExcel(context),
+          onPressed: exportItems.isEmpty || !auth.canExport
+              ? null
+              : () => _exportExcel(context),
           icon: const Icon(Icons.table_chart_outlined),
           label: const Text('Exportar Excel'),
         ),
         FilledButton.tonalIcon(
-          onPressed: exportItems.isEmpty ? null : () => _exportPdf(context),
+          onPressed: exportItems.isEmpty || !auth.canExport
+              ? null
+              : () => _exportPdf(context),
           icon: const Icon(Icons.picture_as_pdf_outlined),
           label: const Text('Exportar PDF'),
         ),
@@ -397,6 +404,7 @@ class ProductsScreen extends StatelessWidget {
 
   Future<void> _exportCsv(BuildContext context) async {
     final auth = context.read<AuthProvider>();
+    final company = context.read<CompanyProfileProvider>().profile;
     await runExportTask(
       context: context,
       hasData: context.read<ProductsProvider>().filteredProducts.isNotEmpty,
@@ -406,12 +414,14 @@ class ProductsScreen extends StatelessWidget {
       task: () => ReportExportService().exportProductsCsv(
         products: context.read<ProductsProvider>().filteredProducts,
         userName: auth.user?.displayName ?? auth.user?.email,
+        companyProfile: company,
       ),
     );
   }
 
   Future<void> _exportLocationStockCsv(BuildContext context) async {
     final auth = context.read<AuthProvider>();
+    final company = context.read<CompanyProfileProvider>().profile;
     await runExportTask(
       context: context,
       hasData: context.read<ProductsProvider>().filteredProducts.isNotEmpty,
@@ -423,6 +433,7 @@ class ProductsScreen extends StatelessWidget {
       task: () => ReportExportService().exportLocationStockCsv(
         products: context.read<ProductsProvider>().filteredProducts,
         userName: auth.user?.displayName ?? auth.user?.email,
+        companyProfile: company,
       ),
     );
   }
@@ -479,9 +490,9 @@ class _FilterSelector extends StatelessWidget {
           onTap: () => provider.updateProductFilter(ProductFilter.atRisk),
         ),
         _FilterChipButton(
-          label: 'Saludable',
-          selected: provider.productFilter == ProductFilter.healthy,
-          onTap: () => provider.updateProductFilter(ProductFilter.healthy),
+          label: 'Óptimo',
+          selected: provider.productFilter == ProductFilter.optimal,
+          onTap: () => provider.updateProductFilter(ProductFilter.optimal),
         ),
       ],
     );

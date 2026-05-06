@@ -93,15 +93,26 @@ class Product {
   bool get isExpired =>
       expiryDate != null && _dateOnly(expiryDate!).isBefore(_today);
 
-  bool get expiresWithin7Days =>
+  bool get isExpiringSoon =>
       expiryDate != null &&
       !_dateOnly(expiryDate!).isBefore(_today) &&
       !_dateOnly(expiryDate!).isAfter(_today.add(const Duration(days: 7)));
+
+  bool get expiresWithin7Days =>
+      isExpiringSoon;
 
   bool get expiresWithin15Days =>
       expiryDate != null &&
       !_dateOnly(expiryDate!).isBefore(_today) &&
       !_dateOnly(expiryDate!).isAfter(_today.add(const Duration(days: 15)));
+
+  bool get isAtRisk =>
+      totalStock <= minStock || isCriticalStock || isExpiringSoon || isExpired;
+
+  bool get isOptimal =>
+      totalStock > minStock && !isExpired && !isExpiringSoon && !isCriticalStock;
+
+  String get operationalStatusLabel => isOptimal ? 'Óptimo' : 'En riesgo';
 
   Product copyWith({
     String? id,

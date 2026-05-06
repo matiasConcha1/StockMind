@@ -8,7 +8,7 @@ import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/products/data/services/product_service.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
-enum ProductFilter { all, atRisk, healthy }
+enum ProductFilter { all, atRisk, optimal }
 
 class ProductsProvider extends ChangeNotifier {
   ProductsProvider({
@@ -58,13 +58,14 @@ class ProductsProvider extends ChangeNotifier {
           product.name.toLowerCase().contains(query) ||
           product.category.toLowerCase().contains(query) ||
           product.status.toLowerCase().contains(query) ||
-          product.stockStatus.label.toLowerCase().contains(query);
+          product.stockStatus.label.toLowerCase().contains(query) ||
+          product.operationalStatusLabel.toLowerCase().contains(query);
       final matchesCategory =
           _categoryFilter == null || product.category == _categoryFilter;
       final matchesState = switch (_productFilter) {
         ProductFilter.all => true,
-        ProductFilter.atRisk => product.isExpired || !product.isHighStock,
-        ProductFilter.healthy => !product.isExpired && product.isHighStock,
+        ProductFilter.atRisk => product.isAtRisk,
+        ProductFilter.optimal => product.isOptimal,
       };
       return matchesQuery && matchesCategory && matchesState;
     }).toList();
@@ -102,6 +103,11 @@ class ProductsProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    if (!_authProvider.canEdit) {
+      _error = 'No tienes permisos para crear productos.';
+      notifyListeners();
+      return;
+    }
     await _execute(() async {
       final productId = product.id.isEmpty
           ? _productService.createProductId(userId)
@@ -136,6 +142,11 @@ class ProductsProvider extends ChangeNotifier {
     );
     if (userId == null) {
       _error = 'Debes iniciar sesión para editar productos.';
+      notifyListeners();
+      return;
+    }
+    if (!_authProvider.canEdit) {
+      _error = 'No tienes permisos para editar productos.';
       notifyListeners();
       return;
     }
@@ -182,6 +193,11 @@ class ProductsProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    if (!_authProvider.canDelete) {
+      _error = 'Solo un administrador puede archivar productos.';
+      notifyListeners();
+      return;
+    }
     Product? previous;
     for (final item in _products) {
       if (item.id == productId) {
@@ -207,6 +223,12 @@ class ProductsProvider extends ChangeNotifier {
     final userId = _authProvider.user?.id;
     if (userId == null) {
       _error = 'Debes iniciar sesión para escanear productos.';
+      notifyListeners();
+      return null;
+    }
+
+    if (!_authProvider.canEdit) {
+      _error = 'No tienes permisos para escanear productos.';
       notifyListeners();
       return null;
     }
@@ -246,6 +268,12 @@ class ProductsProvider extends ChangeNotifier {
       return false;
     }
 
+    if (!_authProvider.canEdit) {
+      _error = 'No tienes permisos para registrar movimientos de stock.';
+      notifyListeners();
+      return false;
+    }
+
     var success = false;
     await _execute(() async {
       final result = await _productService.adjustProductStock(
@@ -281,6 +309,12 @@ class ProductsProvider extends ChangeNotifier {
       return false;
     }
 
+    if (!_authProvider.canEdit) {
+      _error = 'No tienes permisos para registrar movimientos de stock.';
+      notifyListeners();
+      return false;
+    }
+
     var success = false;
     await _execute(() async {
       final result = await _productService.setProductLocationStock(
@@ -310,6 +344,12 @@ class ProductsProvider extends ChangeNotifier {
     final userId = _authProvider.user?.id;
     if (userId == null) {
       _error = 'Debes iniciar sesión para actualizar el stock.';
+      notifyListeners();
+      return false;
+    }
+
+    if (!_authProvider.canEdit) {
+      _error = 'No tienes permisos para transferir stock.';
       notifyListeners();
       return false;
     }

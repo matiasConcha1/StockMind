@@ -32,7 +32,7 @@ class ProductTable extends StatelessWidget {
         child: SizedBox(
           height: 320,
           child: EmptyState(
-            title: 'Sin productos todavia',
+            title: 'No hay productos todavía',
             subtitle:
                 'Crea tu primer producto para comenzar a operar con inventario real.',
             icon: Icons.inventory_2_outlined,

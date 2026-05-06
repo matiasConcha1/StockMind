@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
@@ -40,6 +42,8 @@ class _ScanProductScreenState extends State<ScanProductScreen> {
 
     return DashboardFrame(
       title: 'Escanear producto',
+      onBackPressed: () => context.go(AppRoutePaths.products),
+      backLabel: 'Volver',
       subtitle:
           'Lee un QR o código de barras con la cámara para reconocer productos y ajustar stock rápidamente.',
       child: Column(
