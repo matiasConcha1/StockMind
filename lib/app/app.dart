@@ -116,6 +116,7 @@ class _StockMindAppState extends State<StockMindApp> {
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: themeProvider.themeMode,
+        builder: _buildClampedTextScale,
         home: FirebaseSetupScreen(errorMessage: widget.bootstrap.error),
       );
     }
@@ -127,7 +128,20 @@ class _StockMindAppState extends State<StockMindApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
+      builder: _buildClampedTextScale,
       routerConfig: _router,
+    );
+  }
+
+  Widget _buildClampedTextScale(BuildContext context, Widget? child) {
+    final mediaQuery = MediaQuery.of(context);
+    return MediaQuery(
+      data: mediaQuery.copyWith(
+        textScaler: TextScaler.linear(
+          mediaQuery.textScaler.scale(1.0).clamp(0.9, 1.0),
+        ),
+      ),
+      child: child ?? const SizedBox.shrink(),
     );
   }
 }

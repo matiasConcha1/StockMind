@@ -25,12 +25,13 @@ class StatCard extends StatelessWidget {
     final theme = Theme.of(context);
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 768;
+    final isSmallPhone = width < 480;
 
     return SectionCard(
-      padding: EdgeInsets.all(isMobile ? 18 : 24),
+      padding: EdgeInsets.all(isSmallPhone ? 16 : isMobile ? 18 : 24),
       borderRadius: isMobile ? 24 : 28,
       child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: isMobile ? 150 : 210),
+        constraints: BoxConstraints(minHeight: isSmallPhone ? 120 : isMobile ? 150 : 210),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.start,
@@ -39,8 +40,8 @@ class StatCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: isMobile ? 50 : 52,
-                  height: isMobile ? 50 : 52,
+                  width: isSmallPhone ? 42 : isMobile ? 50 : 52,
+                  height: isSmallPhone ? 42 : isMobile ? 50 : 52,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -52,15 +53,19 @@ class StatCard extends StatelessWidget {
                     ),
                     borderRadius: BorderRadius.circular(isMobile ? 15 : 16),
                   ),
-                  child: Icon(icon, color: color, size: isMobile ? 22 : 24),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: isSmallPhone ? 22 : isMobile ? 22 : 24,
+                  ),
                 ),
                 const Spacer(),
                 if (trend != null)
                   Flexible(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isSmallPhone ? 8 : 10,
+                        vertical: isSmallPhone ? 5 : 6,
                       ),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
@@ -74,34 +79,39 @@ class StatCard extends StatelessWidget {
                         style: theme.textTheme.labelMedium?.copyWith(
                           color: color,
                           fontWeight: FontWeight.w700,
+                          fontSize: isSmallPhone ? 12 : null,
                         ),
                       ),
                     ),
                   ),
               ],
             ),
-            SizedBox(height: isMobile ? 14 : 18),
+            SizedBox(height: isSmallPhone ? 10 : isMobile ? 14 : 18),
             Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: isMobile
-                  ? theme.textTheme.titleMedium
-                  : theme.textTheme.bodyMedium,
+              style: (isMobile
+                      ? theme.textTheme.titleMedium
+                      : theme.textTheme.bodyMedium)
+                  ?.copyWith(fontSize: isSmallPhone ? 17 : null),
             ),
-            SizedBox(height: isMobile ? 6 : 8),
+            SizedBox(height: isSmallPhone ? 4 : isMobile ? 6 : 8),
             Text(
               value,
-              style: isMobile
-                  ? theme.textTheme.headlineSmall
-                  : theme.textTheme.headlineMedium,
+              style: (isMobile
+                      ? theme.textTheme.headlineSmall
+                      : theme.textTheme.headlineMedium)
+                  ?.copyWith(fontSize: isSmallPhone ? 30 : null),
             ),
-            SizedBox(height: isMobile ? 4 : 6),
+            SizedBox(height: isSmallPhone ? 3 : isMobile ? 4 : 6),
             Text(
               helper,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontSize: isSmallPhone ? 13 : null,
+              ),
             ),
           ],
         ),

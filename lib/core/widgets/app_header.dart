@@ -19,9 +19,20 @@ class AppHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isCompact = MediaQuery.sizeOf(context).width < 1000;
+    final width = MediaQuery.sizeOf(context).width;
+    final isCompact = width < 1000;
+    final isSmallPhone = width < 480;
+    final titleStyle = (isSmallPhone
+            ? theme.textTheme.headlineSmall
+            : theme.textTheme.headlineMedium)
+        ?.copyWith(fontSize: isSmallPhone ? 28 : null);
+    final subtitleStyle = (isSmallPhone
+            ? theme.textTheme.bodyMedium
+            : theme.textTheme.bodyLarge)
+        ?.copyWith(fontSize: isSmallPhone ? 15 : null);
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,9 +49,19 @@ class AppHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: theme.textTheme.headlineMedium),
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: titleStyle,
+                  ),
                   const SizedBox(height: 6),
-                  Text(subtitle, style: theme.textTheme.bodyLarge),
+                  Text(
+                    subtitle,
+                    maxLines: isSmallPhone ? 3 : 4,
+                    overflow: TextOverflow.ellipsis,
+                    style: subtitleStyle,
+                  ),
                 ],
               ),
             ),
@@ -51,10 +72,14 @@ class AppHeader extends StatelessWidget {
           ],
         ),
         if (actions.isNotEmpty) ...[
-          const SizedBox(height: 18),
+          SizedBox(height: isSmallPhone ? 14 : 18),
           Align(
             alignment: Alignment.centerLeft,
-            child: Wrap(spacing: 12, runSpacing: 12, children: actions),
+            child: Wrap(
+              spacing: isSmallPhone ? 10 : 12,
+              runSpacing: isSmallPhone ? 10 : 12,
+              children: actions,
+            ),
           ),
         ],
       ],

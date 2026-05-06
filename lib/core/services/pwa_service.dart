@@ -17,12 +17,20 @@ class PwaService extends ChangeNotifier {
   bool get canInstall => _canInstall && !_isInstalled;
   bool get updateAvailable => _updateAvailable;
   bool get showIosInstallHint => _isIosSafari && !_isInstalled && !_canInstall;
+  bool get showManualInstallHint => !_isInstalled && !_canInstall;
 
-  String get installHelpText => showIosInstallHint
-      ? 'En iPhone, usa Compartir > Agregar a pantalla de inicio.'
-      : _isInstalled
-          ? 'La app ya está instalada en este dispositivo.'
-          : 'Instala StockMind para usarlo como app independiente.';
+  String get installHelpText {
+    if (_isInstalled) {
+      return 'StockMind ya está instalada en este dispositivo.';
+    }
+    if (showIosInstallHint) {
+      return 'En iPhone, toca Compartir y luego Agregar a pantalla de inicio.';
+    }
+    if (showManualInstallHint) {
+      return 'Para instalar StockMind, abre el menú de Chrome (⋮) y toca Agregar a pantalla principal.';
+    }
+    return 'Instala StockMind para usarlo como app independiente.';
+  }
 
   Future<void> promptInstall() async {
     if (!isSupported || _isInstalled) return;
@@ -68,6 +76,7 @@ class PwaService extends ChangeNotifier {
       'stockmind-pwa-state',
       (_) {
         _isInstalled = _detectInstalled();
+        _isIosSafari = _detectIosSafari();
         notifyListeners();
       },
     );
@@ -77,7 +86,11 @@ class PwaService extends ChangeNotifier {
 
   bool _detectInstalled() {
     try {
-      return html.window.matchMedia('(display-mode: standalone)').matches;
+      final standaloneDisplayMode =
+          html.window.matchMedia('(display-mode: standalone)').matches;
+      final navigator = html.window.navigator as dynamic;
+      final iosStandalone = navigator.standalone == true;
+      return standaloneDisplayMode || iosStandalone;
     } catch (_) {
       return false;
     }
