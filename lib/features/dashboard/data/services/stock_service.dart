@@ -5,6 +5,7 @@ import 'package:stockmind/features/products/models/product.dart';
 class StockService {
   DashboardSnapshot buildSnapshot(
     List<Product> products,
+    int totalLocations,
     List<StockMovement> recentMovements,
     int activeAlerts,
   ) {
@@ -28,9 +29,12 @@ class StockService {
         }
         return a.stock.compareTo(b.stock);
       });
+    final recentlyUpdatedProducts = [...products]
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
     return DashboardSnapshot(
       totalProducts: products.length,
+      totalLocations: totalLocations,
       totalUnits: products.fold(0, (sum, item) => sum + item.stock),
       outOfStockProducts:
           products.where((product) => product.isCriticalStock).length,
@@ -45,7 +49,7 @@ class StockService {
       criticalProducts: products.where((product) => product.isCriticalStock).length,
       activeAlerts: activeAlerts,
       expiringSoonProducts: products
-          .where((product) => !product.isExpired && product.expiresWithin15Days)
+          .where((product) => !product.isExpired && product.expiresWithin7Days)
           .length,
       expiredProducts: products.where((product) => product.isExpired).length,
       categories: products.map((item) => item.category).toSet().length,
@@ -56,6 +60,7 @@ class StockService {
           .map((entry) => CategorySlice(label: entry.key, value: entry.value))
           .toList(),
       lowestStockProducts: lowestStockProducts.take(6).toList(),
+      recentlyUpdatedProducts: recentlyUpdatedProducts.take(5).toList(),
       recentMovements: recentMovements,
     );
   }

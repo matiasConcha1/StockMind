@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
+import 'package:stockmind/core/services/notification_service.dart';
 import 'package:stockmind/core/theme/theme_provider.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/features/auth/data/models/app_user.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
+import 'package:stockmind/features/users/providers/user_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -19,11 +21,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final notificationService = context.watch<NotificationService>();
+    final userProvider = context.watch<UserProvider>();
     final themeProvider = context.watch<ThemeProvider>();
-    final user = auth.user;
+    final user = userProvider.currentUser ?? auth.user;
+    final width = MediaQuery.sizeOf(context).width;
+    final spacing = width < 768 ? 14.0 : 16.0;
 
     return DashboardFrame(
-      title: 'Perfil y configuracion',
+      title: 'Perfil y configuración',
       subtitle: 'Administra tu cuenta, seguridad y preferencias visuales.',
       child: Column(
         children: [
@@ -31,13 +37,126 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context: context,
             themeProvider: themeProvider,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: spacing),
           _buildSecuritySection(
             context: context,
             user: user,
             auth: auth,
           ),
+          SizedBox(height: spacing),
+          _buildNotificationsSection(
+            context: context,
+            notificationService: notificationService,
+          ),
+          if (userProvider.isAdmin) ...[
+            SizedBox(height: spacing),
+            _buildAdminSection(context),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationsSection({
+    required BuildContext context,
+    required NotificationService notificationService,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 768;
+    final padding = isMobile ? 18.0 : 24.0;
+
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(padding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Notificaciones', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              'Activa avisos push para stock bajo, productos próximos a vencer y vencidos.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.72),
+              ),
+            ),
+            const SizedBox(height: 18),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.24),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: colorScheme.outlineVariant),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.notifications_active_outlined,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Alertas push',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          notificationService.notificationsEnabled
+                              ? 'Activas en este dispositivo'
+                              : 'Desactivadas en este dispositivo',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.72),
+                          ),
+                        ),
+                        if (notificationService.token != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Token guardado correctamente en tu usuario.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                        if (notificationService.error != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            notificationService.error!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.error,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: notificationService.notificationsEnabled,
+                    onChanged: notificationService.isLoading
+                        ? null
+                        : (value) {
+                            notificationService.setNotificationsEnabled(value);
+                          },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -48,18 +167,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
     final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
+    final padding = width < 768 ? 18.0 : 24.0;
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(padding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Apariencia', style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              'Elige como quieres ver tu panel en este dispositivo.',
+              'Elige cómo quieres ver tu panel en este dispositivo.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurface.withValues(alpha: 0.72),
               ),
@@ -113,6 +234,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           isDarkMode
                               ? 'Activo en este dispositivo'
                               : 'Usando modo claro',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurface.withValues(alpha: 0.72),
                           ),
@@ -144,14 +267,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 768;
+    final padding = isMobile ? 18.0 : 24.0;
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(padding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Seguridad y sesion', style: theme.textTheme.titleLarge),
+            Text('Seguridad y sesión', style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
               'Gestiona el acceso de tu cuenta y las acciones sensibles.',
@@ -161,116 +287,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 18),
             if (user?.isEmailProvider ?? false)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color:
-                      colorScheme.surfaceContainerHighest.withValues(alpha: 0.28),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: colorScheme.outlineVariant),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: colorScheme.secondary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        Icons.lock_reset_rounded,
-                        color: colorScheme.secondary,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Restablecer contrasena',
-                            style: theme.textTheme.titleMedium,
+              _InfoActionCard(
+                icon: Icons.lock_reset_rounded,
+                iconColor: colorScheme.secondary,
+                iconBackground: colorScheme.secondary.withValues(alpha: 0.12),
+                title: 'Restablecer contraseña',
+                description:
+                    'Enviaremos un correo a ${user?.email ?? ''} para crear una nueva contraseña.',
+                action: FilledButton.tonalIcon(
+                  onPressed: auth.isLoading || user?.email.isEmpty != false
+                      ? null
+                      : () => _sendPasswordReset(
+                            context,
+                            auth,
+                            user!.email,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Enviaremos un correo a ${user?.email ?? ''} para crear una nueva contrasena.',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurface.withValues(alpha: 0.72),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          FilledButton.tonalIcon(
-                            onPressed: auth.isLoading || user?.email.isEmpty != false
-                                ? null
-                                : () => _sendPasswordReset(
-                                      context,
-                                      auth,
-                                      user!.email,
-                                    ),
-                            icon: const Icon(Icons.mail_outlined),
-                            label: Text(
-                              auth.isLoading
-                                  ? 'Enviando...'
-                                  : 'Enviar correo de restablecimiento',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  icon: const Icon(Icons.mail_outlined),
+                  label: Text(
+                    auth.isLoading
+                        ? 'Enviando...'
+                        : 'Enviar correo de restablecimiento',
+                  ),
                 ),
               ),
             if (user?.isEmailProvider ?? false) const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: colorScheme.error.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: colorScheme.error.withValues(alpha: 0.20),
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.logout_rounded,
-                    color: colorScheme.error,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Cerrar sesion',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: colorScheme.error,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Finaliza la sesion actual en este dispositivo y vuelve al acceso principal.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface.withValues(alpha: 0.72),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: auth.isLoading
-                              ? null
-                              : () => _confirmSignOut(context, auth),
-                          icon: const Icon(Icons.logout_rounded),
-                          label: const Text('Cerrar sesion'),
-                        ),
-                      ],
+            _InfoActionCard(
+              icon: Icons.logout_rounded,
+              iconColor: colorScheme.error,
+              iconBackground: colorScheme.error.withValues(alpha: 0.12),
+              title: 'Cerrar sesión',
+              description:
+                  'Finaliza la sesión actual en este dispositivo y vuelve al acceso principal.',
+              decorationColor: colorScheme.error.withValues(alpha: 0.08),
+              decorationBorder:
+                  colorScheme.error.withValues(alpha: 0.20),
+              action: isMobile
+                  ? SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: auth.isLoading
+                            ? null
+                            : () => _confirmSignOut(context, auth),
+                        icon: const Icon(Icons.logout_rounded),
+                        label: const Text('Cerrar sesión'),
+                      ),
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: auth.isLoading
+                          ? null
+                          : () => _confirmSignOut(context, auth),
+                      icon: const Icon(Icons.logout_rounded),
+                      label: const Text('Cerrar sesión'),
                     ),
-                  ),
-                ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final padding = width < 768 ? 18.0 : 24.0;
+
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(padding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Administración', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              'Accesos avanzados reservados para administradores del sistema.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.72),
               ),
+            ),
+            const SizedBox(height: 18),
+            _AdminLinkCard(
+              title: 'Usuarios',
+              description: 'Gestiona usuarios y permisos del sistema.',
+              icon: Icons.group_outlined,
+              onTap: () => context.go(AppRoutePaths.users),
+            ),
+            const SizedBox(height: 14),
+            _AdminLinkCard(
+              title: 'Historial de actividad',
+              description: 'Revisa movimientos recientes del sistema.',
+              icon: Icons.history_rounded,
+              onTap: () => context.go(AppRoutePaths.activity),
             ),
           ],
         ),
@@ -307,6 +415,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (!confirmed || !context.mounted) return;
     await auth.signOut();
+    if (context.mounted) {
+      context.read<UserProvider>().clear();
+    }
     if (!context.mounted) return;
     if (auth.error != null) {
       await showAppAlertDialog(
@@ -318,5 +429,202 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
     context.go(AppRoutePaths.login);
+  }
+}
+
+class _InfoActionCard extends StatelessWidget {
+  const _InfoActionCard({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackground,
+    required this.title,
+    required this.description,
+    required this.action,
+    this.decorationColor,
+    this.decorationBorder,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackground;
+  final String title;
+  final String description;
+  final Widget action;
+  final Color? decorationColor;
+  final Color? decorationBorder;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 768;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: decorationColor ??
+            colorScheme.surfaceContainerHighest.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: decorationBorder ?? colorScheme.outlineVariant,
+        ),
+      ),
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _InfoActionHeader(
+                  icon: icon,
+                  iconColor: iconColor,
+                  iconBackground: iconBackground,
+                  title: title,
+                  description: description,
+                ),
+                const SizedBox(height: 14),
+                SizedBox(width: double.infinity, child: action),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _InfoActionHeader(
+                    icon: icon,
+                    iconColor: iconColor,
+                    iconBackground: iconBackground,
+                    title: title,
+                    description: description,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Flexible(child: action),
+              ],
+            ),
+    );
+  }
+}
+
+class _InfoActionHeader extends StatelessWidget {
+  const _InfoActionHeader({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackground,
+    required this.title,
+    required this.description,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackground;
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: iconBackground,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: iconColor),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: theme.textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.72),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminLinkCard extends StatelessWidget {
+  const _AdminLinkCard({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String title;
+  final String description;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.24),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colorScheme.outlineVariant),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: colorScheme.primary),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.72),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Icon(
+              Icons.arrow_forward_rounded,
+              color: colorScheme.onSurface.withValues(alpha: 0.58),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

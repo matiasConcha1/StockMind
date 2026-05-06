@@ -7,6 +7,7 @@ import 'package:stockmind/features/dashboard/data/models/dashboard_snapshot.dart
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/dashboard/data/services/stock_movement_service.dart';
 import 'package:stockmind/features/dashboard/data/services/stock_service.dart';
+import 'package:stockmind/features/locations/providers/locations_provider.dart';
 import 'package:stockmind/features/products/models/product.dart';
 import 'package:stockmind/features/products/providers/products_provider.dart';
 
@@ -14,16 +15,19 @@ class DashboardProvider extends ChangeNotifier {
   DashboardProvider({
     required AuthProvider authProvider,
     required ProductsProvider productsProvider,
+    required LocationsProvider locationsProvider,
     required AlertsProvider alertsProvider,
     required StockService stockService,
     required StockMovementService stockMovementService,
   })  : _authProvider = authProvider,
         _productsProvider = productsProvider,
+        _locationsProvider = locationsProvider,
         _alertsProvider = alertsProvider,
         _stockService = stockService,
         _stockMovementService = stockMovementService {
     _authProvider.addListener(_handleAuthChanged);
     _productsProvider.addListener(_syncFromSources);
+    _locationsProvider.addListener(_syncFromSources);
     _alertsProvider.addListener(_syncFromSources);
     _handleAuthChanged();
     _syncFromSources();
@@ -31,6 +35,7 @@ class DashboardProvider extends ChangeNotifier {
 
   final AuthProvider _authProvider;
   final ProductsProvider _productsProvider;
+  final LocationsProvider _locationsProvider;
   final AlertsProvider _alertsProvider;
   final StockService _stockService;
   final StockMovementService _stockMovementService;
@@ -42,6 +47,7 @@ class DashboardProvider extends ChangeNotifier {
 
   DashboardSnapshot _snapshot = const DashboardSnapshot(
     totalProducts: 0,
+    totalLocations: 0,
     totalUnits: 0,
     outOfStockProducts: 0,
     lowStockProducts: 0,
@@ -55,6 +61,7 @@ class DashboardProvider extends ChangeNotifier {
     totalInventoryValue: 0,
     topCategories: [],
     lowestStockProducts: [],
+    recentlyUpdatedProducts: [],
     recentMovements: [],
   );
 
@@ -105,6 +112,7 @@ class DashboardProvider extends ChangeNotifier {
   void _syncFromSources() {
     _snapshot = _stockService.buildSnapshot(
       _productsProvider.products,
+      _locationsProvider.locations.length,
       _recentMovements,
       _alertsProvider.activeAlertsCount,
     );
@@ -115,6 +123,7 @@ class DashboardProvider extends ChangeNotifier {
   void dispose() {
     _authProvider.removeListener(_handleAuthChanged);
     _productsProvider.removeListener(_syncFromSources);
+    _locationsProvider.removeListener(_syncFromSources);
     _alertsProvider.removeListener(_syncFromSources);
     _movementSubscription?.cancel();
     super.dispose();

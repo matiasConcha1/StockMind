@@ -18,10 +18,19 @@ class DashboardFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final horizontalPadding = width < 768 ? 16.0 : 24.0;
+    final verticalPadding = width < 768 ? 16.0 : 24.0;
+
     return SafeArea(
       child: Builder(
         builder: (context) => SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            verticalPadding,
+            horizontalPadding,
+            verticalPadding,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -29,7 +38,6 @@ class DashboardFrame extends StatelessWidget {
                 title: title,
                 subtitle: subtitle,
                 actions: actions,
-                onMenuPressed: () => Scaffold.of(context).openDrawer(),
               ),
               const SizedBox(height: 28),
               child.animate().fadeIn(duration: 320.ms),
