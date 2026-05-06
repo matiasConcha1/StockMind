@@ -41,9 +41,26 @@ class AppConfigService {
     debugPrint(
       'AppConfigService.updateAutoArchiveExpiredProducts: value=$value',
     );
-    await _settingsRef.set({
-      'autoArchiveExpiredProducts': value,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    try {
+      await _settingsRef.set({
+        'autoArchiveExpiredProducts': value,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint(
+        'AppConfigService.updateAutoArchiveExpiredProducts: persisted=$value',
+      );
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint(
+        'AppConfigService.updateAutoArchiveExpiredProducts FirebaseException: ${error.code} ${error.message}',
+      );
+      debugPrint('$stackTrace');
+      rethrow;
+    } catch (error, stackTrace) {
+      debugPrint(
+        'AppConfigService.updateAutoArchiveExpiredProducts error: $error',
+      );
+      debugPrint('$stackTrace');
+      rethrow;
+    }
   }
 }
