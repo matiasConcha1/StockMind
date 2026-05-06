@@ -50,7 +50,12 @@ class ProductService {
     return _collection(userId)
         .orderBy('updatedAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(Product.fromFirestore).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(Product.fromFirestore)
+              .where((product) => !product.isArchived)
+              .toList(),
+        );
   }
 
   Future<void> createProduct(String userId, Product product) async {
@@ -136,8 +141,10 @@ class ProductService {
         .limit(1)
         .get();
     if (barcodeSnapshot.docs.isNotEmpty) {
+      final product = Product.fromFirestore(barcodeSnapshot.docs.first);
+      if (product.isArchived) return null;
       return ProductLookupResult(
-        product: Product.fromFirestore(barcodeSnapshot.docs.first),
+        product: product,
         matchType: 'barcode',
         code: normalized,
       );
@@ -148,8 +155,10 @@ class ProductService {
         .limit(1)
         .get();
     if (qrSnapshot.docs.isNotEmpty) {
+      final product = Product.fromFirestore(qrSnapshot.docs.first);
+      if (product.isArchived) return null;
       return ProductLookupResult(
-        product: Product.fromFirestore(qrSnapshot.docs.first),
+        product: product,
         matchType: 'qrCode',
         code: normalized,
       );
@@ -157,8 +166,10 @@ class ProductService {
 
     final docSnapshot = await _collection(userId).doc(normalized).get();
     if (docSnapshot.exists) {
+      final product = Product.fromFirestore(docSnapshot);
+      if (product.isArchived) return null;
       return ProductLookupResult(
-        product: Product.fromFirestore(docSnapshot),
+        product: product,
         matchType: 'productId',
         code: normalized,
       );
@@ -194,6 +205,13 @@ class ProductService {
       }
 
       final currentProduct = Product.fromFirestore(snapshot);
+      if (currentProduct.isArchived) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'failed-precondition',
+          message: 'No puedes ajustar stock de un producto archivado.',
+        );
+      }
       final existingEntry = currentProduct.locationQuantities[locationId];
       final previousLocationQuantity = existingEntry?.quantity ?? 0;
       final previousStock = currentProduct.totalStock;
@@ -284,11 +302,31 @@ class ProductService {
     return result;
   }
 
-  Future<void> deleteProduct(String userId, String productId) async {
+  Future<void> archiveProduct({
+    required String userId,
+    required Product product,
+    required String deletedBy,
+    required String deleteReason,
+  }) async {
     debugPrint(
-      'ProductService.deleteProduct: userId=$userId productId=$productId',
+      'ProductService.archiveProduct: userId=$userId productId=${product.id}',
     );
-    await _collection(userId).doc(productId).delete();
+    await _collection(userId).doc(product.id).set({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'deletedBy': deletedBy,
+      'deleteReason': deleteReason,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    await _activityLogService.createLog(
+      userId: userId,
+      action: 'delete_product',
+      entityType: 'product',
+      entityId: product.id,
+      entityName: product.name,
+      description:
+          'Se archivó/eliminó manualmente el producto ${product.name}.',
+    );
   }
 
   Product _ensureCodes(Product product, {required String fallbackProductId}) {

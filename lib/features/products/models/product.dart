@@ -48,6 +48,10 @@ class Product {
     this.imageUrl,
     this.barcode,
     this.qrCode,
+    this.isDeleted = false,
+    this.deletedAt,
+    this.deletedBy,
+    this.deleteReason,
   });
 
   final String id;
@@ -64,6 +68,10 @@ class Product {
   final String? imageUrl;
   final String? barcode;
   final String? qrCode;
+  final bool isDeleted;
+  final DateTime? deletedAt;
+  final String? deletedBy;
+  final String? deleteReason;
 
   int get stock => totalStock;
   StockStatusSummary get stockStatus =>
@@ -77,6 +85,7 @@ class Product {
   bool get hasExpiryDate => expiryDate != null;
   bool get hasBarcode => (barcode?.trim().isNotEmpty ?? false);
   bool get hasQrCode => (qrCode?.trim().isNotEmpty ?? false);
+  bool get isArchived => isDeleted;
 
   bool get isExpired =>
       expiryDate != null && _dateOnly(expiryDate!).isBefore(_today);
@@ -106,6 +115,10 @@ class Product {
     String? imageUrl,
     String? barcode,
     String? qrCode,
+    bool? isDeleted,
+    DateTime? deletedAt,
+    String? deletedBy,
+    String? deleteReason,
   }) {
     return Product(
       id: id ?? this.id,
@@ -122,6 +135,10 @@ class Product {
       imageUrl: imageUrl ?? this.imageUrl,
       barcode: barcode ?? this.barcode,
       qrCode: qrCode ?? this.qrCode,
+      isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: deletedAt ?? this.deletedAt,
+      deletedBy: deletedBy ?? this.deletedBy,
+      deleteReason: deleteReason ?? this.deleteReason,
     );
   }
 
@@ -142,6 +159,10 @@ class Product {
       'imageUrl': imageUrl,
       'barcode': barcode,
       'qrCode': qrCode,
+      'isDeleted': isDeleted,
+      'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
+      'deletedBy': deletedBy,
+      'deleteReason': deleteReason,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -164,6 +185,10 @@ class Product {
       'imageUrl': imageUrl,
       'barcode': barcode,
       'qrCode': qrCode,
+      'isDeleted': isDeleted,
+      'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
+      'deletedBy': deletedBy,
+      'deleteReason': deleteReason,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -214,6 +239,14 @@ class Product {
       qrCode: (data['qrCode'] as String?)?.trim().isEmpty ?? true
           ? null
           : data['qrCode'] as String,
+      isDeleted: (data['isDeleted'] ?? false) as bool,
+      deletedAt: _toNullableDate(data['deletedAt']),
+      deletedBy: (data['deletedBy'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : data['deletedBy'] as String,
+      deleteReason: (data['deleteReason'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : data['deleteReason'] as String,
     );
   }
 

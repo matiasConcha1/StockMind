@@ -317,9 +317,9 @@ class ProductsScreen extends StatelessWidget {
   Future<void> _confirmDelete(BuildContext context, Product product) async {
     final shouldDelete = await showAppConfirmDialog(
       context,
-      title: 'Eliminar producto?',
+      title: '¿Eliminar producto?',
       message:
-          'Esta accion eliminara el producto del inventario y no se puede deshacer.',
+          'El producto se archivará y dejará de aparecer en el inventario. Esta acción quedará registrada en el historial.',
       confirmLabel: 'Eliminar',
       cancelLabel: 'Cancelar',
     );
@@ -332,10 +332,10 @@ class ProductsScreen extends StatelessWidget {
       context,
       type: provider.error == null ? AppAlertType.success : AppAlertType.error,
       title: provider.error == null
-          ? 'Producto eliminado'
+          ? 'Producto archivado'
           : 'No se pudo eliminar el producto',
       message: provider.error == null
-          ? 'El producto fue eliminado correctamente.'
+          ? 'El producto fue archivado correctamente y ya no aparece en el inventario.'
           : provider.error!,
     );
   }

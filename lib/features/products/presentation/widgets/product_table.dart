@@ -182,14 +182,18 @@ class _DesktopProductRowState extends State<_DesktopProductRow> {
         margin: const EdgeInsets.only(top: 10),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
-          color: _hovered
-              ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.22)
-              : colorScheme.surface,
+          color: product.isExpired
+              ? colorScheme.error.withValues(alpha: _hovered ? 0.12 : 0.08)
+              : _hovered
+                  ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.22)
+                  : colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: _hovered
-                ? colorScheme.primary.withValues(alpha: 0.22)
-                : colorScheme.outlineVariant,
+            color: product.isExpired
+                ? colorScheme.error.withValues(alpha: 0.34)
+                : _hovered
+                    ? colorScheme.primary.withValues(alpha: 0.22)
+                    : colorScheme.outlineVariant,
           ),
         ),
         child: Row(
@@ -229,7 +233,7 @@ class _DesktopProductRowState extends State<_DesktopProductRow> {
                     const SizedBox(height: 2),
                     Text(
                       product.isExpired
-                          ? 'Vencido'
+                          ? 'Producto vencido'
                           : 'Vence ${DateFormat('dd/MM').format(product.expiryDate!)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -237,6 +241,18 @@ class _DesktopProductRowState extends State<_DesktopProductRow> {
                         color: product.isExpired
                             ? colorScheme.error
                             : colorScheme.onSurface.withValues(alpha: 0.68),
+                      ),
+                    ),
+                  ],
+                  if (product.isExpired) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Producto vencido',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.error,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -325,6 +341,9 @@ class _CompactProductCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
+      color: product.isExpired
+          ? colorScheme.error.withValues(alpha: 0.08)
+          : null,
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -374,9 +393,20 @@ class _CompactProductCard extends StatelessWidget {
                     label: product.isExpired
                         ? 'Vencido'
                         : 'Vence ${DateFormat('dd/MM').format(product.expiryDate!)}',
+                    danger: product.isExpired,
                   ),
               ],
             ),
+            if (product.isExpired) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Producto vencido',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.error,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
             Row(
               children: [
@@ -446,21 +476,36 @@ class _ProductIdentity extends StatelessWidget {
 }
 
 class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.label});
+  const _InfoPill({
+    required this.label,
+    this.danger = false,
+  });
 
   final String label;
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(
-              alpha: 0.42,
-            ),
+        color: danger
+            ? Theme.of(context).colorScheme.error.withValues(alpha: 0.12)
+            : Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withValues(
+                  alpha: 0.42,
+                ),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(label),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: danger ? Theme.of(context).colorScheme.error : null,
+          fontWeight: danger ? FontWeight.w700 : null,
+        ),
+      ),
     );
   }
 }

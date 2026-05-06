@@ -63,8 +63,8 @@ class ProductsProvider extends ChangeNotifier {
           _categoryFilter == null || product.category == _categoryFilter;
       final matchesState = switch (_productFilter) {
         ProductFilter.all => true,
-        ProductFilter.atRisk => !product.isHighStock,
-        ProductFilter.healthy => product.isHighStock,
+        ProductFilter.atRisk => product.isExpired || !product.isHighStock,
+        ProductFilter.healthy => !product.isExpired && product.isHighStock,
       };
       return matchesQuery && matchesCategory && matchesState;
     }).toList();
@@ -188,9 +188,16 @@ class ProductsProvider extends ChangeNotifier {
       }
     }
     await _execute(() async {
-      await _productService.deleteProduct(userId, productId);
-      await _alertService.deleteAlertsForProduct(userId, productId);
-      await _storageService.deleteImageByUrl(previous?.imageUrl);
+      if (previous == null) {
+        throw StateError('No encontramos el producto que intentas archivar.');
+      }
+      await _productService.archiveProduct(
+        userId: userId,
+        product: previous,
+        deletedBy: userId,
+        deleteReason: 'manual',
+      );
+      await _resolveProductAlertsBestEffort(userId, productId, userId);
     });
   }
 
@@ -343,6 +350,28 @@ class ProductsProvider extends ChangeNotifier {
       debugPrint('$stackTrace');
     } catch (error, stackTrace) {
       debugPrint('ProductsProvider._syncAlertsForSnapshot error: $error');
+      debugPrint('$stackTrace');
+    }
+  }
+
+  Future<void> _resolveProductAlertsBestEffort(
+    String userId,
+    String productId,
+    String resolvedBy,
+  ) async {
+    try {
+      await _alertService.resolveProductAlerts(
+        userId: userId,
+        productId: productId,
+        resolvedBy: resolvedBy,
+      );
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint(
+        'ProductsProvider._resolveProductAlertsBestEffort FirebaseException: code=${error.code} message=${error.message}',
+      );
+      debugPrint('$stackTrace');
+    } catch (error, stackTrace) {
+      debugPrint('ProductsProvider._resolveProductAlertsBestEffort error: $error');
       debugPrint('$stackTrace');
     }
   }
