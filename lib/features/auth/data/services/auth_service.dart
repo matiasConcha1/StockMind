@@ -16,14 +16,20 @@ class AuthService {
 
   AppUser? get currentUser => _mapUser(
         _auth.currentUser,
-        role: 'editor',
+        role: 'operator',
+        hasCompletedOnboarding: false,
       );
 
   Stream<AppUser?> authStateChanges() {
     return _auth.authStateChanges().asyncMap((user) async {
       if (user == null) return null;
-      final role = await _fetchUserRole(user.uid);
-      return _mapUser(user, role: role);
+      final profile = await _fetchUserProfile(user.uid);
+      return _mapUser(
+        user,
+        role: profile.role,
+        isActive: profile.isActive,
+        hasCompletedOnboarding: profile.hasCompletedOnboarding,
+      );
     });
   }
 
@@ -144,18 +150,25 @@ class AuthService {
     }
   }
 
-  AppUser? _mapUser(User? user, {required String role}) {
+  AppUser? _mapUser(
+    User? user, {
+    required String role,
+    bool isActive = true,
+    bool hasCompletedOnboarding = false,
+  }) {
     if (user == null) return null;
     return AppUser(
       id: user.uid,
       email: user.email ?? '',
       displayName: (user.displayName?.trim().isNotEmpty ?? false)
           ? user.displayName!.trim()
-          : 'Administrador',
+          : 'Usuario StockMind',
       photoUrl: user.photoURL,
       provider: _resolveProvider(user),
       createdAt: user.metadata.creationTime,
       role: role,
+      isActive: isActive,
+      hasCompletedOnboarding: hasCompletedOnboarding,
     );
   }
 
@@ -192,18 +205,19 @@ class AuthService {
     }
   }
 
-  Future<String> _fetchUserRole(String uid) async {
-    try {
-      final snapshot = await _firestore.collection('users').doc(uid).get();
-      final value = snapshot.data()?['role'];
-      if (value is String && value.trim().isNotEmpty) {
-        return value.trim().toLowerCase();
-      }
-    } catch (error, stackTrace) {
-      debugPrint('AuthService._fetchUserRole error: $error');
-      debugPrint('$stackTrace');
-    }
-    return 'editor';
+  Future<_UserProfileSnapshot> _fetchUserProfile(String uid) async {
+    final snapshot = await _firestore.collection('users').doc(uid).get();
+    final data = snapshot.data() ?? const <String, dynamic>{};
+    final role = await _resolveUserRole(
+      uid: uid,
+      exists: snapshot.exists,
+      rawRole: data['role'],
+    );
+    return _UserProfileSnapshot(
+      role: role,
+      isActive: (data['isActive'] ?? true) == true,
+      hasCompletedOnboarding: (data['hasCompletedOnboarding'] ?? false) == true,
+    );
   }
 
   Future<void> _upsertUserDocument({
@@ -224,10 +238,12 @@ class AuthService {
 
     final docRef = _firestore.collection('users').doc(user.uid);
     final snapshot = await docRef.get();
-    final existingRole = snapshot.data()?['role'];
-    final role = existingRole is String && existingRole.trim().isNotEmpty
-        ? existingRole.trim().toLowerCase()
-        : 'editor';
+    final role = await _resolveUserRole(
+      uid: user.uid,
+      exists: snapshot.exists,
+      rawRole: snapshot.data()?['role'],
+    );
+    final existingIsActive = snapshot.data()?['isActive'];
 
     final data = <String, dynamic>{
       'uid': user.uid,
@@ -235,9 +251,14 @@ class AuthService {
       'email': user.email ?? '',
       'provider': provider,
       'role': role,
+      'isActive': existingIsActive is bool ? existingIsActive : true,
       'photoUrl': (overridePhotoUrl?.isNotEmpty ?? false)
           ? overridePhotoUrl
           : user.photoURL,
+      'hasCompletedOnboarding': snapshot.exists
+          ? (snapshot.data()?['hasCompletedOnboarding'] ?? false) == true
+          : false,
+      'lastLoginAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
@@ -247,4 +268,45 @@ class AuthService {
 
     await docRef.set(data, SetOptions(merge: true));
   }
+
+  Future<String> _resolveUserRole({
+    required String uid,
+    required bool exists,
+    required dynamic rawRole,
+  }) async {
+    if (rawRole is String && rawRole.trim().isNotEmpty) {
+      return _normalizeRole(rawRole);
+    }
+    final isFirstUser = await _isFirstSystemUser(uid, exists: exists);
+    return isFirstUser ? 'admin' : 'operator';
+  }
+
+  Future<bool> _isFirstSystemUser(String uid, {required bool exists}) async {
+    final usersSnapshot = await _firestore.collection('users').limit(2).get();
+    if (usersSnapshot.docs.isEmpty) return true;
+    if (!exists) return false;
+    if (usersSnapshot.docs.length == 1 && usersSnapshot.docs.first.id == uid) {
+      return true;
+    }
+    return false;
+  }
+
+  String _normalizeRole(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'admin') return 'admin';
+    if (normalized == 'operator' || normalized == 'editor') return 'operator';
+    return 'operator';
+  }
+}
+
+class _UserProfileSnapshot {
+  const _UserProfileSnapshot({
+    required this.role,
+    required this.isActive,
+    required this.hasCompletedOnboarding,
+  });
+
+  final String role;
+  final bool isActive;
+  final bool hasCompletedOnboarding;
 }

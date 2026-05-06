@@ -116,10 +116,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text('Recuperar contraseña'),
               ),
             ),
-            if (auth.error != null) ...[
-              const SizedBox(height: 6),
-              _LoginErrorBanner(message: auth.error!),
-            ],
             const SizedBox(height: 18),
             _GradientActionButton(
               label: auth.isLoading ? 'Ingresando...' : 'Entrar a StockMind',
@@ -336,67 +332,6 @@ class _RememberSessionCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _LoginErrorBanner extends StatelessWidget {
-  const _LoginErrorBanner({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF97316).withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFF59E0B).withValues(alpha: 0.30),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.error_outline_rounded,
-              color: Color(0xFFD97706),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'No pudimos iniciar sesión',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: const Color(0xFFD97706),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF9A3412),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

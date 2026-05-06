@@ -22,9 +22,14 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _loading;
   String? get error => _error;
   bool get isAdmin => _user?.isAdmin ?? false;
+  bool get isOperator => _user?.isOperator ?? false;
   bool get isEditor => _user?.isEditor ?? false;
   bool get canEdit => _user?.canEdit ?? false;
   bool get canDelete => _user?.canDelete ?? false;
+  bool get canExport => _user?.canExport ?? false;
+  bool get canManageUsers => _user?.canManageUsers ?? false;
+  bool get canManageSettings => _user?.canManageSettings ?? false;
+  bool get canApproveRequests => _user?.canApproveRequests ?? false;
 
   void start() {
     if (_subscription != null) return;
@@ -158,6 +163,11 @@ class AuthProvider extends ChangeNotifier {
       debugPrint('AuthProvider._run FirebaseAuthException: ${error.code}');
       _error = _mapFirebaseError(error);
       return false;
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint('AuthProvider._run FirebaseException: ${error.code}');
+      debugPrint('$stackTrace');
+      _error = _mapFirestoreError(error);
+      return false;
     } catch (error, stackTrace) {
       debugPrint('AuthProvider._run error: $error');
       debugPrint('$stackTrace');
@@ -193,6 +203,19 @@ class AuthProvider extends ChangeNotifier {
         return 'No hay una sesión activa.';
       default:
         return 'No fue posible completar la operación.';
+    }
+  }
+
+  String _mapFirestoreError(FirebaseException error) {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'No tienes permisos para completar el acceso. Revisa las reglas de Firestore.';
+      case 'unavailable':
+        return 'Firebase no está disponible en este momento. Intenta nuevamente.';
+      default:
+        return error.message?.trim().isNotEmpty == true
+            ? error.message!.trim()
+            : 'No fue posible completar la operación.';
     }
   }
 

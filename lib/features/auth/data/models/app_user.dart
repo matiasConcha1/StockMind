@@ -7,6 +7,8 @@ class AppUser {
     required this.provider,
     required this.createdAt,
     required this.role,
+    this.isActive = true,
+    this.hasCompletedOnboarding = false,
   });
 
   final String id;
@@ -16,15 +18,30 @@ class AppUser {
   final String provider;
   final DateTime? createdAt;
   final String role;
+  final bool isActive;
+  final bool hasCompletedOnboarding;
 
   bool get isGoogleProvider => provider.toLowerCase() == 'google';
   bool get isEmailProvider => provider.toLowerCase() == 'email';
   String get providerLabel => isGoogleProvider ? 'Google' : 'Email';
+  String get roleLabel => isAdmin ? 'Administrador' : 'Trabajador';
 
-  bool get isAdmin => role.toLowerCase() == 'admin';
-  bool get isEditor => role.toLowerCase() == 'editor';
-  bool get canEdit => isAdmin || isEditor;
+  String get normalizedRole {
+    final value = role.trim().toLowerCase();
+    if (value == 'admin') return 'admin';
+    if (value == 'operator' || value == 'editor') return 'operator';
+    return 'operator';
+  }
+
+  bool get isAdmin => normalizedRole == 'admin';
+  bool get isOperator => normalizedRole == 'operator';
+  bool get isEditor => isOperator;
+  bool get canEdit => isActive && (isAdmin || isOperator);
   bool get canDelete => isAdmin;
+  bool get canExport => isAdmin;
+  bool get canManageUsers => isAdmin;
+  bool get canManageSettings => isAdmin;
+  bool get canApproveRequests => isAdmin;
 
   AppUser copyWith({
     String? id,
@@ -34,6 +51,8 @@ class AppUser {
     String? provider,
     DateTime? createdAt,
     String? role,
+    bool? isActive,
+    bool? hasCompletedOnboarding,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -43,6 +62,9 @@ class AppUser {
       provider: provider ?? this.provider,
       createdAt: createdAt ?? this.createdAt,
       role: role ?? this.role,
+      isActive: isActive ?? this.isActive,
+      hasCompletedOnboarding:
+          hasCompletedOnboarding ?? this.hasCompletedOnboarding,
     );
   }
 }

@@ -5,12 +5,16 @@ class PermissionGuard extends StatelessWidget {
     required this.allowed,
     required this.child,
     this.message,
+    this.actionLabel,
+    this.onAction,
     super.key,
   });
 
   final bool allowed;
   final Widget child;
   final String? message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +60,14 @@ class PermissionGuard extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: onAction,
+                icon: const Icon(Icons.arrow_back_rounded),
+                label: Text(actionLabel!),
+              ),
+            ],
           ],
         ),
       ),
