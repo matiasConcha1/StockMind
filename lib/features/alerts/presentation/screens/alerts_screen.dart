@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/services/report_export_service.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/export_feedback.dart';
@@ -7,6 +9,7 @@ import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/company_profile_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/replenishment/presentation/widgets/stock_request_dialog.dart';
 import 'package:stockmind/features/replenishment/providers/stock_requests_provider.dart';
@@ -53,9 +56,13 @@ class AlertsScreen extends StatelessWidget {
 
     return DashboardFrame(
       title: 'Alertas',
+      onBackPressed: () => context.go(AppRoutePaths.dashboard),
+      backLabel: 'Volver',
       actions: [
         FilledButton.tonalIcon(
-          onPressed: () => _exportAlerts(context, provider, auth),
+          onPressed: auth.canExport
+              ? () => _exportAlerts(context, provider, auth)
+              : null,
           icon: const Icon(Icons.download_rounded),
           label: const Text('Exportar'),
         ),
@@ -177,6 +184,7 @@ class AlertsScreen extends StatelessWidget {
     AlertsProvider provider,
     AuthProvider auth,
   ) async {
+    final company = context.read<CompanyProfileProvider>().profile;
     await runExportTask(
       context: context,
       hasData: provider.visibleAlerts.isNotEmpty,
@@ -187,6 +195,7 @@ class AlertsScreen extends StatelessWidget {
       task: () => ReportExportService().exportAlertsCsv(
         alerts: provider.visibleAlerts,
         userName: auth.user?.displayName ?? auth.user?.email,
+        companyProfile: company,
       ),
     );
   }
