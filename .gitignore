@@ -1,4 +1,6 @@
-# Miscellaneous
+# =========================
+# 🔧 GENERAL
+# =========================
 *.class
 *.log
 *.pyc
@@ -9,18 +11,20 @@
 .history
 .svn/
 
-# IntelliJ related
+# =========================
+# 🧠 IDEs
+# =========================
 *.iml
 *.ipr
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code (opcional)
+.vscode/
 
-# Flutter/Dart/Pub related
+# =========================
+# 🚀 FLUTTER / DART
+# =========================
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
@@ -31,15 +35,57 @@
 .pub/
 /build/
 
-# Web related
+# =========================
+# 🌐 WEB
+# =========================
+# (normalmente no ignorar web/ porque es tu app)
 
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
+# =========================
+# 📱 ANDROID
+# =========================
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/local.properties
+
+# =========================
+# 🍎 iOS / macOS
+# =========================
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# =========================
+# 🔐 FIREBASE
+# =========================
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# =========================
+# ⚡ FUNCTIONS (MUY IMPORTANTE)
+# =========================
+functions/node_modules/
+functions/.firebase/
+functions/lib/
+
+# =========================
+# 🧾 BUILD / CACHE
+# =========================
+*.lock
+*.tmp
+*.temp
+
+# =========================
+# 🗺️ SYMBOLS / MAPS
+# =========================
+app.*.symbols
+app.*.map.json
+
+# =========================
+# 📦 OPCIONAL (SI QUIERES LIMPIO)
+# =========================
+# screenshots grandes o temporales
+# assets/temp/
