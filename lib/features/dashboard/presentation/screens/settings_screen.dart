@@ -178,9 +178,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         label: const Text('Actualizar ahora'),
                       ),
                     )
-                  else if (pwaService.showIosInstallHint)
+                  else if (pwaService.showIosInstallHint || pwaService.showManualInstallHint)
                     Text(
-                      'En iPhone, usa Compartir > Agregar a pantalla de inicio.',
+                      pwaService.installHelpText,
                       style: theme.textTheme.bodyMedium,
                     ),
                 ],

@@ -13,6 +13,7 @@ class AlertsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<AlertsProvider>();
     final width = MediaQuery.sizeOf(context).width;
+    final isSmallPhone = width < 480;
     final isMobile = width < 760;
     final crossAxisCount = isMobile ? 1 : width < 1180 ? 2 : 4;
     final metrics = [
@@ -52,7 +53,7 @@ class AlertsScreen extends StatelessWidget {
         children: [
           if (provider.error != null) ...[
             _AlertsErrorBanner(message: provider.error!),
-            const SizedBox(height: 16),
+            SizedBox(height: isSmallPhone ? 12 : 16),
           ],
           if (isMobile)
             Column(
@@ -60,7 +61,7 @@ class AlertsScreen extends StatelessWidget {
               children: [
                 for (final metric in metrics) ...[
                   metric,
-                  const SizedBox(height: 14),
+                  SizedBox(height: isSmallPhone ? 12 : 14),
                 ],
               ],
             )
@@ -74,13 +75,13 @@ class AlertsScreen extends StatelessWidget {
               childAspectRatio: 1.45,
               children: metrics,
             ),
-          const SizedBox(height: 16),
+          SizedBox(height: isSmallPhone ? 12 : 16),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: EdgeInsets.all(isSmallPhone ? 16 : 18),
               child: Wrap(
-                spacing: 10,
-                runSpacing: 10,
+                spacing: isSmallPhone ? 8 : 10,
+                runSpacing: isSmallPhone ? 8 : 10,
                 children: AlertsFilter.values
                     .map(
                       (filter) => ChoiceChip(
@@ -93,7 +94,7 @@ class AlertsScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isSmallPhone ? 12 : 16),
           if (provider.isLoading && !provider.hasAlerts)
             const Card(
               child: SizedBox(
@@ -165,11 +166,12 @@ class _AlertMetric extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final width = MediaQuery.sizeOf(context).width;
+    final isSmallPhone = width < 480;
     final isMobile = width < 760;
     return Container(
       width: double.infinity,
-      constraints: BoxConstraints(minHeight: isMobile ? 148 : 0),
-      padding: EdgeInsets.all(isMobile ? 16 : 20),
+      constraints: BoxConstraints(minHeight: isSmallPhone ? 120 : isMobile ? 148 : 0),
+      padding: EdgeInsets.all(isSmallPhone ? 16 : isMobile ? 16 : 20),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(isMobile ? 24 : 22),
@@ -183,7 +185,9 @@ class _AlertMetric extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: EdgeInsets.all(isMobile ? 9 : 10),
+                width: isSmallPhone ? 42 : null,
+                height: isSmallPhone ? 42 : null,
+                padding: EdgeInsets.all(isSmallPhone ? 8 : isMobile ? 9 : 10),
                 decoration: BoxDecoration(
                   color: colorScheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
@@ -191,33 +195,37 @@ class _AlertMetric extends StatelessWidget {
                 child: Icon(
                   icon,
                   color: colorScheme.primary,
-                  size: isMobile ? 20 : 24,
+                  size: isSmallPhone ? 22 : isMobile ? 20 : 24,
                 ),
               ),
               const Spacer(),
               Text(
                 value,
-                style: isMobile
+                style: (isMobile
                     ? theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                       )
-                    : theme.textTheme.headlineMedium,
+                    : theme.textTheme.headlineMedium)
+                    ?.copyWith(fontSize: isSmallPhone ? 30 : null),
               ),
             ],
           ),
-          SizedBox(height: isMobile ? 12 : 16),
+          SizedBox(height: isSmallPhone ? 10 : isMobile ? 12 : 16),
           Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleMedium,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontSize: isSmallPhone ? 17 : null,
+            ),
           ),
-          SizedBox(height: isMobile ? 6 : 8),
+          SizedBox(height: isSmallPhone ? 4 : isMobile ? 6 : 8),
           Text(
             helper,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: isMobile ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium,
+            style: (isMobile ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium)
+                ?.copyWith(fontSize: isSmallPhone ? 13 : null),
           ),
         ],
       ),
