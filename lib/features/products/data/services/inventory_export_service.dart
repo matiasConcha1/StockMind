@@ -12,16 +12,16 @@ class InventoryExportService {
   Future<void> exportProductsToCsv(List<Product> products) async {
     final buffer = StringBuffer();
     buffer.writeln(_csvRow(const [
-      'Nombre del producto',
-      'Categoria',
+      'Producto',
+      'Categoría',
       'Precio',
       'Stock total',
-      'Stock minimo',
+      'Stock mínimo',
       'Estado de stock',
       'Ubicaciones',
       'Fecha de vencimiento',
-      'Fecha de creacion',
-      'Fecha de actualizacion',
+      'Fecha de creación',
+      'Última actualización',
     ]));
 
     for (final product in products) {
@@ -32,7 +32,7 @@ class InventoryExportService {
           product.price.toStringAsFixed(2),
           product.totalStock.toString(),
           product.minStock.toString(),
-          product.stockStatus.label,
+          product.isExpired ? 'Vencido' : product.stockStatus.label,
           _locationsSummary(product),
           _formatDate(product.expiryDate),
           _formatDate(product.createdAt),
@@ -164,7 +164,7 @@ class InventoryExportService {
 
   String _locationsSummary(Product product) {
     if (product.locationQuantities.isEmpty) {
-      return 'Sin ubicación asignada';
+      return '';
     }
 
     final items = product.locationQuantities.values.toList()
