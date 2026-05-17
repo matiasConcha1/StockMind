@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:stockmind/core/theme/app_theme.dart';
 import 'package:stockmind/core/widgets/stockmind_brand.dart';
 
 class AuthShell extends StatelessWidget {
@@ -29,11 +30,14 @@ class AuthShell extends StatelessWidget {
           gradient: LinearGradient(
             colors: [
               theme.brightness == Brightness.dark
-                  ? const Color(0xFF07111F)
-                  : const Color(0xFFF7FAFF),
+                  ? const Color(0xFF06101D)
+                  : const Color(0xFFF8FBFF),
               theme.brightness == Brightness.dark
-                  ? const Color(0xFF10182C)
-                  : const Color(0xFFEFF3FF),
+                  ? const Color(0xFF0D1730)
+                  : const Color(0xFFF0F5FF),
+              theme.brightness == Brightness.dark
+                  ? const Color(0xFF101D39)
+                  : const Color(0xFFE9F0FF),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -51,6 +55,15 @@ class AuthShell extends StatelessWidget {
               ),
             ),
             const Positioned(
+              top: 110,
+              left: -90,
+              child: _AmbientGlow(
+                size: 220,
+                color: Color(0xFF14B8A6),
+                opacity: 0.08,
+              ),
+            ),
+            const Positioned(
               bottom: -80,
               left: -30,
               child: _AmbientGlow(
@@ -59,12 +72,28 @@ class AuthShell extends StatelessWidget {
                 opacity: 0.12,
               ),
             ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0.92, -0.82),
+                      radius: 0.6,
+                      colors: [
+                        AppTheme.brand.withValues(alpha: 0.16),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
             SafeArea(
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1320),
                   child: Padding(
-                    padding: EdgeInsets.all(isMobile ? 18 : 24),
+                    padding: EdgeInsets.all(isMobile ? 14 : 24),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final availableHeight = constraints.maxHeight;
@@ -80,7 +109,7 @@ class AuthShell extends StatelessWidget {
                             child: Column(
                               children: [
                                 const _MobileBranding(),
-                                const SizedBox(height: 18),
+                                const SizedBox(height: 14),
                                 formPanel,
                               ],
                             ),
@@ -97,7 +126,7 @@ class AuthShell extends StatelessWidget {
                                 isTablet: isTablet,
                               ),
                             ),
-                            const SizedBox(width: 20),
+                            const SizedBox(width: 18),
                             Expanded(flex: 5, child: formPanel),
                           ],
                         );
@@ -192,7 +221,7 @@ class _HeroPanel extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Inventory SaaS',
+                    'Smart inventory platform',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: Colors.white.withValues(alpha: 0.78),
                     ),
@@ -274,14 +303,16 @@ class _HeroPanel extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
-            Color(0xFF0F172A),
+            Color(0xFF091120),
+            Color(0xFF102548),
             Color(0xFF1D4ED8),
-            Color(0xFF7C3AED),
+            Color(0xFF6D28D9),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(40),
+        border: Border.all(color: Colors.white24),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.22),
@@ -351,12 +382,19 @@ class _FormPanel extends StatelessWidget {
     final isLowHeight = availableHeight < 760;
 
     return Container(
-      padding: EdgeInsets.all(isLowHeight ? 24 : 34),
+      padding: EdgeInsets.all(isLowHeight ? 20 : 30),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.72),
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.surface.withValues(alpha: 0.78),
+            theme.colorScheme.surface.withValues(alpha: 0.64),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(40),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.85),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.88),
         ),
         boxShadow: [
           BoxShadow(
@@ -382,8 +420,16 @@ class _FormPanel extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.primary.withValues(alpha: 0.18),
+                        AppTheme.brandViolet.withValues(alpha: 0.10),
+                      ],
+                    ),
                     borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                    ),
                   ),
                   child: Text(
                     'Acceso seguro',
@@ -548,8 +594,8 @@ class _InventoryIllustration extends StatelessWidget {
             top: 0,
             child: _MiniPanel(
               width: 240,
-              title: 'Dashboard',
-              subtitle: 'Rendimiento semanal',
+              title: 'Control center',
+              subtitle: 'Weekly inventory performance',
               bars: const [0.30, 0.44, 0.62, 0.52, 0.78, 0.90],
             ),
           ),
@@ -566,8 +612,8 @@ class _InventoryIllustration extends StatelessWidget {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
+                children: const [
+                  Row(
                     children: [
                       Icon(
                         Icons.notifications_active_rounded,
@@ -584,10 +630,10 @@ class _InventoryIllustration extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  const _AlertRow(label: 'Dock USB-C Studio', value: '5'),
-                  const SizedBox(height: 10),
-                  const _AlertRow(label: 'Pulse Headset X', value: '9'),
+                  SizedBox(height: 14),
+                  _AlertRow(label: 'Dock USB-C Studio', value: '5'),
+                  SizedBox(height: 10),
+                  _AlertRow(label: 'Pulse Headset X', value: '9'),
                 ],
               ),
             ),

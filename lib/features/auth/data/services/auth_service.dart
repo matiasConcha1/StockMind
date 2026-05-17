@@ -14,15 +14,18 @@ class AuthService {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
 
-  AppUser? get currentUser => _mapUser(
-        _auth.currentUser,
-        role: 'operator',
-        hasCompletedOnboarding: false,
-      );
+  AppUser? get currentUser => _mapUser(_auth.currentUser, role: 'viewer');
 
   Stream<AppUser?> authStateChanges() {
     return _auth.authStateChanges().asyncMap((user) async {
       if (user == null) return null;
+
+      await _upsertUserDocument(
+        user: user,
+        provider: _resolveProvider(user),
+        fallbackName: user.displayName,
+      );
+
       final profile = await _fetchUserProfile(user.uid);
       return _mapUser(
         user,
@@ -58,6 +61,7 @@ class AuthService {
     required String name,
     required String email,
     required String password,
+    String accountType = 'person',
   }) async {
     debugPrint('AuthService.registerWithEmail: creating user $email');
     final credential = await _auth.createUserWithEmailAndPassword(
@@ -72,6 +76,7 @@ class AuthService {
         user: refreshedUser,
         provider: 'email',
         fallbackName: name,
+        accountType: accountType,
       );
     }
   }
@@ -124,6 +129,7 @@ class AuthService {
           user: credential.user!,
           provider: 'google',
           fallbackName: credential.user!.displayName,
+          accountType: 'person',
         );
       }
       return;
@@ -139,8 +145,22 @@ class AuthService {
         user: userCredential.user!,
         provider: 'google',
         fallbackName: userCredential.user!.displayName,
+        accountType: 'person',
       );
     }
+  }
+
+  Future<AppUser?> getCurrentUserProfile() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    final profile = await _fetchUserProfile(user.uid);
+    return _mapUser(
+      user,
+      role: profile.role,
+      accountType: profile.accountType,
+      isActive: profile.isActive,
+      hasCompletedOnboarding: profile.hasCompletedOnboarding,
+    );
   }
 
   Future<void> signOut() async {
@@ -153,6 +173,7 @@ class AuthService {
   AppUser? _mapUser(
     User? user, {
     required String role,
+    String accountType = 'person',
     bool isActive = true,
     bool hasCompletedOnboarding = false,
   }) {
@@ -167,6 +188,7 @@ class AuthService {
       provider: _resolveProvider(user),
       createdAt: user.metadata.creationTime,
       role: role,
+      accountType: accountType,
       isActive: isActive,
       hasCompletedOnboarding: hasCompletedOnboarding,
     );
@@ -215,6 +237,7 @@ class AuthService {
     );
     return _UserProfileSnapshot(
       role: role,
+      accountType: _normalizeAccountType(data['accountType']),
       isActive: (data['isActive'] ?? true) == true,
       hasCompletedOnboarding: (data['hasCompletedOnboarding'] ?? false) == true,
     );
@@ -225,12 +248,13 @@ class AuthService {
     required String provider,
     String? fallbackName,
     String? overridePhotoUrl,
+    String? accountType,
   }) async {
     final name = (user.displayName?.trim().isNotEmpty ?? false)
         ? user.displayName!.trim()
         : (fallbackName?.trim().isNotEmpty ?? false)
             ? fallbackName!.trim()
-        : 'Usuario StockMind';
+            : 'Usuario StockMind';
 
     debugPrint(
       'AuthService._upsertUserDocument: uid=${user.uid} provider=$provider',
@@ -243,7 +267,8 @@ class AuthService {
       exists: snapshot.exists,
       rawRole: snapshot.data()?['role'],
     );
-    final existingIsActive = snapshot.data()?['isActive'];
+    final existingData = snapshot.data() ?? const <String, dynamic>{};
+    final existingIsActive = existingData['isActive'];
 
     final data = <String, dynamic>{
       'uid': user.uid,
@@ -251,13 +276,15 @@ class AuthService {
       'email': user.email ?? '',
       'provider': provider,
       'role': role,
+      'accountType': _normalizeAccountType(
+        accountType ?? existingData['accountType'],
+      ),
       'isActive': existingIsActive is bool ? existingIsActive : true,
       'photoUrl': (overridePhotoUrl?.isNotEmpty ?? false)
           ? overridePhotoUrl
           : user.photoURL,
-      'hasCompletedOnboarding': snapshot.exists
-          ? (snapshot.data()?['hasCompletedOnboarding'] ?? false) == true
-          : false,
+      'hasCompletedOnboarding': (existingData['hasCompletedOnboarding'] ?? false) ==
+          true,
       'lastLoginAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -294,19 +321,28 @@ class AuthService {
   String _normalizeRole(String value) {
     final normalized = value.trim().toLowerCase();
     if (normalized == 'admin') return 'admin';
-    if (normalized == 'operator' || normalized == 'editor') return 'operator';
-    return 'operator';
+    if (normalized == 'editor') return 'editor';
+    if (normalized == 'operator') return 'operator';
+    if (normalized == 'viewer') return 'viewer';
+    return 'viewer';
+  }
+
+  String _normalizeAccountType(dynamic value) {
+    final normalized = (value is String ? value : '').trim().toLowerCase();
+    return normalized == 'business' ? 'business' : 'person';
   }
 }
 
 class _UserProfileSnapshot {
   const _UserProfileSnapshot({
     required this.role,
+    required this.accountType,
     required this.isActive,
     required this.hasCompletedOnboarding,
   });
 
   final String role;
+  final String accountType;
   final bool isActive;
   final bool hasCompletedOnboarding;
 }

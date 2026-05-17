@@ -24,6 +24,14 @@ class AuthProvider extends ChangeNotifier {
   bool get isAdmin => _user?.isAdmin ?? false;
   bool get isOperator => _user?.isOperator ?? false;
   bool get isEditor => _user?.isEditor ?? false;
+  bool get isViewer => _user?.isViewer ?? false;
+  bool get requiresCompanyProfile => _user?.requiresCompanyProfile ?? false;
+  bool get canViewInventory => _user?.canViewInventory ?? false;
+  bool get canManageCatalog => _user?.canManageCatalog ?? false;
+  bool get canManageInventory => _user?.canManageInventory ?? false;
+  bool get canManageLocations => _user?.canManageLocations ?? false;
+  bool get canResolveAlerts => _user?.canResolveAlerts ?? false;
+  bool get canCreateRequests => _user?.canCreateRequests ?? false;
   bool get canEdit => _user?.canEdit ?? false;
   bool get canDelete => _user?.canDelete ?? false;
   bool get canExport => _user?.canExport ?? false;
@@ -44,6 +52,20 @@ class AuthProvider extends ChangeNotifier {
         debugPrint(
           'AuthProvider.authStateChanges: user=${user?.email ?? 'null'}',
         );
+
+        if (user != null && !user.isActive) {
+          debugPrint(
+            'AuthProvider.authStateChanges: inactive user detected, closing session',
+          );
+          _user = null;
+          _initialized = true;
+          _loading = false;
+          _error = 'Tu cuenta está inactiva. Contacta a un administrador.';
+          notifyListeners();
+          unawaited(_authService.signOut());
+          return;
+        }
+
         _user = user;
         _initialized = true;
         _loading = false;
@@ -91,6 +113,7 @@ class AuthProvider extends ChangeNotifier {
     required String name,
     required String email,
     required String password,
+    String accountType = 'person',
   }) async {
     debugPrint('AuthProvider.register: $email');
     return _run(
@@ -98,6 +121,7 @@ class AuthProvider extends ChangeNotifier {
         name: name,
         email: email,
         password: password,
+        accountType: accountType,
       ),
     );
   }
@@ -155,7 +179,7 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await action();
-      _user = _authService.currentUser;
+      _user = await _authService.getCurrentUserProfile();
       _initialized = true;
       debugPrint('AuthProvider._run: action completed');
       return true;
@@ -201,8 +225,12 @@ class AuthProvider extends ChangeNotifier {
         return 'No se pudo configurar la persistencia de sesión.';
       case 'no-current-user':
         return 'No hay una sesión activa.';
+      case 'user-disabled':
+        return 'Tu cuenta está deshabilitada.';
       default:
-        return 'No fue posible completar la operación.';
+        return error.message?.trim().isNotEmpty == true
+            ? error.message!.trim()
+            : 'No fue posible completar la operación.';
     }
   }
 
@@ -212,6 +240,8 @@ class AuthProvider extends ChangeNotifier {
         return 'No tienes permisos para completar el acceso. Revisa las reglas de Firestore.';
       case 'unavailable':
         return 'Firebase no está disponible en este momento. Intenta nuevamente.';
+      case 'not-found':
+        return 'No se encontró el perfil del usuario en Firestore.';
       default:
         return error.message?.trim().isNotEmpty == true
             ? error.message!.trim()

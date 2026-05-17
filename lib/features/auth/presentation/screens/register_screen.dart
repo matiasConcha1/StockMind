@@ -30,6 +30,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _companyEmailController = TextEditingController();
   final _addressController = TextEditingController();
   final _websiteController = TextEditingController();
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   PickedImageFile? _logoFile;
@@ -437,20 +438,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       return;
     }
+
     final auth = context.read<AuthProvider>();
+    final isBusiness = _selectedType == _RegisterAccountType.business;
     final success = await auth.register(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
+      accountType: isBusiness ? 'business' : 'person',
     );
     if (!mounted) return;
-    if (success) {
-      await context.read<UserProvider>().loadCurrentUser();
+
+    if (!success) {
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.error,
+        title: 'No se pudo crear la cuenta',
+        message:
+            auth.error ?? 'No pudimos completar la operación. Inténtalo nuevamente.',
+      );
+      return;
+    }
+
+    await context.read<UserProvider>().loadCurrentUser();
+
+    if (_selectedType == _RegisterAccountType.business) {
       final companyProvider = context.read<CompanyProfileProvider>();
       final currentUser = context.read<AuthProvider>().user;
-      if (_selectedType == _RegisterAccountType.business &&
-          _companyNameController.text.trim().isNotEmpty &&
-          currentUser != null) {
+      if (_companyNameController.text.trim().isNotEmpty && currentUser != null) {
         await companyProvider.saveProfile(
           CompanyProfile.empty().copyWith(
             name: _companyNameController.text.trim(),
@@ -463,34 +478,74 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           logoFile: _logoFile,
         );
+
+        if (!mounted) return;
+        if (companyProvider.error != null) {
+          await showAppAlertDialog(
+            context,
+            type: AppAlertType.warning,
+            title: 'Cuenta creada con observaciones',
+            message:
+                'La cuenta se creó correctamente, pero no pudimos guardar el perfil de empresa: ${companyProvider.error}',
+          );
+          return;
+        }
       }
-      await showAppAlertDialog(
-        context,
-        type: AppAlertType.success,
-        title: 'Cuenta creada',
-        message: 'Tu cuenta fue creada correctamente.',
-      );
-      return;
     }
+
     await showAppAlertDialog(
       context,
-      type: AppAlertType.error,
-      title: 'No se pudo crear la cuenta',
-      message:
-          auth.error ?? 'No pudimos completar la operación. Inténtalo nuevamente.',
+      type: AppAlertType.success,
+      title: 'Cuenta creada',
+      message: 'Tu cuenta fue creada correctamente.',
     );
   }
 
   Future<void> _handleGoogleLogin() async {
+    if (_selectedType == null) {
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.info,
+        title: 'Selecciona tu tipo de cuenta',
+        message:
+            'Antes de continuar con Google, elige si usarás StockMind como persona o como empresa.',
+      );
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final success = await auth.signInWithGoogle(
       rememberSession: true,
     );
     if (!mounted) return;
+
     if (success) {
-      await context.read<UserProvider>().loadCurrentUser();
+      final userProvider = context.read<UserProvider>();
+      await userProvider.updateCurrentUserAccountType(
+        _selectedType == _RegisterAccountType.business ? 'business' : 'person',
+      );
+      await userProvider.loadCurrentUser();
+      if (_selectedType == _RegisterAccountType.business &&
+          _companyNameController.text.trim().isNotEmpty) {
+        final companyProvider = context.read<CompanyProfileProvider>();
+        final currentUser = context.read<AuthProvider>().user;
+        if (currentUser != null) {
+          await companyProvider.saveProfile(
+            (companyProvider.profile ?? CompanyProfile.empty()).copyWith(
+              name: _companyNameController.text.trim(),
+              industry: _industryController.text.trim(),
+              phone: _companyPhoneController.text.trim(),
+              email: _companyEmailController.text.trim(),
+              address: _addressController.text.trim(),
+              website: _websiteController.text.trim(),
+              createdBy: currentUser.id,
+            ),
+            logoFile: _logoFile,
+          );
+        }
+      }
       return;
     }
+
     await showAppAlertDialog(
       context,
       type: AppAlertType.error,
