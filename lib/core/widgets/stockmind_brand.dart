@@ -188,7 +188,7 @@ class StockMindBrandRow extends StatelessWidget {
   const StockMindBrandRow({
     this.iconSize = 30,
     this.framed = false,
-    this.subtitle = 'Inventory SaaS',
+    this.subtitle = 'Smart inventory platform',
     super.key,
   });
 

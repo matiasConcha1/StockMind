@@ -28,37 +28,38 @@ class StatCard extends StatelessWidget {
     final isSmallPhone = width < 480;
 
     return SectionCard(
-      padding: EdgeInsets.all(isSmallPhone ? 16 : isMobile ? 18 : 24),
+      interactive: true,
+      padding: EdgeInsets.all(isSmallPhone ? 16 : isMobile ? 18 : 22),
       borderRadius: isMobile ? 24 : 28,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          minHeight: isSmallPhone ? 118 : isMobile ? 140 : 188,
+          minHeight: isSmallPhone ? 124 : isMobile ? 150 : 194,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: isSmallPhone ? 42 : isMobile ? 50 : 52,
-                  height: isSmallPhone ? 42 : isMobile ? 50 : 52,
+                  width: isSmallPhone ? 46 : isMobile ? 52 : 56,
+                  height: isSmallPhone ? 46 : isMobile ? 52 : 56,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        color.withValues(alpha: 0.18),
+                        color.withValues(alpha: 0.22),
                         color.withValues(alpha: 0.08),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(isMobile ? 15 : 16),
+                    borderRadius: BorderRadius.circular(isMobile ? 16 : 18),
+                    border: Border.all(color: color.withValues(alpha: 0.16)),
                   ),
                   child: Icon(
                     icon,
                     color: color,
-                    size: isSmallPhone ? 22 : isMobile ? 22 : 24,
+                    size: isSmallPhone ? 22 : isMobile ? 23 : 24,
                   ),
                 ),
                 const Spacer(),
@@ -70,8 +71,9 @@ class StatCard extends StatelessWidget {
                         vertical: isSmallPhone ? 5 : 6,
                       ),
                       decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.12),
+                        color: color.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: color.withValues(alpha: 0.12)),
                       ),
                       child: Text(
                         trend!,
@@ -88,7 +90,7 @@ class StatCard extends StatelessWidget {
                   ),
               ],
             ),
-            SizedBox(height: isSmallPhone ? 10 : isMobile ? 14 : 18),
+            SizedBox(height: isSmallPhone ? 14 : isMobile ? 16 : 20),
             Text(
               label,
               maxLines: isMobile ? 2 : 1,
@@ -96,23 +98,30 @@ class StatCard extends StatelessWidget {
               style: (isMobile
                       ? theme.textTheme.titleMedium
                       : theme.textTheme.bodyMedium)
-                  ?.copyWith(fontSize: isSmallPhone ? 17 : null),
+                  ?.copyWith(
+                    fontSize: isSmallPhone ? 17 : null,
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
-            SizedBox(height: isSmallPhone ? 4 : isMobile ? 6 : 8),
+            SizedBox(height: isSmallPhone ? 6 : isMobile ? 8 : 10),
             Text(
               value,
               style: (isMobile
                       ? theme.textTheme.headlineSmall
                       : theme.textTheme.headlineMedium)
-                  ?.copyWith(fontSize: isSmallPhone ? 30 : null),
+                  ?.copyWith(
+                    fontSize: isSmallPhone ? 30 : null,
+                    letterSpacing: -0.9,
+                  ),
             ),
-            SizedBox(height: isSmallPhone ? 3 : isMobile ? 4 : 6),
+            SizedBox(height: isSmallPhone ? 6 : isMobile ? 7 : 10),
             Text(
               helper,
-              maxLines: isSmallPhone ? 1 : 2,
+              maxLines: isSmallPhone ? 2 : 3,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontSize: isSmallPhone ? 13 : null,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
               ),
             ),
           ],

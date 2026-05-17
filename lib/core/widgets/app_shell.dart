@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
@@ -29,9 +30,9 @@ class AppShell extends StatelessWidget {
     final destinations = [
       const _ShellDestination(
         branchIndex: 0,
-        label: 'Dashboard',
+        label: 'Centro de inventario',
         mobileLabel: 'Inicio',
-        icon: Icons.dashboard_rounded,
+        icon: Icons.space_dashboard_rounded,
       ),
       const _ShellDestination(
         branchIndex: 1,
@@ -73,8 +74,8 @@ class AppShell extends StatelessWidget {
             colors: [
               theme.scaffoldBackgroundColor,
               theme.brightness == Brightness.dark
-                  ? const Color(0xFF050C17)
-                  : const Color(0xFFF1F4FF),
+                  ? const Color(0xFF040B16)
+                  : const Color(0xFFF2F6FF),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -83,15 +84,21 @@ class AppShell extends StatelessWidget {
         child: SafeArea(
           child: Row(
             children: [
-              if (!isMobile) sidebar,
+              if (!isMobile)
+                sidebar
+                    .animate()
+                    .fadeIn(duration: 260.ms)
+                    .slideX(begin: -0.02, end: 0),
               Expanded(
                 child: Padding(
                   padding: isMobile
-                      ? EdgeInsets.zero
+                      ? const EdgeInsets.fromLTRB(10, 8, 10, 0)
                       : const EdgeInsets.fromLTRB(0, 18, 18, 18),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(isMobile ? 0 : 32),
-                    child: DecoratedBox(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
@@ -105,8 +112,23 @@ class AppShell extends StatelessWidget {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.92),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: theme.brightness == Brightness.dark ? 0.22 : 0.08,
+                            ),
+                            blurRadius: 42,
+                            spreadRadius: -22,
+                            offset: const Offset(0, 24),
+                          ),
+                        ],
                       ),
-                      child: navigationShell,
+                      child: navigationShell
+                          .animate(target: navigationShell.currentIndex.toDouble())
+                          .fadeIn(duration: 200.ms),
                     ),
                   ),
                 ),
@@ -159,96 +181,100 @@ class _DesktopSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
+    return SizedBox(
       width: width,
-      margin: const EdgeInsets.all(18),
-      child: Column(
-        children: [
-          SectionCard(
-            padding: EdgeInsets.zero,
-            gradient: LinearGradient(
-              colors: [
-                theme.brightness == Brightness.dark
-                    ? const Color(0xFF0E1830)
-                    : Colors.white,
-                theme.brightness == Brightness.dark
-                    ? const Color(0xFF111C35)
-                    : const Color(0xFFF5F8FF),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _BrandBlock(),
-                  const SizedBox(height: 24),
-                  for (final destination in destinations) ...[
+      child: Container(
+        margin: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            SectionCard(
+              padding: EdgeInsets.zero,
+              borderRadius: 32,
+              gradient: LinearGradient(
+                colors: [
+                  theme.brightness == Brightness.dark
+                      ? const Color(0xFF0E1830)
+                      : Colors.white,
+                  theme.brightness == Brightness.dark
+                      ? const Color(0xFF111C35)
+                      : const Color(0xFFF5F8FF),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _BrandBlock(),
+                    const SizedBox(height: 18),
+                    for (final destination in destinations) ...[
+                      SidebarItem(
+                        label: destination.label,
+                        icon: destination.icon,
+                        selected:
+                            navigationShell.currentIndex == destination.branchIndex,
+                        onTap: () =>
+                            navigationShell.goBranch(destination.branchIndex),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    const SizedBox(height: 14),
+                    const Divider(),
+                    const SizedBox(height: 14),
                     SidebarItem(
-                      label: destination.label,
-                      icon: destination.icon,
-                      selected:
-                          navigationShell.currentIndex == destination.branchIndex,
-                      onTap: () =>
-                          navigationShell.goBranch(destination.branchIndex),
+                      label: 'Cerrar sesión',
+                      icon: Icons.logout_rounded,
+                      selected: false,
+                      isDestructive: true,
+                      onTap: () => _handleSidebarSignOut(context),
                     ),
-                    const SizedBox(height: 8),
                   ],
-                  const SizedBox(height: 18),
-                  const Divider(),
-                  const SizedBox(height: 18),
-                  SidebarItem(
-                    label: 'Cerrar sesión',
-                    icon: Icons.logout_rounded,
-                    selected: false,
-                    isDestructive: true,
-                    onTap: () => _handleSidebarSignOut(context),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SectionCard(
+              borderRadius: 28,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AppTheme.brand.withValues(alpha: 0.12),
+                    foregroundImage:
+                        user?.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
+                    child: Text(
+                      _buildUserInitial(user?.displayName),
+                      style: const TextStyle(color: AppTheme.brand),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user?.displayName ?? 'Sin sesión',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          user?.email ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          SectionCard(
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppTheme.brand.withValues(alpha: 0.12),
-                        foregroundImage:
-                      user?.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
-                        child: Text(
-                    _buildUserInitial(user?.displayName),
-                    style: const TextStyle(color: AppTheme.brand),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user?.displayName ?? 'Sin sesión',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        user?.email ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -263,7 +289,7 @@ class _BrandBlock extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
@@ -273,7 +299,15 @@ class _BrandBlock extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.brand.withValues(alpha: 0.22),
+            blurRadius: 30,
+            spreadRadius: -18,
+            offset: const Offset(0, 18),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -304,7 +338,7 @@ class _BrandBlock extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Inventory SaaS',
+                  'Smart inventory platform',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
