@@ -7,7 +7,7 @@
     <meta content="IE=Edge" http-equiv="X-UA-Compatible" />
     <meta
       name="description"
-      content="StockMind, sistema moderno de gestion de inventario."
+      content="StockMind is a Flutter Web inventory management SaaS with smart alerts, analytics, and a responsive control center."
     />
     <meta name="theme-color" content="#1D4ED8" />
 
@@ -242,14 +242,14 @@
           <div class="loader-logo-fallback" id="loader-logo-fallback">📦</div>
         </div>
         <h1 class="loader-title">StockMind</h1>
-        <p class="loader-subtitle">Preparando tu inventario...</p>
+        <p class="loader-subtitle">Preparing your inventory workspace...</p>
         <div class="loader-spinner" aria-hidden="true"></div>
-        <p class="loader-status" id="loader-status">Verificando sesion...</p>
+        <p class="loader-status" id="loader-status">Checking your session...</p>
         <div class="loader-progress" aria-hidden="true"></div>
         <div class="loader-fallback-wrap" id="loader-fallback">
-          <p class="loader-fallback">Esto esta tardando mas de lo normal</p>
+          <p class="loader-fallback">This is taking longer than expected.</p>
           <button class="loader-button" type="button" onclick="window.location.reload()">
-            Reintentar
+            Retry
           </button>
         </div>
       </div>
@@ -263,9 +263,9 @@
         const logoFallbackEl = document.getElementById("loader-logo-fallback");
         const logoImgEl = document.getElementById("loader-logo-image");
         const messages = [
-          "Verificando sesion...",
-          "Conectando con Firebase...",
-          "Preparando tu inventario...",
+          "Checking your session...",
+          "Connecting to Firebase...",
+          "Preparing your inventory workspace...",
         ];
 
         if (logoImgEl && logoFallbackEl) {

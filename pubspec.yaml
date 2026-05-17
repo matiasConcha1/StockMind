@@ -1,5 +1,5 @@
 name: stockmind
-description: Professional Flutter inventory management dashboard with Firebase authentication and low-stock alerts.
+description: StockMind is a Flutter Web + Firebase inventory management SaaS with smart alerts, analytics and responsive dashboard.
 publish_to: "none"
 
 version: 1.0.0+1

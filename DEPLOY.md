@@ -1,49 +1,44 @@
-# Deploy StockMind
+# StockMind Deployment
 
-## Build Web
+## Scope
+
+This document covers the current deployment flow for the Flutter Web app hosted on Firebase.
+
+## Build The Web App
 
 ```bash
-flutter clean
 flutter pub get
 flutter build web --release
 ```
 
-## Firebase Hosting
+The generated files are written to `build/web`, which matches the current Firebase Hosting configuration.
 
-1. Inicia sesión:
+## Deploy To Firebase Hosting
+
+### First-time setup
+
+If Firebase CLI is not configured on your machine yet:
 
 ```bash
 firebase login
 ```
 
-2. Si todavía no lo hiciste, inicializa Hosting:
+This repository already includes `firebase.json`, so running `firebase init hosting` is not required unless you want to reconfigure the hosting target from scratch.
+
+### Standard deployment
 
 ```bash
-firebase init hosting
-```
-
-Usa estas opciones:
-
-- `public`: `build/web`
-- `single-page app rewrite`: `Yes`
-- no sobrescribas `index.html` si Firebase CLI lo pregunta
-
-3. Despliega:
-
-```bash
+flutter build web --release
 firebase deploy
 ```
 
-## Dominio personalizado
+## Hosting Configuration
 
-1. Abre Firebase Console.
-2. Ve a `Hosting`.
-3. Pulsa `Agregar dominio personalizado`.
-4. Sigue el wizard para validar DNS y SSL.
+The project is configured to serve the compiled web app from:
 
-## Flutter Web Routing
+- `public`: `build/web`
 
-`firebase.json` ya debe conservar el rewrite:
+Routing is handled through this rewrite in `firebase.json`:
 
 ```json
 {
@@ -52,19 +47,24 @@ firebase deploy
 }
 ```
 
-Esto permite que `GoRouter` funcione bien en rutas directas.
+This keeps `GoRouter` routes working correctly in production.
 
-## Notificaciones web
+## Custom Domain
 
-Si quieres push web real con FCM:
+To connect a custom domain:
 
-1. Genera la Web Push certificate key (VAPID) en Firebase Console.
-2. Construye con:
+1. Open Firebase Console.
+2. Go to `Hosting`.
+3. Select `Add custom domain`.
+4. Complete DNS and SSL verification in the Firebase wizard.
+
+## Web Push Notifications
+
+If you need real web push support through Firebase Cloud Messaging, build with the public VAPID key:
 
 ```bash
-flutter build web --release --dart-define=FCM_WEB_VAPID_KEY=TU_VAPID_PUBLIC_KEY
+flutter build web --release --dart-define=FCM_WEB_VAPID_KEY=YOUR_PUBLIC_VAPID_KEY
+firebase deploy
 ```
 
-3. Despliega nuevamente.
-
-El archivo `web/firebase-messaging-sw.js` ya quedó preparado como base.
+The base service worker file already exists at `web/firebase-messaging-sw.js`.

@@ -1,123 +1,179 @@
 # StockMind
 
 <p align="center">
-  <img src="assets/images/logo_icon.png" width="120" alt="StockMind Logo"/>
+  <img src="assets/images/logo_icon.png" width="120" alt="StockMind logo" />
 </p>
 
 <p align="center">
-  Sistema moderno de gestión de inventario para negocios que necesitan controlar su stock de forma simple, rápida y visual.
+  Smart inventory management SaaS built with Flutter Web and Firebase.
 </p>
 
 <p align="center">
-  <a href="https://ejemplofirebase-38f98.web.app">🌐 Ver demo en vivo</a>
+  StockMind helps teams control products, locations, alerts, and stock movements from a responsive web platform designed for modern operations.
 </p>
 
----
+<p align="center">
+  <a href="https://ejemplofirebase-38f98.web.app">Live demo</a>
+</p>
 
-## Descripción
+## Overview
 
-**StockMind** es una plataforma tipo SaaS desarrollada con **Flutter Web + Firebase**, pensada para reemplazar planillas, cuadernos o sistemas complejos de inventario.
+StockMind is a product-oriented inventory platform focused on visibility, execution speed, and operational control. It combines authentication, inventory workflows, analytics, export tools, and cloud deployment into a single Flutter Web application backed by Firebase.
 
-Permite gestionar productos, ubicaciones físicas, imágenes, alertas de stock bajo y métricas operativas en tiempo real desde una interfaz moderna y responsive.
+It is positioned as a lightweight SaaS for companies that need a cleaner alternative to spreadsheets or fragmented stock processes.
 
----
+## Product Highlights
 
-## Características principales
+- Responsive inventory platform for desktop and tablet workflows
+- Firebase Authentication with email/password and Google sign-in
+- Product catalog with stock, metadata, and image management
+- Multi-location inventory organization
+- Low-stock monitoring and alert flows
+- Inventory analytics and movement tracking
+- Export capabilities for operational reporting
+- PWA support for installable web experience
+- Firebase Hosting deployment ready
 
-- Autenticación con Email y Google
-- Gestión completa de productos
-- Control de ubicaciones físicas
-- Subida de imágenes para productos y ubicaciones
-- Alertas automáticas de stock bajo
-- Dashboard con métricas en tiempo real
-- Exportación a Excel y PDF
-- Modo oscuro / claro
-- PWA instalable
-- Deploy en Firebase Hosting
+## Demo
 
----
+- Production demo: `https://ejemplofirebase-38f98.web.app`
 
-## Capturas de pantalla
+## Screenshots
 
 ### Login
-<img src="assets/screenshots/login.png" width="100%" alt="Login StockMind">
+<img src="assets/screenshots/login.png" width="100%" alt="StockMind login screen" />
 
----
+### Register
+<img src="assets/screenshots/register.png" width="100%" alt="StockMind register screen" />
 
-### Registro
-<img src="assets/screenshots/register.png" width="100%" alt="Registro StockMind">
+### Inventory Control Center
+<img src="assets/screenshots/dashboard.png" width="100%" alt="StockMind inventory control center" />
 
----
+### Products
+<img src="assets/screenshots/products.png" width="100%" alt="StockMind products view" />
 
-### Dashboard
-<img src="assets/screenshots/dashboard.png" width="100%" alt="Dashboard StockMind">
+### New Product
+<img src="assets/screenshots/products2.png" width="100%" alt="StockMind product creation view" />
 
----
+### Alerts
+<img src="assets/screenshots/alerts.png" width="100%" alt="StockMind stock alerts" />
 
-### Productos
-<img src="assets/screenshots/products.png" width="100%" alt="Productos StockMind">
+### Locations
+<img src="assets/screenshots/locations.png" width="100%" alt="StockMind locations module" />
 
----
+### New Location
+<img src="assets/screenshots/locations2.png" width="100%" alt="StockMind location creation view" />
 
-### Nuevo producto
-<img src="assets/screenshots/products2.png" width="100%" alt="Nuevo producto StockMind">
+### Settings
+<img src="assets/screenshots/settings.png" width="100%" alt="StockMind settings screen" />
 
----
+### Profile And Security
+<img src="assets/screenshots/settings2.png" width="100%" alt="StockMind profile and security screen" />
 
-### Alertas
-<img src="assets/screenshots/alerts.png" width="100%" alt="Alertas StockMind">
+## Core Features
 
----
+- Authentication and protected access flows
+- Product registration, editing, and stock visibility
+- Inventory location management
+- Stock movement and operational snapshot views
+- Smart low-stock alerts
+- File and image storage for operational records
+- Excel and PDF export support
+- Responsive UI for mobile-aware web usage
 
-### Ubicaciones
-<img src="assets/screenshots/locations.png" width="100%" alt="Ubicaciones StockMind">
+## Tech Stack
 
----
+| Layer | Technology |
+| --- | --- |
+| Frontend | Flutter Web, Dart |
+| State management | Provider |
+| Routing | GoRouter |
+| Backend services | Firebase |
+| Authentication | Firebase Auth, Google Sign-In |
+| Database | Cloud Firestore |
+| Storage | Firebase Storage |
+| Notifications | Firebase Messaging |
+| Charts and reporting | fl_chart, pdf, excel |
+| Deployment | Firebase Hosting |
 
-### Nueva ubicación
-<img src="assets/screenshots/locations2.png" width="100%" alt="Nueva ubicación StockMind">
+## Project Architecture
 
----
+The codebase is organized by feature and shared core modules:
 
-### Configuración
-<img src="assets/screenshots/settings.png" width="100%" alt="Configuración StockMind">
+```text
+lib/
+  app/                    App bootstrap and routing
+  core/                   Shared theme, widgets, services, constants, utilities
+  features/
+    activity_logs/        Activity and audit-related services
+    alerts/               Low-stock alert logic and UI
+    auth/                 Authentication flows and providers
+    company/              Company profile and onboarding
+    dashboard/            Inventory analytics and overview screens
+    locations/            Inventory location management
+    products/             Product catalog and stock operations
+    replenishment/        Replenishment requests and workflows
+    users/                User and role management views
+  firebase_options.dart   Firebase platform configuration
+  main.dart               Application entrypoint
+```
 
----
+## Local Installation
 
-### Perfil y seguridad
-<img src="assets/screenshots/settings2.png" width="100%" alt="Perfil y seguridad StockMind">
+### Prerequisites
 
----
+- Flutter SDK compatible with `>=3.5.0 <4.0.0`
+- Dart SDK included with Flutter
+- Firebase project configured for the app
 
-## Tecnologías utilizadas
-
-| Tecnología | Uso |
-|---|---|
-| Flutter Web | Frontend multiplataforma |
-| Dart | Lenguaje principal |
-| Firebase Auth | Autenticación |
-| Cloud Firestore | Base de datos en tiempo real |
-| Firebase Storage | Almacenamiento de imágenes |
-| Firebase Hosting | Deploy web |
-| Provider | Gestión de estado |
-| GoRouter | Navegación |
-| Google Fonts | Tipografía |
-| Material Icons | Iconografía |
-
-
-## Estructura del proyecto
+### Run locally
 
 ```bash
-lib/
-├── app/
-├── core/
-├── features/
-│   ├── auth/
-│   ├── dashboard/
-│   ├── products/
-│   ├── locations/
-│   ├── alerts/
-│   └── settings/
-├── services/
-├── firebase_options.dart
-└── main.dart
+flutter pub get
+flutter run -d chrome
+```
+
+If Firebase credentials need to be refreshed, verify `lib/firebase_options.dart` and `android/app/google-services.json` match your target project.
+
+## Web Build
+
+```bash
+flutter build web --release
+```
+
+The build output is generated in `build/web`.
+
+## Firebase Deployment
+
+The repository already includes Firebase Hosting configuration in `firebase.json`.
+
+```bash
+firebase login
+flutter build web --release
+firebase deploy
+```
+
+For web push notifications, build with the VAPID key when needed:
+
+```bash
+flutter build web --release --dart-define=FCM_WEB_VAPID_KEY=YOUR_PUBLIC_VAPID_KEY
+firebase deploy
+```
+
+## Roadmap
+
+- Multi-tenant SaaS setup by company or workspace
+- Advanced inventory forecasting and replenishment suggestions
+- Richer analytics for stock turnover and demand trends
+- Role-based permissions refinement
+- Operational audit trail and activity insights
+- Billing and subscription readiness
+
+## Author
+
+- Matias Concha
+- GitHub: [@matiasConcha1](https://github.com/matiasConcha1)
+
+## License
+
+This project is distributed under the MIT License. See [LICENSE](LICENSE) for details.
