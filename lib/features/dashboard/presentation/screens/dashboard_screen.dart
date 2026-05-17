@@ -8,16 +8,17 @@ import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/export_feedback.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/stat_card.dart';
-import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/company/providers/company_profile_provider.dart';
+import 'package:stockmind/features/dashboard/data/models/dashboard_snapshot.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/category_chart_card.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/inventory_movement_chart_card.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/recent_stock_movements_card.dart';
+import 'package:stockmind/features/dashboard/presentation/widgets/activity_feed_card.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/stock_bar_chart_card.dart';
 import 'package:stockmind/features/dashboard/providers/dashboard_provider.dart';
 import 'package:stockmind/features/products/models/product.dart';
@@ -41,8 +42,6 @@ class DashboardScreen extends StatelessWidget {
     final currency = NumberFormat.currency(symbol: '\$');
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 768;
-    final statCrossAxisCount = width < 900 ? 1 : width < 1260 ? 2 : 3;
-    final statAspectRatio = width >= 1260 ? 1.26 : width >= 900 ? 1.14 : 1.0;
     final movementPoints = _buildMovementPoints(snapshot.recentMovements);
 
     final statCards = [
@@ -96,9 +95,13 @@ class DashboardScreen extends StatelessWidget {
       ),
     ];
 
+    final heroGreeting =
+        (userProvider.currentUser?.displayName ?? auth.user?.displayName ?? 'equipo')
+            .split(' ')
+            .first;
+
     return DashboardFrame(
-      title:
-          'Hola, ${(userProvider.currentUser?.displayName ?? auth.user?.displayName ?? 'equipo').split(' ').first} 👋',
+      title: 'Hola, $heroGreeting',
       subtitle: companyProvider.isComplete
           ? 'Gestionando inventario de ${companyProvider.companyName}.'
           : 'Completa el perfil de empresa para personalizar tu operación en StockMind.',
@@ -116,468 +119,39 @@ class DashboardScreen extends StatelessWidget {
             _DashboardErrorBanner(message: provider.error!),
             const SizedBox(height: 16),
           ],
-          if (provider.isLoading && !provider.hasProducts)
-            const Card(
-              child: SizedBox(
-                height: 340,
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: StockMindLoadingPanel(
-                      compact: true,
-                      statusMessage: 'Verificando sesión...',
-                    ),
-                  ),
-                ),
-              ),
-            )
-          else if (!provider.isLoading && !provider.hasProducts)
-            const Card(
-              child: SizedBox(
-                height: 340,
-                child: EmptyState(
-                  title: 'Tu inventario está vacío',
-                  subtitle:
-                      'Agrega productos desde el módulo Productos para comenzar a ver métricas y alertas reales.',
-                  icon: Icons.space_dashboard_outlined,
-                ),
-              ),
-            )
-          else ...[
-            if (!companyProvider.isComplete) ...[
-              SectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Personaliza tu espacio',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Completa el perfil de empresa desde Ajustes > Empresa para mostrar el nombre y logo de tu negocio en reportes y dashboard.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            if (isMobile)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final card in statCards) ...[
-                    card,
-                    const SizedBox(height: 14),
-                  ],
-                ],
-              )
-            else
-              GridView.count(
-                crossAxisCount: statCrossAxisCount,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: statAspectRatio,
-                children: statCards,
-              ),
-            const SizedBox(height: 16),
-            SectionCard(
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.brand.withValues(alpha: 0.16),
-                  AppTheme.brandViolet.withValues(alpha: 0.10),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              child: isMobile
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _ExecutiveKpi(
-                          title: 'Stock health score',
-                          value: '${snapshot.stockHealthScore.toStringAsFixed(0)}%',
-                          helper: 'Cobertura saludable del catálogo',
-                        ),
-                        const SizedBox(height: 16),
-                        _ExecutiveKpi(
-                          title: 'Alertas sin leer',
-                          value: alertsProvider.unreadAlertsCount.toString(),
-                          helper: 'Pendientes de revisión del equipo',
-                        ),
-                        const SizedBox(height: 16),
-                        _ExecutiveKpi(
-                          title: 'Productos vencidos',
-                          value: snapshot.expiredProducts.toString(),
-                          helper: 'Requieren revisión inmediata',
-                        ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: _ExecutiveKpi(
-                            title: 'Stock health score',
-                            value: '${snapshot.stockHealthScore.toStringAsFixed(0)}%',
-                            helper: 'Cobertura saludable del catálogo',
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: provider.isLoading && !provider.hasProducts
+                ? const _DashboardSkeleton(key: ValueKey('dashboard-skeleton'))
+                : !provider.isLoading && !provider.hasProducts
+                    ? const SectionCard(
+                        key: ValueKey('dashboard-empty'),
+                        child: SizedBox(
+                          height: 320,
+                          child: EmptyState(
+                            title: 'Tu inventario está vacío',
+                            subtitle:
+                                'Agrega productos para activar métricas, alertas y seguimiento operativo en tiempo real.',
+                            icon: Icons.space_dashboard_outlined,
+                            compact: true,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _ExecutiveKpi(
-                            title: 'Alertas sin leer',
-                            value: alertsProvider.unreadAlertsCount.toString(),
-                            helper: 'Pendientes de revisión del equipo',
-                          ),
-                        ),
-                        if (width > 920) ...[
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _ExecutiveKpi(
-                              title: 'Productos vencidos',
-                              value: snapshot.expiredProducts.toString(),
-                              helper: 'Requieren revisión inmediata',
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-            ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
-            const SizedBox(height: 16),
-            SectionCard(
-              child: isMobile
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _ExecutiveKpi(
-                          title: 'Entradas hoy',
-                          value: '${snapshot.entriesToday}',
-                          helper: 'Unidades ingresadas hoy',
-                        ),
-                        const SizedBox(height: 16),
-                        _ExecutiveKpi(
-                          title: 'Salidas hoy',
-                          value: '${snapshot.exitsToday}',
-                          helper: 'Unidades retiradas hoy',
-                        ),
-                        const SizedBox(height: 16),
-                        _ExecutiveKpi(
-                          title: 'Solicitudes pendientes',
-                          value: '${snapshot.pendingRequests}',
-                          helper: 'Reposiciones esperando gestión',
-                        ),
-                        const SizedBox(height: 16),
-                        _ExecutiveKpi(
-                          title: 'Críticos sin solicitud',
-                          value: '${snapshot.criticalWithoutRequest}',
-                          helper: 'Productos con stock bajo sin reposición',
-                        ),
-                        if (snapshot.topMovedProductNames.isNotEmpty) ...[
-                          const SizedBox(height: 16),
-                          Text(
-                            'Productos con más movimientos',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: snapshot.topMovedProductNames
-                                .map((name) => _movementChip(context, name))
-                                .toList(),
-                          ),
-                        ],
-                      ],
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _ExecutiveKpi(
-                            title: 'Entradas hoy',
-                            value: '${snapshot.entriesToday}',
-                            helper: 'Unidades ingresadas hoy',
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _ExecutiveKpi(
-                            title: 'Salidas hoy',
-                            value: '${snapshot.exitsToday}',
-                            helper: 'Unidades retiradas hoy',
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _ExecutiveKpi(
-                            title: 'Solicitudes pendientes',
-                            value: '${snapshot.pendingRequests}',
-                            helper: 'Reposiciones esperando gestión',
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _ExecutiveKpi(
-                            title: 'Críticos sin solicitud',
-                            value: '${snapshot.criticalWithoutRequest}',
-                            helper: 'Productos con stock bajo sin reposición',
-                          ),
-                        ),
-                        if (snapshot.topMovedProductNames.isNotEmpty) ...[
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Productos con más movimientos',
-                                  style: Theme.of(context).textTheme.titleMedium,
-                                ),
-                                const SizedBox(height: 10),
-                                Wrap(
-                                  spacing: 10,
-                                  runSpacing: 10,
-                                  children: snapshot.topMovedProductNames
-                                      .map((name) => _movementChip(context, name))
-                                      .toList(),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-            ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
-            const SizedBox(height: 16),
-            SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Reposición',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Solicitudes abiertas, completadas y productos que más reposición concentran esta semana.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  if (isMobile)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _ExecutiveKpi(
-                          title: 'Completadas esta semana',
-                          value: '${snapshot.completedRequestsThisWeek}',
-                          helper: 'Reposiciones cerradas recientemente',
-                        ),
-                        const SizedBox(height: 16),
-                        _LocationInsightBlock(
-                          title: 'Productos con más reposiciones',
-                          items: snapshot.productsWithMoreRequests,
-                        ),
-                      ],
-                    )
-                  else
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _ExecutiveKpi(
-                            title: 'Completadas esta semana',
-                            value: '${snapshot.completedRequestsThisWeek}',
-                            helper: 'Reposiciones cerradas recientemente',
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          flex: 2,
-                          child: _LocationInsightBlock(
-                            title: 'Productos con más reposiciones',
-                            items: snapshot.productsWithMoreRequests,
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
-            const SizedBox(height: 16),
-            SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Distribución por ubicación',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Lectura rápida de ubicaciones con menos stock, productos agotados por ubicación y movimientos recientes por espacio.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  if (isMobile)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _LocationInsightBlock(
-                          title: 'Ubicaciones con menos stock',
-                          items: snapshot.lowStockLocations
-                              .map((item) => '${item.label} · ${item.quantity} unid.')
-                              .toList(),
-                        ),
-                        const SizedBox(height: 14),
-                        _LocationInsightBlock(
-                          title: 'Agotados por ubicación',
-                          items: snapshot.outOfStockByLocation,
-                        ),
-                        const SizedBox(height: 14),
-                        _LocationInsightBlock(
-                          title: 'Movimientos por ubicación',
-                          items: snapshot.movementLocationNames,
-                        ),
-                      ],
-                    )
-                  else
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _LocationInsightBlock(
-                            title: 'Ubicaciones con menos stock',
-                            items: snapshot.lowStockLocations
-                                .map((item) =>
-                                    '${item.label} · ${item.quantity} unid.')
-                                .toList(),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _LocationInsightBlock(
-                            title: 'Agotados por ubicación',
-                            items: snapshot.outOfStockByLocation,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _LocationInsightBlock(
-                            title: 'Movimientos por ubicación',
-                            items: snapshot.movementLocationNames,
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
-            const SizedBox(height: 16),
-            if (width < 1100) ...[
-              InventoryMovementChartCard(points: movementPoints),
-              const SizedBox(height: 16),
-              _RecentProductsCard(products: snapshot.recentlyUpdatedProducts),
-              const SizedBox(height: 16),
-              RecentStockMovementsCard(movements: snapshot.recentMovements),
-              const SizedBox(height: 16),
-              StockBarChartCard(products: snapshot.lowestStockProducts),
-              const SizedBox(height: 16),
-              CategoryChartCard(categories: snapshot.topCategories),
-              const SizedBox(height: 16),
-              LowStockList(
-                alerts: alertsProvider.activeAlerts.take(6).toList(),
-                onMarkAsRead: (alert) => alertsProvider.markAsRead(alert.id),
-                onResolve: (alert) => alertsProvider.resolveAlert(alert.id),
-                onCreateRequest: (alert) {
-                  if (requestsProvider.hasPendingRequestForProduct(alert.productId)) {
-                    return;
-                  }
-                  showStockRequestDialog(
-                    context,
-                    initialProductId: alert.productId,
-                  );
-                },
-                canCreateRequest: (alert) =>
-                    !requestsProvider.hasPendingRequestForProduct(alert.productId),
-              ),
-            ] else
-              Column(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 7,
-                        child: InventoryMovementChartCard(points: movementPoints),
+                      )
+                    : _DashboardContent(
+                        key: const ValueKey('dashboard-content'),
+                        width: width,
+                        isMobile: isMobile,
+                        companyProvider: companyProvider,
+                        snapshot: snapshot,
+                        statCards: statCards,
+                        movementPoints: movementPoints,
+                        alertsProvider: alertsProvider,
+                        requestsProvider: requestsProvider,
+                        contextForRequest: context,
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        flex: 5,
-                        child: _RecentProductsCard(
-                          products: snapshot.recentlyUpdatedProducts,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 5,
-                        child: RecentStockMovementsCard(
-                          movements: snapshot.recentMovements,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        flex: 7,
-                        child: StockBarChartCard(
-                          products: snapshot.lowestStockProducts,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 5,
-                        child: LowStockList(
-                          alerts: alertsProvider.activeAlerts.take(6).toList(),
-                          onMarkAsRead: (alert) =>
-                              alertsProvider.markAsRead(alert.id),
-                          onResolve: (alert) =>
-                              alertsProvider.resolveAlert(alert.id),
-                          onCreateRequest: (alert) {
-                            if (requestsProvider
-                                .hasPendingRequestForProduct(alert.productId)) {
-                              return;
-                            }
-                            showStockRequestDialog(
-                              context,
-                              initialProductId: alert.productId,
-                            );
-                          },
-                          canCreateRequest: (alert) => !requestsProvider
-                              .hasPendingRequestForProduct(alert.productId),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        flex: 7,
-                        child: CategoryChartCard(categories: snapshot.topCategories),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-          ],
+          ),
         ],
       ),
     );
@@ -631,38 +205,284 @@ class DashboardScreen extends StatelessWidget {
         companyProfile: context.read<CompanyProfileProvider>().profile,
       ),
     );
-    /*
-    if (products.isEmpty) {
-      await showAppAlertDialog(
-        context,
-        type: AppAlertType.info,
-        title: 'No hay datos para exportar',
-        message: 'Crea productos antes de generar un reporte.',
-      );
-      return;
-    }
+  }
+}
 
-    try {
-      await InventoryExportService().exportProductsToCsv(products);
-      if (!context.mounted) return;
-      await showAppAlertDialog(
-        context,
-        type: AppAlertType.success,
-        title: 'Reporte exportado',
-        message: 'El inventario fue descargado correctamente.',
-      );
-    } catch (error) {
-      if (!context.mounted) return;
-      await showAppAlertDialog(
-        context,
-        type: AppAlertType.error,
-        title: 'Error al exportar',
-        message: error.toString().trim().isNotEmpty
-            ? error.toString().trim()
-            : 'No pudimos completar la exportación del inventario.',
-      );
-    }
-    */
+class _DashboardContent extends StatelessWidget {
+  const _DashboardContent({
+    required this.width,
+    required this.isMobile,
+    required this.companyProvider,
+    required this.snapshot,
+    required this.statCards,
+    required this.movementPoints,
+    required this.alertsProvider,
+    required this.requestsProvider,
+    required this.contextForRequest,
+    super.key,
+  });
+
+  final double width;
+  final bool isMobile;
+  final CompanyProfileProvider companyProvider;
+  final DashboardSnapshot snapshot;
+  final List<Widget> statCards;
+  final List<InventoryMovementPoint> movementPoints;
+  final AlertsProvider alertsProvider;
+  final StockRequestsProvider requestsProvider;
+  final BuildContext contextForRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    final statCrossAxisCount = width < 900 ? 1 : width < 1260 ? 2 : 3;
+    final statAspectRatio = width >= 1260 ? 1.22 : width >= 900 ? 1.08 : 1.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _OverviewHero(
+          snapshot: snapshot,
+          unreadAlerts: alertsProvider.unreadAlertsCount,
+        ),
+        const SizedBox(height: 16),
+        if (!companyProvider.isComplete) ...[
+          const _InlineSetupBanner(),
+          const SizedBox(height: 16),
+        ],
+        _SectionTitle(
+          title: 'Visión general',
+          subtitle: 'Indicadores clave de inventario y operación.',
+        ),
+        const SizedBox(height: 12),
+        if (isMobile)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final card in statCards) ...[
+                card,
+                const SizedBox(height: 14),
+              ],
+            ],
+          )
+        else
+          GridView.count(
+            crossAxisCount: statCrossAxisCount,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: statAspectRatio,
+            children: statCards,
+          ),
+        const SizedBox(height: 16),
+        _PremiumMetricBand(
+          title: 'Salud operativa',
+          subtitle: 'Cobertura, alertas y riesgo de vencimiento en una sola lectura.',
+          isMobile: isMobile,
+          children: [
+            _ExecutiveKpi(
+              title: 'Stock health score',
+              value: '${snapshot.stockHealthScore.toStringAsFixed(0)}%',
+              helper: 'Cobertura saludable del catálogo',
+            ),
+            _ExecutiveKpi(
+              title: 'Alertas sin leer',
+              value: alertsProvider.unreadAlertsCount.toString(),
+              helper: 'Pendientes de revisión del equipo',
+            ),
+            _ExecutiveKpi(
+              title: 'Productos vencidos',
+              value: snapshot.expiredProducts.toString(),
+              helper: 'Requieren revisión inmediata',
+            ),
+          ],
+        ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
+        const SizedBox(height: 16),
+        _PremiumMetricBand(
+          title: 'Flujo diario',
+          subtitle: 'Movimiento, reposición y productos con mayor actividad.',
+          isMobile: isMobile,
+          trailing: snapshot.topMovedProductNames.isNotEmpty
+              ? Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: snapshot.topMovedProductNames
+                      .map((name) => _movementChip(context, name))
+                      .toList(),
+                )
+              : null,
+          children: [
+            _ExecutiveKpi(
+              title: 'Entradas hoy',
+              value: '${snapshot.entriesToday}',
+              helper: 'Unidades ingresadas hoy',
+            ),
+            _ExecutiveKpi(
+              title: 'Salidas hoy',
+              value: '${snapshot.exitsToday}',
+              helper: 'Unidades retiradas hoy',
+            ),
+            _ExecutiveKpi(
+              title: 'Solicitudes pendientes',
+              value: '${snapshot.pendingRequests}',
+              helper: 'Reposiciones esperando gestión',
+            ),
+            _ExecutiveKpi(
+              title: 'Críticos sin solicitud',
+              value: '${snapshot.criticalWithoutRequest}',
+              helper: 'Stock bajo sin reposición',
+            ),
+          ],
+        ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
+        const SizedBox(height: 16),
+        _InsightCard(
+          title: 'Reposición',
+          subtitle:
+              'Solicitudes abiertas, completadas y productos que más reposición concentran esta semana.',
+          isMobile: isMobile,
+          leading: _ExecutiveKpi(
+            title: 'Completadas esta semana',
+            value: '${snapshot.completedRequestsThisWeek}',
+            helper: 'Reposiciones cerradas recientemente',
+          ),
+          trailing: _LocationInsightBlock(
+            title: 'Productos con más reposiciones',
+            items: snapshot.productsWithMoreRequests,
+          ),
+        ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
+        const SizedBox(height: 16),
+        _InsightCard(
+          title: 'Distribución por ubicación',
+          subtitle:
+              'Lectura rápida de zonas con menos stock, productos agotados y movimientos recientes.',
+          isMobile: isMobile,
+          leading: _LocationInsightBlock(
+            title: 'Ubicaciones con menos stock',
+            items: snapshot.lowStockLocations
+                .map((item) => '${item.label} · ${item.quantity} unid.')
+                .toList(),
+          ),
+          middle: _LocationInsightBlock(
+            title: 'Agotados por ubicación',
+            items: snapshot.outOfStockByLocation,
+          ),
+          trailing: _LocationInsightBlock(
+            title: 'Movimientos por ubicación',
+            items: snapshot.movementLocationNames,
+          ),
+        ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
+        const SizedBox(height: 16),
+        if (width < 1100) ...[
+          InventoryMovementChartCard(points: movementPoints),
+          const SizedBox(height: 16),
+          _RecentProductsCard(products: snapshot.recentlyUpdatedProducts),
+          const SizedBox(height: 16),
+          RecentStockMovementsCard(movements: snapshot.recentMovements),
+          const SizedBox(height: 16),
+          ActivityFeedCard(
+            movements: snapshot.recentMovements,
+            alerts: alertsProvider.activeAlerts,
+            criticalProducts: snapshot.lowestStockProducts,
+          ),
+          const SizedBox(height: 16),
+          StockBarChartCard(products: snapshot.lowestStockProducts),
+          const SizedBox(height: 16),
+          CategoryChartCard(categories: snapshot.topCategories),
+          const SizedBox(height: 16),
+          LowStockList(
+            alerts: alertsProvider.activeAlerts.take(6).toList(),
+            onMarkAsRead: (alert) => alertsProvider.markAsRead(alert.id),
+            onResolve: (alert) => alertsProvider.resolveAlert(alert.id),
+            onCreateRequest: (alert) {
+              if (requestsProvider.hasPendingRequestForProduct(alert.productId)) {
+                return;
+              }
+              showStockRequestDialog(
+                contextForRequest,
+                initialProductId: alert.productId,
+              );
+            },
+            canCreateRequest: (alert) =>
+                !requestsProvider.hasPendingRequestForProduct(alert.productId),
+          ),
+        ] else
+          Column(
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 7,
+                    child: InventoryMovementChartCard(points: movementPoints),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 5,
+                    child: _RecentProductsCard(
+                      products: snapshot.recentlyUpdatedProducts,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: RecentStockMovementsCard(
+                      movements: snapshot.recentMovements,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 7,
+                    child: StockBarChartCard(
+                      products: snapshot.lowestStockProducts,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ActivityFeedCard(
+                movements: snapshot.recentMovements,
+                alerts: alertsProvider.activeAlerts,
+                criticalProducts: snapshot.lowestStockProducts,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: LowStockList(
+                      alerts: alertsProvider.activeAlerts.take(6).toList(),
+                      onMarkAsRead: (alert) => alertsProvider.markAsRead(alert.id),
+                      onResolve: (alert) => alertsProvider.resolveAlert(alert.id),
+                      onCreateRequest: (alert) {
+                        if (requestsProvider
+                            .hasPendingRequestForProduct(alert.productId)) {
+                          return;
+                        }
+                        showStockRequestDialog(
+                          contextForRequest,
+                          initialProductId: alert.productId,
+                        );
+                      },
+                      canCreateRequest: (alert) => !requestsProvider
+                          .hasPendingRequestForProduct(alert.productId),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 7,
+                    child: CategoryChartCard(categories: snapshot.topCategories),
+                  ),
+                ],
+              ),
+            ],
+          ),
+      ],
+    );
   }
 
   Widget _movementChip(BuildContext context, String label) {
@@ -672,6 +492,7 @@ class DashboardScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.primary.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.10)),
       ),
       child: Text(
         label,
@@ -682,6 +503,357 @@ class DashboardScreen extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
       ),
+    );
+  }
+}
+
+class _OverviewHero extends StatelessWidget {
+  const _OverviewHero({
+    required this.snapshot,
+    required this.unreadAlerts,
+  });
+
+  final DashboardSnapshot snapshot;
+  final int unreadAlerts;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      borderRadius: 30,
+      gradient: LinearGradient(
+        colors: [
+          AppTheme.brand.withValues(alpha: 0.18),
+          AppTheme.brandViolet.withValues(alpha: 0.12),
+          Theme.of(context).colorScheme.surface.withValues(alpha: 0.96),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 860;
+          final metrics = [
+            _HeroMetric(
+              label: 'Movimientos',
+              value: snapshot.recentMovements.length.toString(),
+            ),
+            _HeroMetric(
+              label: 'Alertas sin leer',
+              value: unreadAlerts.toString(),
+            ),
+            _HeroMetric(
+              label: 'Cobertura',
+              value: '${snapshot.stockHealthScore.toStringAsFixed(0)}%',
+            ),
+          ];
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _HeroHeading(),
+                const SizedBox(height: 18),
+                ...metrics.expand((item) => [item, const SizedBox(height: 12)]).toList()
+                  ..removeLast(),
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(flex: 5, child: _HeroHeading()),
+              const SizedBox(width: 18),
+              Expanded(
+                flex: 4,
+                child: Column(
+                  children: [
+                    for (final metric in metrics) ...[
+                      metric,
+                      const SizedBox(height: 12),
+                    ],
+                  ]..removeLast(),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HeroHeading extends StatelessWidget {
+  const _HeroHeading();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.54),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            'Panel ejecutivo',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Tu operación se ve más clara cuando el inventario respira bien.',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            letterSpacing: -0.9,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Monitorea ritmo de stock, alertas activas y puntos críticos desde una vista preparada para decisiones rápidas.',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.76),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroMetric extends StatelessWidget {
+  const _HeroMetric({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          Text(
+            value,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              letterSpacing: -0.8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PremiumMetricBand extends StatelessWidget {
+  const _PremiumMetricBand({
+    required this.title,
+    required this.subtitle,
+    required this.isMobile,
+    required this.children,
+    this.trailing,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool isMobile;
+  final List<Widget> children;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      gradient: LinearGradient(
+        colors: [
+          AppTheme.brand.withValues(alpha: 0.12),
+          AppTheme.brandViolet.withValues(alpha: 0.07),
+          Theme.of(context).colorScheme.surface.withValues(alpha: 0.98),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionTitle(title: title, subtitle: subtitle, compact: true),
+          const SizedBox(height: 16),
+          if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final child in children) ...[
+                  child,
+                  const SizedBox(height: 16),
+                ],
+                if (trailing != null) trailing!,
+              ],
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: children
+                      .map(
+                        (child) => SizedBox(
+                          width: 220,
+                          child: child,
+                        ),
+                      )
+                      .toList(),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(height: 18),
+                  trailing!,
+                ],
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightCard extends StatelessWidget {
+  const _InsightCard({
+    required this.title,
+    required this.subtitle,
+    required this.isMobile,
+    required this.leading,
+    this.middle,
+    this.trailing,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool isMobile;
+  final Widget leading;
+  final Widget? middle;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final blocks = [
+      leading,
+      if (middle != null) middle!,
+      if (trailing != null) trailing!,
+    ];
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionTitle(title: title, subtitle: subtitle, compact: true),
+          const SizedBox(height: 16),
+          if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final block in blocks) ...[
+                  block,
+                  const SizedBox(height: 16),
+                ],
+              ]..removeLast(),
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: blocks
+                  .map(
+                    (block) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: block,
+                      ),
+                    ),
+                  )
+                  .toList()
+                ..removeLast()
+                ..add(Expanded(child: blocks.last)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineSetupBanner extends StatelessWidget {
+  const _InlineSetupBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      gradient: LinearGradient(
+        colors: [
+          AppTheme.brand.withValues(alpha: 0.12),
+          AppTheme.brandViolet.withValues(alpha: 0.06),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Personaliza tu espacio',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Completa el perfil de empresa desde Ajustes > Empresa para mostrar el nombre y logo de tu negocio en reportes y centro de inventario.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({
+    required this.title,
+    required this.subtitle,
+    this.compact = false,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: compact ? theme.textTheme.titleLarge : theme.textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -700,20 +872,33 @@ class _ExecutiveKpi extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.78),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.78),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(value, style: theme.textTheme.headlineMedium),
-        const SizedBox(height: 6),
-        Text(helper, style: theme.textTheme.bodyMedium),
-      ],
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              letterSpacing: -0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(helper, style: theme.textTheme.bodyMedium),
+        ],
+      ),
     );
   }
 }
@@ -796,30 +981,123 @@ class _RecentProductsCard extends StatelessWidget {
                 title: 'Sin actividad reciente',
                 subtitle: 'Los últimos productos editados aparecerán aquí.',
                 icon: Icons.inventory_2_outlined,
+                compact: true,
               ),
             )
           else
             ...products.map(
-              (product) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  backgroundColor:
-                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                  child: Icon(
-                    Icons.inventory_2_outlined,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+              (product) => Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
                 ),
-                title: Text(product.name),
-                subtitle: Text(product.category),
-                trailing: Text(
-                  '${product.totalStock} unid.',
-                  style: theme.textTheme.labelLarge,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor:
+                        theme.colorScheme.primary.withValues(alpha: 0.12),
+                    child: Icon(
+                      Icons.inventory_2_outlined,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  title: Text(product.name),
+                  subtitle: Text(product.category),
+                  trailing: Text(
+                    '${product.totalStock} unid.',
+                    style: theme.textTheme.labelLarge,
+                  ),
                 ),
               ),
             ),
         ],
       ),
+    );
+  }
+}
+
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SkeletonBlock(height: 180, radius: 30),
+        const SizedBox(height: 16),
+        GridView.count(
+          crossAxisCount: MediaQuery.sizeOf(context).width < 900 ? 1 : 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.18,
+          children: List.generate(
+            MediaQuery.sizeOf(context).width < 900 ? 3 : 6,
+            (_) => const _SkeletonBlock(height: 160, radius: 28),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const _SkeletonBlock(height: 220, radius: 28),
+        const SizedBox(height: 16),
+        const _SkeletonBlock(height: 220, radius: 28),
+      ],
+    );
+  }
+}
+
+class _SkeletonBlock extends StatefulWidget {
+  const _SkeletonBlock({
+    required this.height,
+    required this.radius,
+  });
+
+  final double height;
+  final double radius;
+
+  @override
+  State<_SkeletonBlock> createState() => _SkeletonBlockState();
+}
+
+class _SkeletonBlockState extends State<_SkeletonBlock>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1300),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final pulse = 0.12 + (_controller.value * 0.08);
+        return Container(
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.radius),
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.surfaceContainerHighest.withValues(alpha: pulse),
+                theme.colorScheme.surfaceContainerHighest.withValues(alpha: pulse + 0.06),
+                theme.colorScheme.surfaceContainerHighest.withValues(alpha: pulse),
+              ],
+            ),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+        );
+      },
     );
   }
 }
@@ -831,19 +1109,16 @@ class _DashboardErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(
-              Icons.error_outline_rounded,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
+    return SectionCard(
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(message)),
+        ],
       ),
     );
   }

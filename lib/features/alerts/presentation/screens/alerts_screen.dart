@@ -5,6 +5,7 @@ import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/services/report_export_service.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/export_feedback.dart';
+import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
@@ -97,7 +98,7 @@ class AlertsScreen extends StatelessWidget {
               children: metrics,
             ),
           SizedBox(height: isSmallPhone ? 12 : 16),
-          Card(
+          SectionCard(
             child: Padding(
               padding: EdgeInsets.all(isSmallPhone ? 16 : 18),
               child: Wrap(
@@ -117,7 +118,7 @@ class AlertsScreen extends StatelessWidget {
           ),
           SizedBox(height: isSmallPhone ? 12 : 16),
           if (provider.isLoading && !provider.hasAlerts)
-            const Card(
+            const SectionCard(
               child: SizedBox(
                 height: 320,
                 child: Center(
@@ -132,7 +133,7 @@ class AlertsScreen extends StatelessWidget {
               ),
             )
           else if (!provider.isLoading && provider.visibleAlerts.isEmpty)
-            Card(
+            SectionCard(
               child: SizedBox(
                 height: 320,
                 child: EmptyState(
@@ -143,6 +144,7 @@ class AlertsScreen extends StatelessWidget {
                       ? 'Cuando resuelvas incidencias, quedarán registradas aquí.'
                       : 'Tus productos están en un nivel saludable o aún no requieren seguimiento.',
                   icon: Icons.notifications_none_rounded,
+                  compact: true,
                 ),
               ),
             )
@@ -221,66 +223,64 @@ class _AlertMetric extends StatelessWidget {
     final width = MediaQuery.sizeOf(context).width;
     final isSmallPhone = width < 480;
     final isMobile = width < 760;
-    return Container(
-      width: double.infinity,
-      constraints: BoxConstraints(minHeight: isSmallPhone ? 120 : isMobile ? 148 : 0),
+    return SectionCard(
+      interactive: true,
       padding: EdgeInsets.all(isSmallPhone ? 16 : isMobile ? 16 : 20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(isMobile ? 24 : 22),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: isSmallPhone ? 42 : null,
-                height: isSmallPhone ? 42 : null,
-                padding: EdgeInsets.all(isSmallPhone ? 8 : isMobile ? 9 : 10),
-                decoration: BoxDecoration(
-                  color: colorScheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+      borderRadius: isMobile ? 24 : 22,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: isSmallPhone ? 120 : isMobile ? 148 : 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: isSmallPhone ? 42 : 46,
+                  height: isSmallPhone ? 42 : 46,
+                  padding: EdgeInsets.all(isSmallPhone ? 8 : isMobile ? 9 : 10),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: colorScheme.primary,
+                    size: isSmallPhone ? 22 : isMobile ? 20 : 24,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  color: colorScheme.primary,
-                  size: isSmallPhone ? 22 : isMobile ? 20 : 24,
+                const Spacer(),
+                Text(
+                  value,
+                  style: (isMobile
+                          ? theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            )
+                          : theme.textTheme.headlineMedium)
+                      ?.copyWith(fontSize: isSmallPhone ? 30 : null),
                 ),
-              ),
-              const Spacer(),
-              Text(
-                value,
-                style: (isMobile
-                    ? theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      )
-                    : theme.textTheme.headlineMedium)
-                    ?.copyWith(fontSize: isSmallPhone ? 30 : null),
-              ),
-            ],
-          ),
-          SizedBox(height: isSmallPhone ? 10 : isMobile ? 12 : 16),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontSize: isSmallPhone ? 17 : null,
+              ],
             ),
-          ),
-          SizedBox(height: isSmallPhone ? 4 : isMobile ? 6 : 8),
-          Text(
-            helper,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: (isMobile ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium)
-                ?.copyWith(fontSize: isSmallPhone ? 13 : null),
-          ),
-        ],
+            SizedBox(height: isSmallPhone ? 10 : isMobile ? 12 : 16),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontSize: isSmallPhone ? 17 : null,
+              ),
+            ),
+            SizedBox(height: isSmallPhone ? 4 : isMobile ? 6 : 8),
+            Text(
+              helper,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: (isMobile ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium)
+                  ?.copyWith(fontSize: isSmallPhone ? 13 : null),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -293,19 +293,16 @@ class _AlertsErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(
-              Icons.error_outline_rounded,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
+    return SectionCard(
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(message)),
+        ],
       ),
     );
   }

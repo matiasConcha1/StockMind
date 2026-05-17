@@ -49,7 +49,7 @@ class _ScanProductScreenState extends State<ScanProductScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (!auth.canEdit)
+          if (!auth.canManageInventory)
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(24),

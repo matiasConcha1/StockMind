@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
+import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/features/products/models/product.dart';
 import 'package:stockmind/features/products/presentation/widgets/stock_status_badge.dart';
 
@@ -28,7 +29,7 @@ class ProductTable extends StatelessWidget {
     final currency = NumberFormat.currency(symbol: '\$');
 
     if (products.isEmpty) {
-      return const Card(
+      return const SectionCard(
         child: SizedBox(
           height: 320,
           child: EmptyState(
@@ -36,6 +37,7 @@ class ProductTable extends StatelessWidget {
             subtitle:
                 'Crea tu primer producto para comenzar a operar con inventario real.',
             icon: Icons.inventory_2_outlined,
+            compact: true,
           ),
         ),
       );
@@ -232,7 +234,7 @@ class _DesktopProductRowState extends State<_DesktopProductRow> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Minimo ${product.minStock}',
+                    'Mínimo ${product.minStock}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -441,7 +443,7 @@ class _CompactProductCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  'Minimo ${product.minStock}',
+                  'Mínimo ${product.minStock}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurface.withValues(alpha: 0.68),
                   ),
@@ -517,10 +519,7 @@ class _InfoPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: danger
             ? Theme.of(context).colorScheme.error.withValues(alpha: 0.12)
-            : Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest
-                .withValues(
+            : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(
                   alpha: 0.42,
                 ),
         borderRadius: BorderRadius.circular(999),

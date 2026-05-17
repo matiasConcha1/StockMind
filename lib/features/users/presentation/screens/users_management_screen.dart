@@ -36,15 +36,15 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
       title: 'Usuarios',
       subtitle: 'Gestiona usuarios, roles y el estado operativo del sistema.',
       onBackPressed: () => context.go(AppRoutePaths.dashboard),
-      backLabel: 'Volver al dashboard',
+      backLabel: 'Volver al centro de inventario',
       child: PermissionGuard(
         allowed: userProvider.canManageUsers,
-        actionLabel: 'Volver al dashboard',
+        actionLabel: 'Volver al centro de inventario',
         onAction: () => context.go(AppRoutePaths.dashboard),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Card(
+            SectionCard(
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: TextField(
@@ -65,21 +65,22 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                   debugPrint(
                     'UsersManagementScreen.watchUsers error: ${snapshot.error}',
                   );
-                  return const Card(
+                  return const SectionCard(
                     child: SizedBox(
                       height: 240,
                       child: EmptyState(
                         title: 'No se pudieron cargar los usuarios',
                         subtitle:
-                            'Revisa tu conexiÃ³n o los permisos de Firestore.',
+                            'Revisa tu conexión o los permisos de Firestore.',
                         icon: Icons.group_off_outlined,
+                        compact: true,
                       ),
                     ),
                   );
                 }
 
                 if (!snapshot.hasData) {
-                  return const Card(
+                  return const SectionCard(
                     child: SizedBox(
                       height: 240,
                       child: Center(child: CircularProgressIndicator()),
@@ -97,14 +98,15 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                 }).toList();
 
                 if (users.isEmpty) {
-                  return const Card(
+                  return const SectionCard(
                     child: SizedBox(
                       height: 240,
                       child: EmptyState(
                         title: 'No hay usuarios registrados',
                         subtitle:
-                            'Ajusta la bÃºsqueda para encontrar usuarios registrados.',
+                            'Ajusta la búsqueda para encontrar usuarios registrados.',
                         icon: Icons.manage_accounts_outlined,
+                        compact: true,
                       ),
                     ),
                   );
@@ -204,9 +206,9 @@ class _UserCard extends StatelessWidget {
             runSpacing: 10,
             children: [
               _pill(context, Icons.admin_panel_settings_outlined,
-                  role == 'admin' ? 'Administrador' : 'Trabajador'),
+                  _roleLabel(role)),
               _pill(context, Icons.calendar_today_outlined, 'Creado: $createdAt'),
-              _pill(context, Icons.login_rounded, 'Ãšltimo acceso: $lastLoginAt'),
+              _pill(context, Icons.login_rounded, 'Último acceso: $lastLoginAt'),
             ],
           ),
           const SizedBox(height: 16),
@@ -228,8 +230,16 @@ class _UserCard extends StatelessWidget {
                         child: Text('Administrador'),
                       ),
                       DropdownMenuItem(
+                        value: 'editor',
+                        child: Text('Editor'),
+                      ),
+                      DropdownMenuItem(
                         value: 'operator',
-                        child: Text('Trabajador'),
+                        child: Text('Operador'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'viewer',
+                        child: Text('Visualizador'),
                       ),
                     ],
                     onChanged: isSelf
@@ -387,8 +397,30 @@ class _UserCard extends StatelessWidget {
 
   static String _normalizeRole(dynamic value) {
     final role = (value is String ? value : '').trim().toLowerCase();
-    if (role == 'admin') return 'admin';
-    return 'operator';
+    switch (role) {
+      case 'admin':
+      case 'editor':
+      case 'operator':
+      case 'viewer':
+        return role;
+      default:
+        return 'viewer';
+    }
+  }
+
+  static String _roleLabel(String role) {
+    switch (role) {
+      case 'admin':
+        return 'Administrador';
+      case 'editor':
+        return 'Editor';
+      case 'operator':
+        return 'Operador';
+      case 'viewer':
+        return 'Visualizador';
+      default:
+        return 'Usuario';
+    }
   }
 
   static String _formatDate(dynamic value) {

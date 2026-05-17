@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
+import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/permission_guard.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
@@ -54,54 +55,70 @@ class _CompanyScreenState extends State<CompanyScreen> {
       backLabel: 'Volver a ajustes',
       child: PermissionGuard(
         allowed: auth.canManageSettings,
-        actionLabel: 'Volver al dashboard',
+        actionLabel: 'Volver al centro de inventario',
         onAction: () => context.go(AppRoutePaths.dashboard),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isMobile = constraints.maxWidth < 760;
-                      final form = _buildForm(context, profile);
-                      final preview = _buildLogoPreview(context, profile);
-                      if (isMobile) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            preview,
-                            const SizedBox(height: 18),
-                            form,
-                          ],
-                        );
-                      }
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(width: 240, child: preview),
-                          const SizedBox(width: 18),
-                          Expanded(child: form),
-                        ],
-                      );
-                    },
+        child: provider.requiresCompanyProfile || provider.hasProfile
+            ? Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 760;
+                            final form = _buildForm(context, profile);
+                            final preview = _buildLogoPreview(context, profile);
+                            if (isMobile) {
+                              return Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.stretch,
+                                children: [
+                                  preview,
+                                  const SizedBox(height: 18),
+                                  form,
+                                ],
+                              );
+                            }
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(width: 240, child: preview),
+                                const SizedBox(width: 18),
+                                Expanded(child: form),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: provider.isLoading ? null : _save,
+                      icon: const Icon(Icons.save_outlined),
+                      label: Text(
+                        provider.isLoading
+                            ? 'Guardando...'
+                            : 'Guardar empresa',
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : const Card(
+                child: SizedBox(
+                  height: 300,
+                  child: EmptyState(
+                    title: 'Perfil de empresa opcional',
+                    subtitle:
+                        'Tu cuenta personal puede operar sin company profile. Si luego trabajas con una marca o negocio, podrás completarlo desde aquí.',
+                    icon: Icons.storefront_outlined,
+                    compact: true,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: provider.isLoading ? null : _save,
-                icon: const Icon(Icons.save_outlined),
-                label: Text(
-                  provider.isLoading ? 'Guardando...' : 'Guardar empresa',
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

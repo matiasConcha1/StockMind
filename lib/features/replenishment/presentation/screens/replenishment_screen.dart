@@ -56,7 +56,8 @@ class _ReplenishmentScreenState extends State<ReplenishmentScreen> {
           label: const Text('Exportar'),
         ),
         FilledButton.icon(
-          onPressed: auth.canEdit ? () => showStockRequestDialog(context) : null,
+          onPressed:
+              auth.canCreateRequests ? () => showStockRequestDialog(context) : null,
           icon: const Icon(Icons.add_rounded),
           label: const Text('Nueva solicitud'),
         ),

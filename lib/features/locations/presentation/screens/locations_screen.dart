@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
+import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
@@ -28,7 +29,9 @@ class LocationsScreen extends StatelessWidget {
       actions: [
         FilledButton.icon(
           onPressed:
-              provider.isLoading || !auth.canEdit ? null : () => _openDialog(context),
+              provider.isLoading || !auth.canManageLocations
+                  ? null
+                  : () => _openDialog(context),
           icon: const Icon(Icons.add_location_alt_outlined),
           label: const Text('Nueva ubicación'),
         ),
@@ -40,7 +43,7 @@ class LocationsScreen extends StatelessWidget {
             const SizedBox(height: 16),
           ],
           if (provider.isLoading && !provider.hasLocations)
-            const Card(
+            const SectionCard(
               child: SizedBox(
                 height: 320,
                 child: Center(
@@ -55,7 +58,7 @@ class LocationsScreen extends StatelessWidget {
               ),
             )
           else if (!provider.isLoading && !provider.hasLocations)
-            const Card(
+            SectionCard(
               child: SizedBox(
                 height: 320,
                 child: EmptyState(
@@ -63,6 +66,12 @@ class LocationsScreen extends StatelessWidget {
                   subtitle:
                       'Crea espacios físicos para distribuir productos y controlar stock real por ubicación.',
                   icon: Icons.place_outlined,
+                  actionLabel:
+                      auth.canManageLocations ? 'Crear ubicación' : null,
+                  onAction: auth.canManageLocations
+                      ? () => _openDialog(context)
+                      : null,
+                  compact: true,
                 ),
               ),
             )
@@ -85,7 +94,7 @@ class LocationsScreen extends StatelessWidget {
                   location: location,
                   productCount: productCount,
                   totalUnits: totalUnits,
-                  canEdit: auth.canEdit,
+                  canEdit: auth.canManageLocations,
                   canDelete: auth.canDelete,
                   onOpen: () => _openDetail(context, location),
                   onEdit: () => _openDialog(context, location: location),
@@ -212,94 +221,90 @@ class _LocationCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
+    return SectionCard(
+      interactive: true,
+      onTap: onOpen,
+      borderRadius: 26,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  RemoteImageFrame(
-                    size: 64,
-                    imageUrl: location.imageUrl,
-                    icon: _iconForType(location.type),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(location.name, style: theme.textTheme.titleLarge),
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            _capitalize(location.type),
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (canEdit || canDelete)
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'edit') onEdit();
-                        if (value == 'delete') onDelete();
-                      },
-                      itemBuilder: (context) => [
-                        if (canEdit)
-                          const PopupMenuItem(
-                            value: 'edit',
-                            child: Text('Editar'),
-                          ),
-                        if (canDelete)
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: Text('Eliminar'),
-                          ),
-                      ],
-                    ),
-                ],
+              RemoteImageFrame(
+                size: 64,
+                imageUrl: location.imageUrl,
+                icon: _iconForType(location.type),
+                borderRadius: BorderRadius.circular(18),
               ),
-              const SizedBox(height: 16),
-              Text(
-                location.description.isEmpty
-                    ? 'Sin descripción adicional.'
-                    : location.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.72),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(location.name, style: theme.textTheme.titleLarge),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        _capitalize(location.type),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _Pill(label: '$productCount productos'),
-                  _Pill(label: '$totalUnits unidades'),
-                ],
-              ),
+              if (canEdit || canDelete)
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') onEdit();
+                    if (value == 'delete') onDelete();
+                  },
+                  itemBuilder: (context) => [
+                    if (canEdit)
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Text('Editar'),
+                      ),
+                    if (canDelete)
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Eliminar'),
+                      ),
+                  ],
+                ),
             ],
           ),
-        ),
+          const SizedBox(height: 16),
+          Text(
+            location.description.isEmpty
+                ? 'Sin descripción adicional.'
+                : location.description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.72),
+            ),
+          ),
+          const Spacer(),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _Pill(label: '$productCount productos'),
+              _Pill(label: '$totalUnits unidades'),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -350,19 +355,16 @@ class _LocationsErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(
-              Icons.error_outline_rounded,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
+    return SectionCard(
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(message)),
+        ],
       ),
     );
   }

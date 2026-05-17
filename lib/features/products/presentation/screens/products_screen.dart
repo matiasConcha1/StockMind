@@ -6,6 +6,7 @@ import 'package:stockmind/core/services/report_export_service.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/export_feedback.dart';
+import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/company/providers/company_profile_provider.dart';
@@ -29,7 +30,7 @@ class ProductsScreen extends StatelessWidget {
     return DashboardFrame(
       title: 'Productos',
       subtitle:
-          'Gestiona tu catalogo por usuario, con filtros, exportacion y control inteligente del stock.',
+          'Gestiona tu catálogo con filtros, exportación y control inteligente del stock.',
       actions: [
         FilledButton.tonalIcon(
           onPressed: exportItems.isEmpty || !auth.canExport
@@ -60,19 +61,21 @@ class ProductsScreen extends StatelessWidget {
           label: const Text('Exportar PDF'),
         ),
         FilledButton.icon(
-          onPressed: provider.isLoading || !auth.canEdit
+          onPressed: provider.isLoading || !auth.canManageCatalog
               ? null
               : () => _openDialog(context),
           icon: const Icon(Icons.add_rounded),
           label: const Text('Nuevo producto'),
         ),
         FilledButton.tonalIcon(
-          onPressed: auth.canEdit ? () => context.go(AppRoutePaths.scan) : null,
+          onPressed: auth.canManageInventory
+              ? () => context.go(AppRoutePaths.scan)
+              : null,
           icon: const Icon(Icons.qr_code_scanner_rounded),
           label: const Text('Escanear'),
         ),
         FilledButton.tonalIcon(
-          onPressed: auth.canEdit
+          onPressed: auth.canCreateRequests
               ? () => context.go(AppRoutePaths.replenishment)
               : null,
           icon: const Icon(Icons.add_alert_outlined),
@@ -90,7 +93,7 @@ class ProductsScreen extends StatelessWidget {
                 _ProductsErrorBanner(message: provider.error!),
                 const SizedBox(height: 16),
               ],
-              Card(
+              SectionCard(
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: useStackedFilters
@@ -100,7 +103,7 @@ class ProductsScreen extends StatelessWidget {
                             TextField(
                               onChanged: provider.updateSearchQuery,
                               decoration: const InputDecoration(
-                                hintText: 'Buscar por nombre, categoria o estado',
+                                hintText: 'Buscar por nombre, categoría o estado',
                                 prefixIcon: Icon(Icons.search_rounded),
                               ),
                             ),
@@ -108,7 +111,7 @@ class ProductsScreen extends StatelessWidget {
                             DropdownButtonFormField<String?>(
                               initialValue: provider.categoryFilter,
                               decoration: const InputDecoration(
-                                labelText: 'Categoria',
+                                labelText: 'Categoría',
                                 prefixIcon: Icon(Icons.category_outlined),
                               ),
                               items: [
@@ -139,7 +142,7 @@ class ProductsScreen extends StatelessWidget {
                                   onChanged: provider.updateSearchQuery,
                                   decoration: const InputDecoration(
                                     hintText:
-                                        'Buscar por nombre, categoria o estado',
+                                        'Buscar por nombre, categoría o estado',
                                     prefixIcon: Icon(Icons.search_rounded),
                                   ),
                                 ),
@@ -151,7 +154,7 @@ class ProductsScreen extends StatelessWidget {
                                       child: DropdownButtonFormField<String?>(
                                         initialValue: provider.categoryFilter,
                                         decoration: const InputDecoration(
-                                          labelText: 'Categoria',
+                                          labelText: 'Categoría',
                                           prefixIcon:
                                               Icon(Icons.category_outlined),
                                         ),
@@ -193,7 +196,7 @@ class ProductsScreen extends StatelessWidget {
                               child: TextField(
                                 onChanged: provider.updateSearchQuery,
                                 decoration: const InputDecoration(
-                                  hintText: 'Buscar por nombre, categoria o estado',
+                                  hintText: 'Buscar por nombre, categoría o estado',
                                   prefixIcon: Icon(Icons.search_rounded),
                                 ),
                               ),
@@ -204,7 +207,7 @@ class ProductsScreen extends StatelessWidget {
                               child: DropdownButtonFormField<String?>(
                                 initialValue: provider.categoryFilter,
                                 decoration: const InputDecoration(
-                                  labelText: 'Categoria',
+                                  labelText: 'Categoría',
                                   prefixIcon: Icon(Icons.category_outlined),
                                 ),
                                 items: [
@@ -239,7 +242,7 @@ class ProductsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               if (provider.isLoading && !provider.hasProducts)
-                const Card(
+                const SectionCard(
                   child: SizedBox(
                     height: 320,
                     child: Center(
@@ -256,14 +259,15 @@ class ProductsScreen extends StatelessWidget {
               else if (!provider.isLoading &&
                   provider.hasProducts &&
                   provider.filteredProducts.isEmpty)
-                const Card(
+                const SectionCard(
                   child: SizedBox(
                     height: 320,
                     child: EmptyState(
                       title: 'Sin coincidencias',
                       subtitle:
-                          'No encontramos productos con los filtros actuales. Ajusta la busqueda o la categoria.',
+                          'No encontramos productos con los filtros actuales. Ajusta la búsqueda o la categoría.',
                       icon: Icons.filter_alt_off_outlined,
+                      compact: true,
                     ),
                   ),
                 )
@@ -272,11 +276,11 @@ class ProductsScreen extends StatelessWidget {
                   children: [
                     ProductTable(
                       products: provider.filteredProducts,
-                      canEdit: auth.canEdit,
+                      canEdit: auth.canManageCatalog,
                       canDelete: auth.canDelete,
                       onEdit: (product) => _openDialog(context, product: product),
                       onDelete: (product) => _confirmDelete(context, product),
-                      onRequestReplenishment: auth.canEdit
+                      onRequestReplenishment: auth.canCreateRequests
                           ? (product) => showStockRequestDialog(
                                 context,
                                 initialProduct: product,
@@ -429,7 +433,7 @@ class ProductsScreen extends StatelessWidget {
       noDataMessage:
           'Necesitas productos visibles en el filtro actual para exportar.',
       successMessage:
-          'El stock distribuido por ubicaciÃ³n fue descargado correctamente.',
+          'El stock distribuido por ubicación fue descargado correctamente.',
       task: () => ReportExportService().exportLocationStockCsv(
         products: context.read<ProductsProvider>().filteredProducts,
         userName: auth.user?.displayName ?? auth.user?.email,
@@ -449,7 +453,7 @@ class ProductsScreen extends StatelessWidget {
       await showAppAlertDialog(
         context,
         type: AppAlertType.success,
-        title: 'Exportacion completada',
+        title: 'Exportación completada',
         message: successMessage,
       );
     } catch (error) {
@@ -460,7 +464,7 @@ class ProductsScreen extends StatelessWidget {
         title: 'No se pudo exportar',
         message: error.toString().trim().isNotEmpty
             ? error.toString().trim()
-            : 'No pudimos completar la exportacion. Intentalo nuevamente.',
+            : 'No pudimos completar la exportación. Inténtalo nuevamente.',
       );
     }
   }
@@ -557,19 +561,16 @@ class _ProductsErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(
-              Icons.error_outline_rounded,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
+    return SectionCard(
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(message)),
+        ],
       ),
     );
   }

@@ -9,6 +9,7 @@ import 'package:stockmind/core/widgets/export_feedback.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/company/providers/company_profile_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/dashboard/data/services/stock_movement_service.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
@@ -37,7 +38,7 @@ class _StockMovementsScreenState extends State<StockMovementsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final userId = auth.user?.id;
+    final companyId = context.watch<CurrentCompanyProvider>().companyId;
 
     return DashboardFrame(
       title: 'Movimientos',
@@ -47,7 +48,7 @@ class _StockMovementsScreenState extends State<StockMovementsScreen> {
           'Revisa entradas, salidas, ajustes y eventos especiales del inventario en tiempo real.',
       actions: [
         FilledButton.tonalIcon(
-          onPressed: userId == null || !auth.canExport
+          onPressed: companyId == null || !auth.canExport
               ? null
               : () => _exportMovements(context),
           icon: const Icon(Icons.download_rounded),
@@ -59,7 +60,7 @@ class _StockMovementsScreenState extends State<StockMovementsScreen> {
         children: [
           _buildFilters(context),
           const SizedBox(height: 16),
-          if (userId == null)
+          if (companyId == null)
             const Card(
               child: SizedBox(
                 height: 260,
@@ -72,7 +73,7 @@ class _StockMovementsScreenState extends State<StockMovementsScreen> {
             )
           else
             StreamBuilder<List<StockMovement>>(
-              stream: StockMovementService().watchMovements(userId),
+              stream: StockMovementService().watchMovements(companyId),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Card(
