@@ -1,14 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:stockmind/core/services/company_scope_service.dart';
 
 class ActivityLogService {
-  ActivityLogService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  ActivityLogService({
+    FirebaseFirestore? firestore,
+    CompanyScopeService? scopeService,
+  }) : _scopeService =
+            scopeService ?? CompanyScopeService(firestore: firestore);
 
-  final FirebaseFirestore _firestore;
+  final CompanyScopeService _scopeService;
 
   Future<void> createLog({
-    required String userId,
+    required String companyId,
     required String action,
     required String entityType,
     required String entityId,
@@ -16,10 +20,8 @@ class ActivityLogService {
     required String description,
   }) async {
     try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('activity_logs')
+      await _scopeService
+          .companyCollection(companyId, 'activity_logs')
           .add({
         'action': action,
         'entityType': entityType,

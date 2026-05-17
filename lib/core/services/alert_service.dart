@@ -14,44 +14,44 @@ class AlertService {
   final StockAlertService _stockAlertService;
   final ActivityLogService _activityLogService;
 
-  Stream<List<StockAlert>> watchAlerts(String userId) {
-    return _stockAlertService.watchAlerts(userId);
+  Stream<List<StockAlert>> watchAlerts(String companyId) {
+    return _stockAlertService.watchAlerts(companyId);
   }
 
   Future<void> checkProductAlerts({
-    required String userId,
+    required String companyId,
     required Product product,
   }) {
-    return _stockAlertService.syncProductAlerts(userId, product);
+    return _stockAlertService.syncProductAlerts(companyId, product);
   }
 
   Future<void> checkAllProductAlerts({
-    required String userId,
+    required String companyId,
     required Iterable<Product> products,
   }) {
-    return _stockAlertService.syncAllProductAlerts(userId, products);
+    return _stockAlertService.syncAllProductAlerts(companyId, products);
   }
 
-  Future<void> deleteAlertsForProduct(String userId, String productId) {
-    return _stockAlertService.deleteAlertsForProduct(userId, productId);
+  Future<void> deleteAlertsForProduct(String companyId, String productId) {
+    return _stockAlertService.deleteAlertsForProduct(companyId, productId);
   }
 
   Future<void> resolveProductAlerts({
-    required String userId,
+    required String companyId,
     required String productId,
     required String resolvedBy,
   }) async {
     final activeAlerts =
-        await _stockAlertService.getActiveAlertsForProduct(userId, productId);
+        await _stockAlertService.getActiveAlertsForProduct(companyId, productId);
     await _stockAlertService.resolveActiveAlertsForProduct(
-      userId,
+      companyId,
       productId,
       resolvedBy: resolvedBy,
     );
     for (final alert in activeAlerts) {
       try {
         await _activityLogService.createLog(
-          userId: userId,
+          companyId: companyId,
           action: 'resolve_alert',
           entityType: 'alert',
           entityId: alert.id,
@@ -66,25 +66,25 @@ class AlertService {
     }
   }
 
-  Future<void> markAsRead(String userId, String alertId) {
-    return _stockAlertService.markAsRead(userId, alertId);
+  Future<void> markAsRead(String companyId, String alertId) {
+    return _stockAlertService.markAsRead(companyId, alertId);
   }
 
   Future<void> resolveAlert({
-    required String userId,
+    required String companyId,
     required String alertId,
     required String resolvedBy,
   }) async {
-    final alert = await _stockAlertService.getAlertById(userId, alertId);
+    final alert = await _stockAlertService.getAlertById(companyId, alertId);
     await _stockAlertService.resolveAlert(
-      userId,
+      companyId,
       alertId,
       resolvedBy: resolvedBy,
     );
     if (alert == null) return;
     try {
       await _activityLogService.createLog(
-        userId: userId,
+        companyId: companyId,
         action: 'resolve_alert',
         entityType: 'alert',
         entityId: alert.id,

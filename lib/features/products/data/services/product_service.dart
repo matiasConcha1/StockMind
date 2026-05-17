@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:stockmind/core/services/company_scope_service.dart';
 import 'package:stockmind/features/activity_logs/data/services/activity_log_service.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/products/helpers/product_code_helper.dart';
@@ -45,21 +46,25 @@ class ProductService {
   ProductService({
     FirebaseFirestore? firestore,
     ActivityLogService? activityLogService,
+    CompanyScopeService? scopeService,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _activityLogService = activityLogService ?? ActivityLogService();
+        _activityLogService = activityLogService ?? ActivityLogService(),
+        _scopeService =
+            scopeService ?? CompanyScopeService(firestore: firestore);
 
   final FirebaseFirestore _firestore;
   final ActivityLogService _activityLogService;
+  final CompanyScopeService _scopeService;
 
-  CollectionReference<Map<String, dynamic>> _collection(String userId) {
-    return _firestore.collection('users').doc(userId).collection('products');
+  CollectionReference<Map<String, dynamic>> _collection(String companyId) {
+    return _scopeService.companyCollection(companyId, 'products');
   }
 
-  String createProductId(String userId) => _collection(userId).doc().id;
+  String createProductId(String companyId) => _collection(companyId).doc().id;
 
-  Stream<List<Product>> watchProducts(String userId) {
-    debugPrint('ProductService.watchProducts: userId=$userId');
-    return _collection(userId)
+  Stream<List<Product>> watchProducts(String companyId) {
+    debugPrint('ProductService.watchProducts: companyId=$companyId');
+    return _collection(companyId)
         .orderBy('updatedAt', descending: true)
         .snapshots()
         .map(
@@ -70,26 +75,26 @@ class ProductService {
         );
   }
 
-  Future<void> createProduct(String userId, Product product) async {
+  Future<void> createProduct(String companyId, Product product) async {
     final docRef = product.id.isEmpty
-        ? _collection(userId).doc()
-        : _collection(userId).doc(product.id);
+        ? _collection(companyId).doc()
+        : _collection(companyId).doc(product.id);
     final productWithCodes = _ensureCodes(
       product.copyWith(id: docRef.id),
       fallbackProductId: docRef.id,
     );
     await _assertBarcodeAvailable(
-      userId: userId,
+      companyId: companyId,
       barcode: productWithCodes.barcode,
     );
     debugPrint(
-      'ProductService.createProduct: userId=$userId productId=${docRef.id}',
+      'ProductService.createProduct: companyId=$companyId productId=${docRef.id}',
     );
     await docRef.set(productWithCodes.toCreateMap());
   }
 
   Future<void> updateProduct(
-    String userId,
+    String companyId,
     Product product, {
     Product? previousProduct,
     String? stockChangeReason,
@@ -97,12 +102,12 @@ class ProductService {
     String? actorUserName,
   }) async {
     debugPrint(
-      'ProductService.updateProduct: userId=$userId productId=${product.id}',
+      'ProductService.updateProduct: companyId=$companyId productId=${product.id}',
     );
-    final productRef = _collection(userId).doc(product.id);
+    final productRef = _collection(companyId).doc(product.id);
     final productToUpdate = _ensureCodes(product, fallbackProductId: product.id);
     await _assertBarcodeAvailable(
-      userId: userId,
+      companyId: companyId,
       barcode: productToUpdate.barcode,
       excludeProductId: product.id,
     );
@@ -124,7 +129,7 @@ class ProductService {
     }
 
     final movements = _buildMovements(
-      userId: userId,
+      companyId: companyId,
       product: productToUpdate,
       previousProduct: previousProduct,
       stockChangeReason: stockChangeReason,
@@ -136,8 +141,8 @@ class ProductService {
     batch.update(productRef, productToUpdate.toUpdateMap());
     for (final movement in movements) {
       final ref = _firestore
-          .collection('users')
-          .doc(userId)
+          .collection('companies')
+          .doc(companyId)
           .collection('stock_movements')
           .doc(movement.id);
       batch.set(ref, movement.toMap());
@@ -145,23 +150,23 @@ class ProductService {
     await batch.commit();
   }
 
-  Future<void> ensureProductCodes(String userId, Product product) async {
+  Future<void> ensureProductCodes(String companyId, Product product) async {
     final withCodes = _ensureCodes(product, fallbackProductId: product.id);
     if (withCodes.barcode == product.barcode && withCodes.qrCode == product.qrCode) {
       return;
     }
-    await _collection(userId).doc(product.id).update({
+    await _collection(companyId).doc(product.id).update({
       'barcode': withCodes.barcode,
       'qrCode': withCodes.qrCode,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<ProductLookupResult?> findProductByCode(String userId, String code) async {
+  Future<ProductLookupResult?> findProductByCode(String companyId, String code) async {
     final normalized = code.trim();
     if (normalized.isEmpty) return null;
 
-    final barcodeSnapshot = await _collection(userId)
+    final barcodeSnapshot = await _collection(companyId)
         .where('barcode', isEqualTo: normalized)
         .limit(1)
         .get();
@@ -175,7 +180,7 @@ class ProductService {
       );
     }
 
-    final qrSnapshot = await _collection(userId)
+    final qrSnapshot = await _collection(companyId)
         .where('qrCode', isEqualTo: normalized)
         .limit(1)
         .get();
@@ -189,7 +194,7 @@ class ProductService {
       );
     }
 
-    final docSnapshot = await _collection(userId).doc(normalized).get();
+    final docSnapshot = await _collection(companyId).doc(normalized).get();
     if (docSnapshot.exists) {
       final product = Product.fromFirestore(docSnapshot);
       if (product.isArchived) return null;
@@ -204,7 +209,7 @@ class ProductService {
   }
 
   Future<StockAdjustmentResult> adjustProductStock({
-    required String userId,
+    required String companyId,
     required String productId,
     required String locationId,
     required String locationName,
@@ -215,10 +220,24 @@ class ProductService {
     String? actorUserId,
     String? actorUserName,
   }) async {
-    final productRef = _collection(userId).doc(productId);
+    if (quantity < 1) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'invalid-argument',
+        message: 'La cantidad mínima permitida es 1.',
+      );
+    }
+    if (locationId.trim().isEmpty || locationName.trim().isEmpty) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'invalid-argument',
+        message: 'Debes seleccionar una ubicación válida para mover stock.',
+      );
+    }
+    final productRef = _collection(companyId).doc(productId);
     final movementRef = _firestore
-        .collection('users')
-        .doc(userId)
+        .collection('companies')
+        .doc(companyId)
         .collection('stock_movements')
         .doc();
 
@@ -327,7 +346,7 @@ class ProductService {
         ? 'Se sumaron $quantity unidades al producto ${result.product.name}. Stock anterior: ${result.previousStock}, stock nuevo: ${result.newStock}.'
         : 'Se descontaron $quantity unidades del producto ${result.product.name}. Stock anterior: ${result.previousStock}, stock nuevo: ${result.newStock}.';
     await _activityLogService.createLog(
-      userId: userId,
+      companyId: companyId,
       action: action,
       entityType: 'product',
       entityId: result.product.id,
@@ -339,7 +358,7 @@ class ProductService {
   }
 
   Future<LocationStockAdjustmentResult> setProductLocationStock({
-    required String userId,
+    required String companyId,
     required String productId,
     required String locationId,
     required String locationName,
@@ -348,10 +367,17 @@ class ProductService {
     String? actorUserId,
     String? actorUserName,
   }) async {
-    final productRef = _collection(userId).doc(productId);
+    if (locationId.trim().isEmpty || locationName.trim().isEmpty) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'invalid-argument',
+        message: 'Debes seleccionar una ubicación válida para ajustar stock.',
+      );
+    }
+    final productRef = _collection(companyId).doc(productId);
     final movementRef = _firestore
-        .collection('users')
-        .doc(userId)
+        .collection('companies')
+        .doc(companyId)
         .collection('stock_movements')
         .doc();
 
@@ -441,7 +467,7 @@ class ProductService {
     });
 
     await _activityLogService.createLog(
-      userId: userId,
+      companyId: companyId,
       action: 'adjust_stock',
       entityType: 'product',
       entityId: result.product.id,
@@ -454,7 +480,7 @@ class ProductService {
   }
 
   Future<StockAdjustmentResult> transferProductStock({
-    required String userId,
+    required String companyId,
     required String productId,
     required String sourceLocationId,
     required String sourceLocationName,
@@ -464,10 +490,20 @@ class ProductService {
     String? actorUserId,
     String? actorUserName,
   }) async {
-    final productRef = _collection(userId).doc(productId);
+    if (sourceLocationId.trim().isEmpty ||
+        sourceLocationName.trim().isEmpty ||
+        targetLocationId.trim().isEmpty ||
+        targetLocationName.trim().isEmpty) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'invalid-argument',
+        message: 'Debes indicar ubicación origen y destino para transferir stock.',
+      );
+    }
+    final productRef = _collection(companyId).doc(productId);
     final movementRef = _firestore
-        .collection('users')
-        .doc(userId)
+        .collection('companies')
+        .doc(companyId)
         .collection('stock_movements')
         .doc();
 
@@ -582,7 +618,7 @@ class ProductService {
     });
 
     await _activityLogService.createLog(
-      userId: userId,
+      companyId: companyId,
       action: 'transfer_stock',
       entityType: 'product',
       entityId: result.product.id,
@@ -595,14 +631,15 @@ class ProductService {
 
   Future<void> archiveProduct({
     required String userId,
+    required String companyId,
     required Product product,
     required String deletedBy,
     required String deleteReason,
   }) async {
     debugPrint(
-      'ProductService.archiveProduct: userId=$userId productId=${product.id}',
+      'ProductService.archiveProduct: companyId=$companyId productId=${product.id}',
     );
-    await _collection(userId).doc(product.id).set({
+    await _collection(companyId).doc(product.id).set({
       'isDeleted': true,
       'deletedAt': FieldValue.serverTimestamp(),
       'deletedBy': deletedBy,
@@ -610,7 +647,7 @@ class ProductService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
     await _activityLogService.createLog(
-      userId: userId,
+      companyId: companyId,
       action: 'delete_product',
       entityType: 'product',
       entityId: product.id,
@@ -637,14 +674,14 @@ class ProductService {
   }
 
   Future<void> _assertBarcodeAvailable({
-    required String userId,
+    required String companyId,
     required String? barcode,
     String? excludeProductId,
   }) async {
     final normalized = barcode?.trim() ?? '';
     if (normalized.isEmpty) return;
 
-    final snapshot = await _collection(userId)
+    final snapshot = await _collection(companyId)
         .where('barcode', isEqualTo: normalized)
         .limit(5)
         .get();
@@ -666,7 +703,7 @@ class ProductService {
   }
 
   List<StockMovement> _buildMovements({
-    required String userId,
+    required String companyId,
     required Product product,
     required Product previousProduct,
     String? stockChangeReason,
@@ -674,8 +711,8 @@ class ProductService {
     String? actorUserName,
   }) {
     final movementCollection = _firestore
-        .collection('users')
-        .doc(userId)
+        .collection('companies')
+        .doc(companyId)
         .collection('stock_movements');
     final movements = <StockMovement>[];
 

@@ -29,6 +29,14 @@ class UserProvider extends ChangeNotifier {
   bool get isAdmin => _currentUser?.isAdmin ?? false;
   bool get isOperator => _currentUser?.isOperator ?? false;
   bool get isEditor => _currentUser?.isEditor ?? false;
+  bool get isViewer => _currentUser?.isViewer ?? false;
+  bool get requiresCompanyProfile => _currentUser?.requiresCompanyProfile ?? false;
+  bool get canViewInventory => _currentUser?.canViewInventory ?? false;
+  bool get canManageCatalog => _currentUser?.canManageCatalog ?? false;
+  bool get canManageInventory => _currentUser?.canManageInventory ?? false;
+  bool get canManageLocations => _currentUser?.canManageLocations ?? false;
+  bool get canResolveAlerts => _currentUser?.canResolveAlerts ?? false;
+  bool get canCreateRequests => _currentUser?.canCreateRequests ?? false;
   bool get canEdit => _currentUser?.canEdit ?? false;
   bool get canDelete => _currentUser?.canDelete ?? false;
   bool get canExport => _currentUser?.canExport ?? false;
@@ -73,6 +81,7 @@ class UserProvider extends ChangeNotifier {
         'photoUrl': authUser.photoUrl,
         'provider': authUser.provider,
         'role': role,
+        'accountType': _normalizeAccountType(existingData['accountType']),
         'isActive': (existingData['isActive'] ?? true) == true,
         'lastLoginAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -101,10 +110,8 @@ class UserProvider extends ChangeNotifier {
             ? (data['provider'] as String).trim()
             : authUser.provider,
         createdAt: _toDateTime(data['createdAt']) ?? authUser.createdAt,
-        role: data['role'] is String &&
-                (data['role'] as String).trim().toLowerCase() == 'admin'
-            ? 'admin'
-            : 'operator',
+        role: _normalizeRole(data['role']),
+        accountType: _normalizeAccountType(data['accountType']),
         isActive: (data['isActive'] ?? true) == true,
         hasCompletedOnboarding:
             (data['hasCompletedOnboarding'] ?? false) == true,
@@ -143,9 +150,8 @@ class UserProvider extends ChangeNotifier {
     required dynamic rawRole,
   }) async {
     if (rawRole is String) {
-      final normalized = rawRole.trim().toLowerCase();
-      if (normalized == 'admin') return 'admin';
-      if (normalized == 'operator' || normalized == 'editor') return 'operator';
+      final normalized = _normalizeRole(rawRole);
+      if (normalized != 'viewer') return normalized;
     }
     final usersSnapshot = await _firestore.collection('users').limit(2).get();
     if (usersSnapshot.docs.isEmpty) return 'admin';
@@ -198,7 +204,7 @@ class UserProvider extends ChangeNotifier {
       );
     }
     await _firestore.collection('users').doc(userId).set({
-      'role': role.trim().toLowerCase() == 'admin' ? 'admin' : 'operator',
+      'role': _normalizeRole(role),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -224,6 +230,38 @@ class UserProvider extends ChangeNotifier {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     return null;
+  }
+
+  String _normalizeRole(dynamic value) {
+    final normalized = (value is String ? value : '').trim().toLowerCase();
+    switch (normalized) {
+      case 'admin':
+      case 'editor':
+      case 'operator':
+      case 'viewer':
+        return normalized;
+      default:
+        return 'viewer';
+    }
+  }
+
+  Future<void> updateCurrentUserAccountType(String accountType) async {
+    final userId = _authProvider.user?.id;
+    if (userId == null) return;
+    final normalized = _normalizeAccountType(accountType);
+    await _firestore.collection('users').doc(userId).set({
+      'accountType': normalized,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    if (_currentUser != null) {
+      _currentUser = _currentUser!.copyWith(accountType: normalized);
+      notifyListeners();
+    }
+  }
+
+  String _normalizeAccountType(dynamic value) {
+    final normalized = (value is String ? value : '').trim().toLowerCase();
+    return normalized == 'business' ? 'business' : 'person';
   }
 
   @override

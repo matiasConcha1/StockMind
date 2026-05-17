@@ -1,28 +1,29 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:stockmind/core/services/company_scope_service.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 
 class StockMovementService {
-  StockMovementService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  StockMovementService({
+    FirebaseFirestore? firestore,
+    CompanyScopeService? scopeService,
+  }) : _scopeService =
+            scopeService ?? CompanyScopeService(firestore: firestore);
 
-  final FirebaseFirestore _firestore;
+  final CompanyScopeService _scopeService;
 
-  CollectionReference<Map<String, dynamic>> _collection(String userId) {
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('stock_movements');
+  CollectionReference<Map<String, dynamic>> _collection(String companyId) {
+    return _scopeService.companyCollection(companyId, 'stock_movements');
   }
 
   Stream<List<StockMovement>> watchRecentMovements(
-    String userId, {
+    String companyId, {
     int limit = 20,
   }) {
     debugPrint(
-      'StockMovementService.watchRecentMovements: userId=$userId limit=$limit',
+      'StockMovementService.watchRecentMovements: companyId=$companyId limit=$limit',
     );
-    return _collection(userId)
+    return _collection(companyId)
         .orderBy('createdAt', descending: true)
         .limit(limit)
         .snapshots()
@@ -32,9 +33,9 @@ class StockMovementService {
         );
   }
 
-  Stream<List<StockMovement>> watchMovements(String userId) {
-    debugPrint('StockMovementService.watchMovements: userId=$userId');
-    return _collection(userId)
+  Stream<List<StockMovement>> watchMovements(String companyId) {
+    debugPrint('StockMovementService.watchMovements: companyId=$companyId');
+    return _collection(companyId)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
@@ -42,7 +43,7 @@ class StockMovementService {
         );
   }
 
-  DocumentReference<Map<String, dynamic>> createMovementReference(String userId) {
-    return _collection(userId).doc();
+  DocumentReference<Map<String, dynamic>> createMovementReference(String companyId) {
+    return _collection(companyId).doc();
   }
 }

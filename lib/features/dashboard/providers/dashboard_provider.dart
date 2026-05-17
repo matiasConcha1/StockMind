@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/dashboard/data/models/dashboard_snapshot.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/dashboard/data/services/stock_movement_service.dart';
@@ -15,6 +16,7 @@ import 'package:stockmind/features/replenishment/providers/stock_requests_provid
 class DashboardProvider extends ChangeNotifier {
   DashboardProvider({
     required AuthProvider authProvider,
+    required CurrentCompanyProvider currentCompanyProvider,
     required ProductsProvider productsProvider,
     required LocationsProvider locationsProvider,
     required AlertsProvider alertsProvider,
@@ -22,6 +24,7 @@ class DashboardProvider extends ChangeNotifier {
     required StockService stockService,
     required StockMovementService stockMovementService,
   })  : _authProvider = authProvider,
+        _currentCompanyProvider = currentCompanyProvider,
         _productsProvider = productsProvider,
         _locationsProvider = locationsProvider,
         _alertsProvider = alertsProvider,
@@ -29,6 +32,7 @@ class DashboardProvider extends ChangeNotifier {
         _stockService = stockService,
         _stockMovementService = stockMovementService {
     _authProvider.addListener(_handleAuthChanged);
+    _currentCompanyProvider.addListener(_handleAuthChanged);
     _productsProvider.addListener(_syncFromSources);
     _locationsProvider.addListener(_syncFromSources);
     _alertsProvider.addListener(_syncFromSources);
@@ -38,6 +42,7 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   final AuthProvider _authProvider;
+  final CurrentCompanyProvider _currentCompanyProvider;
   final ProductsProvider _productsProvider;
   final LocationsProvider _locationsProvider;
   final AlertsProvider _alertsProvider;
@@ -95,8 +100,8 @@ class DashboardProvider extends ChangeNotifier {
     _recentMovements = const [];
     _movementError = null;
 
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _movementsLoading = false;
       _syncFromSources();
       return;
@@ -104,7 +109,8 @@ class DashboardProvider extends ChangeNotifier {
 
     _movementsLoading = true;
     _syncFromSources();
-    _movementSubscription = _stockMovementService.watchRecentMovements(userId).listen(
+    _movementSubscription =
+        _stockMovementService.watchRecentMovements(companyId).listen(
       (movements) {
         debugPrint(
           'DashboardProvider.watchRecentMovements: received ${movements.length} movements',
@@ -139,6 +145,7 @@ class DashboardProvider extends ChangeNotifier {
   @override
   void dispose() {
     _authProvider.removeListener(_handleAuthChanged);
+    _currentCompanyProvider.removeListener(_handleAuthChanged);
     _productsProvider.removeListener(_syncFromSources);
     _locationsProvider.removeListener(_syncFromSources);
     _alertsProvider.removeListener(_syncFromSources);

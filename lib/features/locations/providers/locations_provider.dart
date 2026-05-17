@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/locations/data/services/location_service.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
 import 'package:stockmind/features/products/models/product.dart';
@@ -24,14 +25,17 @@ class LocationInventorySnapshot {
 class LocationsProvider extends ChangeNotifier {
   LocationsProvider({
     required AuthProvider authProvider,
+    required CurrentCompanyProvider currentCompanyProvider,
     required ProductsProvider productsProvider,
     required LocationService locationService,
     required StorageService storageService,
   })  : _authProvider = authProvider,
+        _currentCompanyProvider = currentCompanyProvider,
         _productsProvider = productsProvider,
         _locationService = locationService,
         _storageService = storageService {
     _authProvider.addListener(_handleAuthChanged);
+    _currentCompanyProvider.addListener(_handleAuthChanged);
     _productsProvider.addListener(notifyListeners);
     _handleAuthChanged();
   }
@@ -46,6 +50,7 @@ class LocationsProvider extends ChangeNotifier {
   static const String otherLocationType = 'Otro';
 
   final AuthProvider _authProvider;
+  final CurrentCompanyProvider _currentCompanyProvider;
   final ProductsProvider _productsProvider;
   final LocationService _locationService;
   final StorageService _storageService;
@@ -91,17 +96,23 @@ class LocationsProvider extends ChangeNotifier {
     PickedImageFile? imageFile,
   }) async {
     final userId = _authProvider.user?.id;
+    final companyId = _currentCompanyProvider.companyId;
     debugPrint(
-      'LocationsProvider.createLocation: userId=${userId ?? 'null'} name=${location.name}',
+      'LocationsProvider.createLocation: companyId=${companyId ?? 'null'} name=${location.name}',
     );
-    if (userId == null) {
+    if (userId == null || companyId == null) {
       _error = 'Debes iniciar sesión para crear ubicaciones.';
+      notifyListeners();
+      return;
+    }
+    if (!_authProvider.canManageLocations) {
+      _error = 'No tienes permisos para crear ubicaciones.';
       notifyListeners();
       return;
     }
     await _execute(() async {
       final locationId = location.id.isEmpty
-          ? _locationService.createLocationId(userId)
+          ? _locationService.createLocationId(companyId)
           : location.id;
       String? imageUrl = location.imageUrl;
       if (imageFile != null) {
@@ -112,10 +123,10 @@ class LocationsProvider extends ChangeNotifier {
         );
       }
       await _locationService.createLocation(
-        userId,
+        companyId,
         location.copyWith(id: locationId, imageUrl: imageUrl),
       );
-      await _saveCustomTypeIfNeededBestEffort(userId, location.type);
+      await _saveCustomTypeIfNeededBestEffort(companyId, location.type);
     });
   }
 
@@ -125,11 +136,17 @@ class LocationsProvider extends ChangeNotifier {
     bool removeImage = false,
   }) async {
     final userId = _authProvider.user?.id;
+    final companyId = _currentCompanyProvider.companyId;
     debugPrint(
-      'LocationsProvider.updateLocation: userId=${userId ?? 'null'} locationId=${location.id}',
+      'LocationsProvider.updateLocation: companyId=${companyId ?? 'null'} locationId=${location.id}',
     );
-    if (userId == null) {
+    if (userId == null || companyId == null) {
       _error = 'Debes iniciar sesión para editar ubicaciones.';
+      notifyListeners();
+      return;
+    }
+    if (!_authProvider.canManageLocations) {
+      _error = 'No tienes permisos para editar ubicaciones.';
       notifyListeners();
       return;
     }
@@ -148,20 +165,26 @@ class LocationsProvider extends ChangeNotifier {
         );
       }
       await _locationService.updateLocation(
-        userId,
+        companyId,
         location.copyWith(imageUrl: imageUrl),
       );
-      await _saveCustomTypeIfNeededBestEffort(userId, location.type);
+      await _saveCustomTypeIfNeededBestEffort(companyId, location.type);
     });
   }
 
   Future<bool> deleteLocation(String locationId) async {
     final userId = _authProvider.user?.id;
+    final companyId = _currentCompanyProvider.companyId;
     debugPrint(
       'LocationsProvider.deleteLocation: userId=${userId ?? 'null'} locationId=$locationId',
     );
-    if (userId == null) {
+    if (userId == null || companyId == null) {
       _error = 'Debes iniciar sesión para eliminar ubicaciones.';
+      notifyListeners();
+      return false;
+    }
+    if (!_authProvider.canDelete) {
+      _error = 'Solo un administrador puede eliminar ubicaciones.';
       notifyListeners();
       return false;
     }
@@ -173,7 +196,7 @@ class LocationsProvider extends ChangeNotifier {
     }
     final existing = _locationById(locationId);
     await _execute(() async {
-      await _locationService.deleteLocation(userId, locationId);
+      await _locationService.deleteLocation(companyId, locationId);
       await _storageService.deleteImageByUrl(existing?.imageUrl);
     });
     return _error == null;
@@ -236,9 +259,12 @@ class LocationsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _saveCustomTypeIfNeededBestEffort(String userId, String type) async {
+  Future<void> _saveCustomTypeIfNeededBestEffort(
+    String companyId,
+    String type,
+  ) async {
     try {
-      await _saveCustomTypeIfNeeded(userId, type);
+      await _saveCustomTypeIfNeeded(companyId, type);
     } on FirebaseException catch (error, stackTrace) {
       debugPrint(
         'LocationsProvider._saveCustomTypeIfNeededBestEffort FirebaseException: code=${error.code} message=${error.message}',
@@ -252,7 +278,7 @@ class LocationsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _saveCustomTypeIfNeeded(String userId, String type) async {
+  Future<void> _saveCustomTypeIfNeeded(String companyId, String type) async {
     final normalized = type.trim();
     if (normalized.isEmpty) return;
     final isBase = baseLocationTypes
@@ -261,7 +287,7 @@ class LocationsProvider extends ChangeNotifier {
     if (isBase || normalized.toLowerCase() == otherLocationType.toLowerCase()) {
       return;
     }
-    await _locationService.saveLocationTypeIfMissing(userId, normalized);
+    await _locationService.saveLocationTypeIfMissing(companyId, normalized);
   }
 
   String _mapFirebaseError(FirebaseException error) {
@@ -295,8 +321,8 @@ class LocationsProvider extends ChangeNotifier {
     _customTypes = const [];
     _error = null;
 
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _locationsLoading = false;
       _typesLoading = false;
       notifyListeners();
@@ -307,7 +333,7 @@ class LocationsProvider extends ChangeNotifier {
     _typesLoading = true;
     notifyListeners();
 
-    _locationsSubscription = _locationService.watchLocations(userId).listen(
+    _locationsSubscription = _locationService.watchLocations(companyId).listen(
       (items) {
         _locations = items;
         _locationsLoading = false;
@@ -323,7 +349,7 @@ class LocationsProvider extends ChangeNotifier {
       },
     );
 
-    _typesSubscription = _locationService.watchLocationTypes(userId).listen(
+    _typesSubscription = _locationService.watchLocationTypes(companyId).listen(
       (items) {
         _customTypes = items;
         _typesLoading = false;
@@ -342,6 +368,7 @@ class LocationsProvider extends ChangeNotifier {
   @override
   void dispose() {
     _authProvider.removeListener(_handleAuthChanged);
+    _currentCompanyProvider.removeListener(_handleAuthChanged);
     _productsProvider.removeListener(notifyListeners);
     _locationsSubscription?.cancel();
     _typesSubscription?.cancel();

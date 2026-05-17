@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:stockmind/core/services/alert_service.dart';
 import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/products/data/services/product_service.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
@@ -13,18 +14,22 @@ enum ProductFilter { all, atRisk, optimal }
 class ProductsProvider extends ChangeNotifier {
   ProductsProvider({
     required AuthProvider authProvider,
+    required CurrentCompanyProvider currentCompanyProvider,
     required ProductService productService,
     required StorageService storageService,
     required AlertService alertService,
   })  : _authProvider = authProvider,
+        _currentCompanyProvider = currentCompanyProvider,
         _productService = productService,
         _storageService = storageService,
         _alertService = alertService {
     _authProvider.addListener(_handleAuthChanged);
+    _currentCompanyProvider.addListener(_handleAuthChanged);
     _handleAuthChanged();
   }
 
   final AuthProvider _authProvider;
+  final CurrentCompanyProvider _currentCompanyProvider;
   final ProductService _productService;
   final StorageService _storageService;
   final AlertService _alertService;
@@ -95,22 +100,23 @@ class ProductsProvider extends ChangeNotifier {
     PickedImageFile? imageFile,
   }) async {
     final userId = _authProvider.user?.id;
+    final companyId = _currentCompanyProvider.companyId;
     debugPrint(
-      'ProductsProvider.createProduct: userId=${userId ?? 'null'} name=${product.name}',
+      'ProductsProvider.createProduct: companyId=${companyId ?? 'null'} name=${product.name}',
     );
-    if (userId == null) {
+    if (userId == null || companyId == null) {
       _error = 'Debes iniciar sesión para crear productos.';
       notifyListeners();
       return;
     }
-    if (!_authProvider.canEdit) {
+    if (!_authProvider.canManageCatalog) {
       _error = 'No tienes permisos para crear productos.';
       notifyListeners();
       return;
     }
     await _execute(() async {
       final productId = product.id.isEmpty
-          ? _productService.createProductId(userId)
+          ? _productService.createProductId(companyId)
           : product.id;
       String? imageUrl = product.imageUrl;
       if (imageFile != null) {
@@ -123,10 +129,10 @@ class ProductsProvider extends ChangeNotifier {
       final productToCreate =
           product.copyWith(id: productId, imageUrl: imageUrl);
       await _productService.createProduct(
-        userId,
+        companyId,
         productToCreate,
       );
-      await _syncProductAlertBestEffort(userId, productToCreate);
+      await _syncProductAlertBestEffort(companyId, productToCreate);
     });
   }
 
@@ -137,15 +143,16 @@ class ProductsProvider extends ChangeNotifier {
     bool removeImage = false,
   }) async {
     final userId = _authProvider.user?.id;
+    final companyId = _currentCompanyProvider.companyId;
     debugPrint(
-      'ProductsProvider.updateProduct: userId=${userId ?? 'null'} productId=${product.id}',
+      'ProductsProvider.updateProduct: companyId=${companyId ?? 'null'} productId=${product.id}',
     );
-    if (userId == null) {
+    if (userId == null || companyId == null) {
       _error = 'Debes iniciar sesión para editar productos.';
       notifyListeners();
       return;
     }
-    if (!_authProvider.canEdit) {
+    if (!_authProvider.canManageCatalog) {
       _error = 'No tienes permisos para editar productos.';
       notifyListeners();
       return;
@@ -172,23 +179,24 @@ class ProductsProvider extends ChangeNotifier {
       }
       final productToUpdate = product.copyWith(imageUrl: imageUrl);
       await _productService.updateProduct(
-        userId,
+        companyId,
         productToUpdate,
         previousProduct: previousProduct,
         stockChangeReason: stockChangeReason,
         actorUserId: _authProvider.user?.id,
         actorUserName: _authProvider.user?.displayName,
       );
-      await _syncProductAlertBestEffort(userId, productToUpdate);
+      await _syncProductAlertBestEffort(companyId, productToUpdate);
     });
   }
 
   Future<void> deleteProduct(String productId) async {
     final userId = _authProvider.user?.id;
+    final companyId = _currentCompanyProvider.companyId;
     debugPrint(
-      'ProductsProvider.deleteProduct: userId=${userId ?? 'null'} productId=$productId',
+      'ProductsProvider.deleteProduct: companyId=${companyId ?? 'null'} productId=$productId',
     );
-    if (userId == null) {
+    if (userId == null || companyId == null) {
       _error = 'Debes iniciar sesión para eliminar productos.';
       notifyListeners();
       return;
@@ -211,23 +219,24 @@ class ProductsProvider extends ChangeNotifier {
       }
       await _productService.archiveProduct(
         userId: userId,
+        companyId: companyId,
         product: previous,
         deletedBy: userId,
         deleteReason: 'manual',
       );
-      await _resolveProductAlertsBestEffort(userId, productId, userId);
+      await _resolveProductAlertsBestEffort(companyId, productId, userId);
     });
   }
 
   Future<ProductLookupResult?> findProductByCode(String code) async {
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _error = 'Debes iniciar sesión para escanear productos.';
       notifyListeners();
       return null;
     }
 
-    if (!_authProvider.canEdit) {
+    if (!_authProvider.canManageInventory) {
       _error = 'No tienes permisos para escanear productos.';
       notifyListeners();
       return null;
@@ -236,7 +245,7 @@ class ProductsProvider extends ChangeNotifier {
     try {
       _error = null;
       notifyListeners();
-      return await _productService.findProductByCode(userId, code);
+      return await _productService.findProductByCode(companyId, code);
     } on FirebaseException catch (error, stackTrace) {
       debugPrint(
         'ProductsProvider.findProductByCode FirebaseException: code=${error.code} message=${error.message}',
@@ -261,14 +270,14 @@ class ProductsProvider extends ChangeNotifier {
     required int quantity,
     required bool increase,
   }) async {
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _error = 'Debes iniciar sesión para actualizar el stock.';
       notifyListeners();
       return false;
     }
 
-    if (!_authProvider.canEdit) {
+    if (!_authProvider.canManageInventory) {
       _error = 'No tienes permisos para registrar movimientos de stock.';
       notifyListeners();
       return false;
@@ -277,7 +286,7 @@ class ProductsProvider extends ChangeNotifier {
     var success = false;
     await _execute(() async {
       final result = await _productService.adjustProductStock(
-        userId: userId,
+        companyId: companyId,
         productId: productId,
         locationId: locationId,
         locationName: locationName,
@@ -290,7 +299,7 @@ class ProductsProvider extends ChangeNotifier {
         actorUserId: _authProvider.user?.id,
         actorUserName: _authProvider.user?.displayName,
       );
-      await _syncProductAlertBestEffort(userId, result.product);
+      await _syncProductAlertBestEffort(companyId, result.product);
       success = true;
     });
     return success && _error == null;
@@ -302,14 +311,14 @@ class ProductsProvider extends ChangeNotifier {
     required String locationName,
     required int quantity,
   }) async {
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _error = 'Debes iniciar sesión para actualizar el stock.';
       notifyListeners();
       return false;
     }
 
-    if (!_authProvider.canEdit) {
+    if (!_authProvider.canManageInventory) {
       _error = 'No tienes permisos para registrar movimientos de stock.';
       notifyListeners();
       return false;
@@ -318,7 +327,7 @@ class ProductsProvider extends ChangeNotifier {
     var success = false;
     await _execute(() async {
       final result = await _productService.setProductLocationStock(
-        userId: userId,
+        companyId: companyId,
         productId: productId,
         locationId: locationId,
         locationName: locationName,
@@ -327,7 +336,7 @@ class ProductsProvider extends ChangeNotifier {
         actorUserId: _authProvider.user?.id,
         actorUserName: _authProvider.user?.displayName,
       );
-      await _syncProductAlertBestEffort(userId, result.product);
+      await _syncProductAlertBestEffort(companyId, result.product);
       success = true;
     });
     return success && _error == null;
@@ -341,14 +350,14 @@ class ProductsProvider extends ChangeNotifier {
     required String targetLocationName,
     required int quantity,
   }) async {
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _error = 'Debes iniciar sesión para actualizar el stock.';
       notifyListeners();
       return false;
     }
 
-    if (!_authProvider.canEdit) {
+    if (!_authProvider.canManageInventory) {
       _error = 'No tienes permisos para transferir stock.';
       notifyListeners();
       return false;
@@ -357,7 +366,7 @@ class ProductsProvider extends ChangeNotifier {
     var success = false;
     await _execute(() async {
       final result = await _productService.transferProductStock(
-        userId: userId,
+        companyId: companyId,
         productId: productId,
         sourceLocationId: sourceLocationId,
         sourceLocationName: sourceLocationName,
@@ -367,7 +376,7 @@ class ProductsProvider extends ChangeNotifier {
         actorUserId: _authProvider.user?.id,
         actorUserName: _authProvider.user?.displayName,
       );
-      await _syncProductAlertBestEffort(userId, result.product);
+      await _syncProductAlertBestEffort(companyId, result.product);
       success = true;
     });
     return success && _error == null;
@@ -399,9 +408,12 @@ class ProductsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _syncProductAlertBestEffort(String userId, Product product) async {
+  Future<void> _syncProductAlertBestEffort(String companyId, Product product) async {
     try {
-      await _alertService.checkProductAlerts(userId: userId, product: product);
+      await _alertService.checkProductAlerts(
+        companyId: companyId,
+        product: product,
+      );
     } on FirebaseException catch (error, stackTrace) {
       debugPrint(
         'ProductsProvider._syncProductAlertBestEffort FirebaseException: code=${error.code} message=${error.message}',
@@ -420,8 +432,8 @@ class ProductsProvider extends ChangeNotifier {
     _subscription?.cancel();
     _products = const [];
     _error = null;
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _loading = false;
       notifyListeners();
       return;
@@ -429,7 +441,7 @@ class ProductsProvider extends ChangeNotifier {
 
     _loading = true;
     notifyListeners();
-    _subscription = _productService.watchProducts(userId).listen(
+    _subscription = _productService.watchProducts(companyId).listen(
       (items) {
         debugPrint(
           'ProductsProvider.watchProducts: received ${items.length} products',
@@ -438,7 +450,7 @@ class ProductsProvider extends ChangeNotifier {
         _loading = false;
         _error = null;
         notifyListeners();
-        unawaited(_syncAlertsForSnapshot(userId, items));
+        unawaited(_syncAlertsForSnapshot(companyId, items));
       },
       onError: (Object error, StackTrace stackTrace) {
         debugPrint('ProductsProvider.watchProducts error: $error');
@@ -450,12 +462,18 @@ class ProductsProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> _syncAlertsForSnapshot(String userId, List<Product> items) async {
+  Future<void> _syncAlertsForSnapshot(
+    String companyId,
+    List<Product> items,
+  ) async {
     for (final product in items) {
-      await _ensureCodesBestEffort(userId, product);
+      await _ensureCodesBestEffort(companyId, product);
     }
     try {
-      await _alertService.checkAllProductAlerts(userId: userId, products: items);
+      await _alertService.checkAllProductAlerts(
+        companyId: companyId,
+        products: items,
+      );
     } on FirebaseException catch (error, stackTrace) {
       debugPrint(
         'ProductsProvider._syncAlertsForSnapshot FirebaseException: code=${error.code} message=${error.message}',
@@ -468,13 +486,13 @@ class ProductsProvider extends ChangeNotifier {
   }
 
   Future<void> _resolveProductAlertsBestEffort(
-    String userId,
+    String companyId,
     String productId,
     String resolvedBy,
   ) async {
     try {
       await _alertService.resolveProductAlerts(
-        userId: userId,
+        companyId: companyId,
         productId: productId,
         resolvedBy: resolvedBy,
       );
@@ -489,9 +507,9 @@ class ProductsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _ensureCodesBestEffort(String userId, Product product) async {
+  Future<void> _ensureCodesBestEffort(String companyId, Product product) async {
     try {
-      await _productService.ensureProductCodes(userId, product);
+      await _productService.ensureProductCodes(companyId, product);
     } on FirebaseException catch (error, stackTrace) {
       debugPrint(
         'ProductsProvider._ensureCodesBestEffort FirebaseException: code=${error.code} message=${error.message}',
@@ -525,6 +543,7 @@ class ProductsProvider extends ChangeNotifier {
   @override
   void dispose() {
     _authProvider.removeListener(_handleAuthChanged);
+    _currentCompanyProvider.removeListener(_handleAuthChanged);
     _subscription?.cancel();
     super.dispose();
   }

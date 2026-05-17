@@ -1,53 +1,59 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:stockmind/core/services/company_scope_service.dart';
 import 'package:stockmind/features/alerts/data/models/stock_alert.dart';
 import 'package:stockmind/features/products/models/product.dart';
 
 class StockAlertService {
-  StockAlertService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  StockAlertService({
+    FirebaseFirestore? firestore,
+    CompanyScopeService? scopeService,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _scopeService =
+            scopeService ?? CompanyScopeService(firestore: firestore);
 
   final FirebaseFirestore _firestore;
+  final CompanyScopeService _scopeService;
 
-  CollectionReference<Map<String, dynamic>> _collection(String userId) {
-    return _firestore.collection('users').doc(userId).collection('alerts');
+  CollectionReference<Map<String, dynamic>> _collection(String companyId) {
+    return _scopeService.companyCollection(companyId, 'alerts');
   }
 
-  Stream<List<StockAlert>> watchAlerts(String userId) {
-    debugPrint('StockAlertService.watchAlerts: userId=$userId');
-    return _collection(userId)
+  Stream<List<StockAlert>> watchAlerts(String companyId) {
+    debugPrint('StockAlertService.watchAlerts: companyId=$companyId');
+    return _collection(companyId)
         .orderBy('updatedAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs.map(StockAlert.fromFirestore).toList());
   }
 
-  Future<void> syncProductAlerts(String userId, Product product) async {
+  Future<void> syncProductAlerts(String companyId, Product product) async {
     debugPrint(
-      'StockAlertService.syncProductAlerts: userId=$userId productId=${product.id}',
+      'StockAlertService.syncProductAlerts: companyId=$companyId productId=${product.id}',
     );
     if (product.isArchived) {
       await resolveActiveAlertsForProduct(
-        userId,
+        companyId,
         product.id,
         resolvedBy: product.deletedBy ?? 'system',
       );
       return;
     }
-    await _syncLowStockAlert(userId, product);
-    await _syncExpiryAlerts(userId, product);
-    await _resolveLegacyAlerts(userId, product.id);
+    await _syncLowStockAlert(companyId, product);
+    await _syncExpiryAlerts(companyId, product);
+    await _resolveLegacyAlerts(companyId, product.id);
   }
 
   Future<void> syncAllProductAlerts(
-    String userId,
+    String companyId,
     Iterable<Product> products,
   ) async {
     for (final product in products) {
-      await syncProductAlerts(userId, product);
+      await syncProductAlerts(companyId, product);
     }
   }
 
-  Future<void> deleteAlertsForProduct(String userId, String productId) async {
+  Future<void> deleteAlertsForProduct(String companyId, String productId) async {
     final batch = _firestore.batch();
     for (final suffix in const [
       'low_stock',
@@ -56,16 +62,16 @@ class StockAlertService {
       'stock',
       'expiry',
     ]) {
-      batch.delete(_collection(userId).doc('${productId}_$suffix'));
+      batch.delete(_collection(companyId).doc('${productId}_$suffix'));
     }
     await batch.commit();
   }
 
   Future<List<StockAlert>> getActiveAlertsForProduct(
-    String userId,
+    String companyId,
     String productId,
   ) async {
-    final snapshot = await _collection(userId)
+    final snapshot = await _collection(companyId)
         .where('productId', isEqualTo: productId)
         .where('status', isEqualTo: 'active')
         .get();
@@ -73,11 +79,11 @@ class StockAlertService {
   }
 
   Future<void> resolveActiveAlertsForProduct(
-    String userId,
+    String companyId,
     String productId, {
     required String resolvedBy,
   }) async {
-    final snapshot = await _collection(userId)
+    final snapshot = await _collection(companyId)
         .where('productId', isEqualTo: productId)
         .where('status', isEqualTo: 'active')
         .get();
@@ -100,8 +106,8 @@ class StockAlertService {
     await batch.commit();
   }
 
-  Future<void> markAsRead(String userId, String alertId) async {
-    await _collection(userId).doc(alertId).set(
+  Future<void> markAsRead(String companyId, String alertId) async {
+    await _collection(companyId).doc(alertId).set(
       {
         'isRead': true,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -110,18 +116,18 @@ class StockAlertService {
     );
   }
 
-  Future<StockAlert?> getAlertById(String userId, String alertId) async {
-    final snapshot = await _collection(userId).doc(alertId).get();
+  Future<StockAlert?> getAlertById(String companyId, String alertId) async {
+    final snapshot = await _collection(companyId).doc(alertId).get();
     if (!snapshot.exists) return null;
     return StockAlert.fromFirestore(snapshot);
   }
 
   Future<void> resolveAlert(
-    String userId,
+    String companyId,
     String alertId, {
     required String resolvedBy,
   }) async {
-    await _collection(userId).doc(alertId).set(
+    await _collection(companyId).doc(alertId).set(
       {
         'status': 'resolved',
         'isRead': true,
@@ -133,9 +139,11 @@ class StockAlertService {
     );
   }
 
-  Future<void> _syncLowStockAlert(String userId, Product product) async {
-    final shouldBeActive = product.totalStock <= 5;
-    final docRef = _collection(userId).doc('${product.id}_low_stock');
+  Future<void> _syncLowStockAlert(String companyId, Product product) async {
+    final mediumThreshold = product.minStock > 5 ? product.minStock : 5;
+    final infoThreshold = mediumThreshold < 10 ? 10 : mediumThreshold;
+    final shouldBeActive = product.totalStock <= infoThreshold;
+    final docRef = _collection(companyId).doc('${product.id}_low_stock');
     final snapshot = await docRef.get();
     final existing = snapshot.data() ?? const <String, dynamic>{};
 
@@ -149,9 +157,16 @@ class StockAlertService {
       return;
     }
 
-    final severity = product.totalStock <= 0 ? 'high' : 'medium';
-    final title =
-        product.totalStock <= 0 ? 'Producto sin stock' : 'Stock bajo';
+    final severity = product.totalStock <= 0
+        ? 'high'
+        : product.totalStock <= mediumThreshold
+            ? 'medium'
+            : 'low';
+    final title = product.totalStock <= 0
+        ? 'Producto sin stock'
+        : product.totalStock <= mediumThreshold
+            ? 'Stock bajo'
+            : 'Stock en observaciÃ³n';
     final message = product.totalStock <= 0
         ? 'Este producto no tiene unidades disponibles.'
         : 'Este producto tiene 5 unidades o menos y requiere reposición.';
@@ -180,9 +195,10 @@ class StockAlertService {
     );
   }
 
-  Future<void> _syncExpiryAlerts(String userId, Product product) async {
-    final expiredRef = _collection(userId).doc('${product.id}_expired');
-    final expiringSoonRef = _collection(userId).doc('${product.id}_expiring_soon');
+  Future<void> _syncExpiryAlerts(String companyId, Product product) async {
+    final expiredRef = _collection(companyId).doc('${product.id}_expired');
+    final expiringSoonRef =
+        _collection(companyId).doc('${product.id}_expiring_soon');
     final expiredSnapshot = await expiredRef.get();
     final expiringSoonSnapshot = await expiringSoonRef.get();
     final expiredExisting = expiredSnapshot.data() ?? const <String, dynamic>{};
@@ -288,9 +304,9 @@ class StockAlertService {
     );
   }
 
-  Future<void> _resolveLegacyAlerts(String userId, String productId) async {
+  Future<void> _resolveLegacyAlerts(String companyId, String productId) async {
     for (final suffix in const ['stock', 'expiry']) {
-      final ref = _collection(userId).doc('${productId}_$suffix');
+      final ref = _collection(companyId).doc('${productId}_$suffix');
       final snapshot = await ref.get();
       if (!snapshot.exists) continue;
       await _resolveIfNeeded(

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:stockmind/core/services/company_scope_service.dart';
 import 'package:stockmind/features/activity_logs/data/services/activity_log_service.dart';
 import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
 import 'package:stockmind/features/products/models/product.dart';
@@ -8,48 +9,49 @@ class StockRequestService {
   StockRequestService({
     FirebaseFirestore? firestore,
     ActivityLogService? activityLogService,
+    CompanyScopeService? scopeService,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _activityLogService = activityLogService ?? ActivityLogService();
+        _activityLogService = activityLogService ?? ActivityLogService(),
+        _scopeService =
+            scopeService ?? CompanyScopeService(firestore: firestore);
 
   final FirebaseFirestore _firestore;
   final ActivityLogService _activityLogService;
+  final CompanyScopeService _scopeService;
 
-  CollectionReference<Map<String, dynamic>> _collection(String userId) {
-    return _firestore.collection('users').doc(userId).collection('stock_requests');
+  CollectionReference<Map<String, dynamic>> _collection(String companyId) {
+    return _scopeService.companyCollection(companyId, 'stock_requests');
   }
 
-  CollectionReference<Map<String, dynamic>> _products(String userId) {
-    return _firestore.collection('users').doc(userId).collection('products');
+  CollectionReference<Map<String, dynamic>> _products(String companyId) {
+    return _scopeService.companyCollection(companyId, 'products');
   }
 
-  CollectionReference<Map<String, dynamic>> _movements(String userId) {
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('stock_movements');
+  CollectionReference<Map<String, dynamic>> _movements(String companyId) {
+    return _scopeService.companyCollection(companyId, 'stock_movements');
   }
 
-  String createRequestId(String userId) => _collection(userId).doc().id;
+  String createRequestId(String companyId) => _collection(companyId).doc().id;
 
-  Stream<List<StockRequest>> watchRequests(String userId) {
-    return _collection(userId)
+  Stream<List<StockRequest>> watchRequests(String companyId) {
+    return _collection(companyId)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs.map(StockRequest.fromFirestore).toList());
   }
 
-  Future<void> createRequest(String userId, StockRequest request) async {
+  Future<void> createRequest(String companyId, StockRequest request) async {
     await _assertNoPendingDuplicate(
-      userId: userId,
+      companyId: companyId,
       productId: request.productId,
       locationId: request.locationId,
     );
     final doc = request.id.isEmpty
-        ? _collection(userId).doc()
-        : _collection(userId).doc(request.id);
+        ? _collection(companyId).doc()
+        : _collection(companyId).doc(request.id);
     await doc.set(request.copyWith(id: doc.id).toCreateMap());
     await _activityLogService.createLog(
-      userId: userId,
+      companyId: companyId,
       action: 'create_stock_request',
       entityType: 'stock_request',
       entityId: doc.id,
@@ -60,7 +62,7 @@ class StockRequestService {
   }
 
   Future<void> approveRequest({
-    required String userId,
+    required String companyId,
     required StockRequest request,
   }) async {
     if (!request.isPending) {
@@ -70,12 +72,12 @@ class StockRequestService {
         message: 'Solo las solicitudes pendientes pueden aprobarse.',
       );
     }
-    await _collection(userId).doc(request.id).update({
+    await _collection(companyId).doc(request.id).update({
       'status': 'approved',
       'updatedAt': FieldValue.serverTimestamp(),
     });
     await _activityLogService.createLog(
-      userId: userId,
+      companyId: companyId,
       action: 'approve_stock_request',
       entityType: 'stock_request',
       entityId: request.id,
@@ -86,7 +88,7 @@ class StockRequestService {
   }
 
   Future<void> cancelRequest({
-    required String userId,
+    required String companyId,
     required StockRequest request,
   }) async {
     if (request.isCompleted || request.isCancelled) {
@@ -96,12 +98,12 @@ class StockRequestService {
         message: 'La solicitud ya no puede cancelarse.',
       );
     }
-    await _collection(userId).doc(request.id).update({
+    await _collection(companyId).doc(request.id).update({
       'status': 'cancelled',
       'updatedAt': FieldValue.serverTimestamp(),
     });
     await _activityLogService.createLog(
-      userId: userId,
+      companyId: companyId,
       action: 'cancel_stock_request',
       entityType: 'stock_request',
       entityId: request.id,
@@ -112,14 +114,14 @@ class StockRequestService {
   }
 
   Future<void> completeRequest({
-    required String userId,
+    required String companyId,
     required StockRequest request,
     required String completedByUserId,
     required String completedByUserName,
   }) async {
-    final requestRef = _collection(userId).doc(request.id);
-    final productRef = _products(userId).doc(request.productId);
-    final movementRef = _movements(userId).doc();
+    final requestRef = _collection(companyId).doc(request.id);
+    final productRef = _products(companyId).doc(request.productId);
+    final movementRef = _movements(companyId).doc();
 
     await _firestore.runTransaction((transaction) async {
       final requestSnapshot = await transaction.get(requestRef);
@@ -212,7 +214,7 @@ class StockRequestService {
     });
 
     await _activityLogService.createLog(
-      userId: userId,
+      companyId: companyId,
       action: 'complete_stock_request',
       entityType: 'stock_request',
       entityId: request.id,
@@ -223,11 +225,11 @@ class StockRequestService {
   }
 
   Future<void> _assertNoPendingDuplicate({
-    required String userId,
+    required String companyId,
     required String productId,
     required String locationId,
   }) async {
-    final snapshot = await _collection(userId)
+    final snapshot = await _collection(companyId)
         .where('productId', isEqualTo: productId)
         .where('locationId', isEqualTo: locationId)
         .where('status', isEqualTo: 'pending')

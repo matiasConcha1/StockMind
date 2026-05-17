@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:stockmind/core/services/alert_service.dart';
 import 'package:stockmind/features/alerts/data/models/stock_alert.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 
 enum AlertsFilter {
   all,
@@ -17,14 +18,18 @@ enum AlertsFilter {
 class AlertsProvider extends ChangeNotifier {
   AlertsProvider({
     required AuthProvider authProvider,
+    required CurrentCompanyProvider currentCompanyProvider,
     required AlertService alertService,
   })  : _authProvider = authProvider,
+        _currentCompanyProvider = currentCompanyProvider,
         _alertService = alertService {
     _authProvider.addListener(_handleAuthChanged);
+    _currentCompanyProvider.addListener(_handleAuthChanged);
     _handleAuthChanged();
   }
 
   final AuthProvider _authProvider;
+  final CurrentCompanyProvider _currentCompanyProvider;
   final AlertService _alertService;
 
   StreamSubscription<List<StockAlert>>? _subscription;
@@ -77,19 +82,19 @@ class AlertsProvider extends ChangeNotifier {
   }
 
   Future<void> markAsRead(String alertId) async {
-    final userId = _authProvider.user?.id;
-    if (userId == null) return;
-    await _runAction(() => _alertService.markAsRead(userId, alertId));
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) return;
+    await _runAction(() => _alertService.markAsRead(companyId, alertId));
   }
 
   Future<void> resolveAlert(String alertId) async {
-    final userId = _authProvider.user?.id;
-    if (userId == null) return;
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) return;
     await _runAction(
       () => _alertService.resolveAlert(
-        userId: userId,
+        companyId: companyId,
         alertId: alertId,
-        resolvedBy: userId,
+        resolvedBy: _authProvider.user?.id ?? 'system',
       ),
     );
   }
@@ -110,8 +115,8 @@ class AlertsProvider extends ChangeNotifier {
     _alerts = const [];
     _error = null;
 
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _loading = false;
       notifyListeners();
       return;
@@ -119,7 +124,7 @@ class AlertsProvider extends ChangeNotifier {
 
     _loading = true;
     notifyListeners();
-    _subscription = _alertService.watchAlerts(userId).listen(
+    _subscription = _alertService.watchAlerts(companyId).listen(
       (items) {
         _alerts = items;
         _loading = false;
@@ -140,6 +145,7 @@ class AlertsProvider extends ChangeNotifier {
   @override
   void dispose() {
     _authProvider.removeListener(_handleAuthChanged);
+    _currentCompanyProvider.removeListener(_handleAuthChanged);
     _subscription?.cancel();
     super.dispose();
   }

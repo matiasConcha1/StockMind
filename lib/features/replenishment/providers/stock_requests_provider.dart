@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/replenishment/data/services/stock_request_service.dart';
 import 'package:stockmind/features/replenishment/models/stock_request.dart';
 
@@ -11,14 +12,18 @@ enum StockRequestFilter { all, pending, approved, completed, cancelled }
 class StockRequestsProvider extends ChangeNotifier {
   StockRequestsProvider({
     required AuthProvider authProvider,
+    required CurrentCompanyProvider currentCompanyProvider,
     required StockRequestService stockRequestService,
   })  : _authProvider = authProvider,
+        _currentCompanyProvider = currentCompanyProvider,
         _stockRequestService = stockRequestService {
     _authProvider.addListener(_handleAuthChanged);
+    _currentCompanyProvider.addListener(_handleAuthChanged);
     _handleAuthChanged();
   }
 
   final AuthProvider _authProvider;
+  final CurrentCompanyProvider _currentCompanyProvider;
   final StockRequestService _stockRequestService;
 
   StreamSubscription<List<StockRequest>>? _subscription;
@@ -87,28 +92,28 @@ class StockRequestsProvider extends ChangeNotifier {
   }
 
   Future<bool> createRequest(StockRequest request) async {
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _error = 'Debes iniciar sesión para crear solicitudes.';
       notifyListeners();
       return false;
     }
-    if (!_authProvider.canEdit) {
+    if (!_authProvider.canCreateRequests) {
       _error = 'No tienes permisos para crear solicitudes de reposicion.';
       notifyListeners();
       return false;
     }
     var success = false;
     await _runAction(() async {
-      await _stockRequestService.createRequest(userId, request);
+      await _stockRequestService.createRequest(companyId, request);
       success = true;
     });
     return success && _error == null;
   }
 
   Future<bool> approveRequest(StockRequest request) async {
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _error = 'Debes iniciar sesión para aprobar solicitudes.';
       notifyListeners();
       return false;
@@ -120,15 +125,18 @@ class StockRequestsProvider extends ChangeNotifier {
     }
     var success = false;
     await _runAction(() async {
-      await _stockRequestService.approveRequest(userId: userId, request: request);
+      await _stockRequestService.approveRequest(
+        companyId: companyId,
+        request: request,
+      );
       success = true;
     });
     return success && _error == null;
   }
 
   Future<bool> cancelRequest(StockRequest request) async {
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _error = 'Debes iniciar sesión para cancelar solicitudes.';
       notifyListeners();
       return false;
@@ -140,7 +148,10 @@ class StockRequestsProvider extends ChangeNotifier {
     }
     var success = false;
     await _runAction(() async {
-      await _stockRequestService.cancelRequest(userId: userId, request: request);
+      await _stockRequestService.cancelRequest(
+        companyId: companyId,
+        request: request,
+      );
       success = true;
     });
     return success && _error == null;
@@ -148,9 +159,10 @@ class StockRequestsProvider extends ChangeNotifier {
 
   Future<bool> completeRequest(StockRequest request) async {
     final userId = _authProvider.user?.id;
+    final companyId = _currentCompanyProvider.companyId;
     final userName =
         _authProvider.user?.displayName ?? _authProvider.user?.email ?? 'Usuario';
-    if (userId == null) {
+    if (userId == null || companyId == null) {
       _error = 'Debes iniciar sesión para completar solicitudes.';
       notifyListeners();
       return false;
@@ -163,7 +175,7 @@ class StockRequestsProvider extends ChangeNotifier {
     var success = false;
     await _runAction(() async {
       await _stockRequestService.completeRequest(
-        userId: userId,
+        companyId: companyId,
         request: request,
         completedByUserId: userId,
         completedByUserName: userName,
@@ -196,8 +208,8 @@ class StockRequestsProvider extends ChangeNotifier {
     _subscription?.cancel();
     _requests = const [];
     _error = null;
-    final userId = _authProvider.user?.id;
-    if (userId == null) {
+    final companyId = _currentCompanyProvider.companyId;
+    if (companyId == null) {
       _loading = false;
       notifyListeners();
       return;
@@ -205,7 +217,7 @@ class StockRequestsProvider extends ChangeNotifier {
 
     _loading = true;
     notifyListeners();
-    _subscription = _stockRequestService.watchRequests(userId).listen(
+    _subscription = _stockRequestService.watchRequests(companyId).listen(
       (items) {
         _requests = items;
         _loading = false;
@@ -243,6 +255,7 @@ class StockRequestsProvider extends ChangeNotifier {
   @override
   void dispose() {
     _authProvider.removeListener(_handleAuthChanged);
+    _currentCompanyProvider.removeListener(_handleAuthChanged);
     _subscription?.cancel();
     super.dispose();
   }
