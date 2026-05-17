@@ -10,6 +10,10 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function userDoc(userId) {
+      return get(/databases/$(database)/documents/users/$(userId));
+    }
+
     function currentUserDocExists() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid));
@@ -17,25 +21,70 @@ service cloud.firestore {
 
     function currentUserRole() {
       return currentUserDocExists()
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        ? userDoc(request.auth.uid).data.role
         : null;
+    }
+
+    function normalizedRole(role) {
+      return role in ['admin', 'editor', 'operator', 'viewer']
+        ? role
+        : 'viewer';
     }
 
     function isActiveUser() {
       return isSignedIn()
         && (
           !currentUserDocExists()
-          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive != false
+          || userDoc(request.auth.uid).data.isActive != false
         );
     }
 
-    function isAdmin() {
-      return currentUserRole() == 'admin';
+    function companyDoc(companyId) {
+      return get(/databases/$(database)/documents/companies/$(companyId));
     }
 
-    function isAdminOrOperator() {
-      return !currentUserDocExists()
-        || currentUserRole() in ['admin', 'operator', 'editor'];
+    function companyMembershipDoc(companyId, userId) {
+      return get(/databases/$(database)/documents/companies/$(companyId)/users/$(userId));
+    }
+
+    function isCompanyMember(companyId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/companies/$(companyId)/users/$(request.auth.uid));
+    }
+
+    function companyRole(companyId) {
+      return isCompanyMember(companyId)
+        ? companyMembershipDoc(companyId, request.auth.uid).data.role
+        : null;
+    }
+
+    function isCompanyActive(companyId) {
+      return isCompanyMember(companyId)
+        && companyMembershipDoc(companyId, request.auth.uid).data.isActive != false;
+    }
+
+    function canCompanyRead(companyId) {
+      return isActiveUser() && isCompanyActive(companyId);
+    }
+
+    function canCompanyManageCatalog(companyId) {
+      return canCompanyRead(companyId)
+        && normalizedRole(companyRole(companyId)) in ['admin', 'editor'];
+    }
+
+    function canCompanyManageInventory(companyId) {
+      return canCompanyRead(companyId)
+        && normalizedRole(companyRole(companyId)) in ['admin', 'editor', 'operator'];
+    }
+
+    function canCompanyManageUsers(companyId) {
+      return canCompanyRead(companyId)
+        && normalizedRole(companyRole(companyId)) == 'admin';
+    }
+
+    function canCompanyManageProfile(companyId) {
+      return canCompanyRead(companyId)
+        && normalizedRole(companyRole(companyId)) in ['admin', 'editor'];
     }
 
     function touchesDeleteFields() {
@@ -47,86 +96,105 @@ service cloud.firestore {
       ]);
     }
 
-    function ownerCanNormalizeRole() {
-      return isSignedIn()
-        && (
-          !resource.data.keys().hasAny(['role'])
-          || resource.data.role == null
-          || (
-            resource.data.role == 'editor'
-            && request.resource.data.role == 'operator'
-          )
-        );
-    }
-
     match /app_config/{docId} {
-      allow read: if isActiveUser() && isAdminOrOperator();
-      allow create, update: if isActiveUser() && isAdmin();
+      allow read: if isActiveUser() && normalizedRole(currentUserRole()) == 'admin';
+      allow create, update: if isActiveUser() && normalizedRole(currentUserRole()) == 'admin';
       allow delete: if false;
     }
 
     match /users/{userId} {
-      allow read: if (isOwner(userId) && isActiveUser()) || isAdmin();
+      allow read: if isOwner(userId) || normalizedRole(currentUserRole()) == 'admin';
 
       allow create: if isOwner(userId)
-        && request.resource.data.role in ['admin', 'operator'];
+        && normalizedRole(request.resource.data.role) in ['admin', 'editor', 'operator', 'viewer']
+        && (!('accountType' in request.resource.data)
+          || request.resource.data.accountType in ['business', 'person']);
 
       allow update: if (
           isOwner(userId)
           && isActiveUser()
           && (
             !('role' in request.resource.data.diff(resource.data).changedKeys())
-            || ownerCanNormalizeRole()
+            || request.resource.data.role == resource.data.role
           )
-        ) || isAdmin();
+        ) || normalizedRole(currentUserRole()) == 'admin';
 
       allow delete: if false;
 
+      match /{document=**} {
+        allow read: if isOwner(userId) && isActiveUser();
+        allow create, update: if isOwner(userId) && isActiveUser();
+        allow delete: if false;
+      }
+    }
+
+    match /companies/{companyId} {
+      allow read: if canCompanyRead(companyId);
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid;
+      allow update: if canCompanyManageProfile(companyId);
+      allow delete: if false;
+
+      match /users/{userId} {
+        allow read: if canCompanyRead(companyId);
+        allow create: if (
+            isOwner(userId)
+            && companyDoc(companyId).data.ownerId == request.auth.uid
+          ) || canCompanyManageUsers(companyId);
+        allow update: if canCompanyManageUsers(companyId)
+          || (isOwner(userId)
+            && request.resource.data.role == resource.data.role);
+        allow delete: if false;
+      }
+
       match /products/{productId} {
-        allow read, create: if isOwner(userId) && isActiveUser() && isAdminOrOperator();
-        allow update: if isOwner(userId)
-          && (
-            (isActiveUser() && isAdminOrOperator() && !touchesDeleteFields())
-            || isAdmin()
-          );
-        allow delete: if isOwner(userId) && isAdmin();
+        allow read: if canCompanyRead(companyId);
+        allow create: if canCompanyManageCatalog(companyId);
+        allow update: if (canCompanyManageCatalog(companyId) && !touchesDeleteFields())
+          || normalizedRole(companyRole(companyId)) == 'admin';
+        allow delete: if false;
       }
 
       match /locations/{locationId} {
-        allow read, create, update: if isOwner(userId) && isActiveUser() && isAdminOrOperator();
-        allow delete: if isOwner(userId) && isAdmin();
+        allow read: if canCompanyRead(companyId);
+        allow create, update: if canCompanyManageCatalog(companyId);
+        allow delete: if normalizedRole(companyRole(companyId)) == 'admin';
       }
 
       match /location_types/{typeId} {
-        allow read, create, update: if isOwner(userId) && isActiveUser() && isAdminOrOperator();
-        allow delete: if isOwner(userId) && isAdmin();
+        allow read: if canCompanyRead(companyId);
+        allow create, update: if canCompanyManageCatalog(companyId);
+        allow delete: if normalizedRole(companyRole(companyId)) == 'admin';
       }
 
       match /alerts/{alertId} {
-        allow read, create, update: if isOwner(userId) && isActiveUser() && isAdminOrOperator();
+        allow read: if canCompanyRead(companyId);
+        allow create, update: if canCompanyManageInventory(companyId);
         allow delete: if false;
       }
 
       match /stock_movements/{movementId} {
-        allow read, create, update: if isOwner(userId) && isActiveUser() && isAdminOrOperator();
+        allow read: if canCompanyRead(companyId);
+        allow create, update: if canCompanyManageInventory(companyId);
         allow delete: if false;
       }
 
       match /stock_requests/{requestId} {
-        allow read, create, update: if isOwner(userId) && isActiveUser() && isAdminOrOperator();
+        allow read: if canCompanyRead(companyId);
+        allow create, update: if canCompanyManageInventory(companyId);
         allow delete: if false;
       }
 
       match /activity_logs/{logId} {
-        allow create: if isOwner(userId) && isActiveUser() && isAdminOrOperator();
-        allow read: if isOwner(userId) && isActiveUser() && isAdminOrOperator();
+        allow read: if canCompanyRead(companyId);
+        allow create: if canCompanyManageInventory(companyId);
         allow update, delete: if false;
       }
 
-      match /notification_tokens/{tokenId} {
-        allow read: if (isOwner(userId) && isActiveUser()) || isAdmin();
-        allow create, update: if isOwner(userId) && isActiveUser();
-        allow delete: if isOwner(userId) || isAdmin();
+      match /company_profile/{docId} {
+        allow read: if canCompanyRead(companyId);
+        allow create, update: if canCompanyManageProfile(companyId);
+        allow delete: if false;
       }
     }
   }

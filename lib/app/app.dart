@@ -204,7 +204,7 @@ class _StockMindAppState extends State<StockMindApp> {
     }
 
     final needsOnboarding = !_userProvider.hasCompletedOnboarding ||
-        (_userProvider.isAdmin && !_companyProvider.isComplete);
+        (_userProvider.requiresCompanyProfile && !_companyProvider.isComplete);
     if (_onboardingShownThisSession ||
         !needsOnboarding ||
         !onPrivateArea ||
@@ -220,7 +220,9 @@ class _StockMindAppState extends State<StockMindApp> {
       if (!mounted ||
           _onboardingShownThisSession ||
           !_authProvider.isAuthenticated ||
-          (_userProvider.hasCompletedOnboarding && _companyProvider.isComplete)) {
+          (_userProvider.hasCompletedOnboarding &&
+              (!_userProvider.requiresCompanyProfile ||
+                  _companyProvider.isComplete))) {
         return;
       }
       _onboardingShownThisSession = true;

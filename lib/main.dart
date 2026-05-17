@@ -9,6 +9,7 @@ import 'package:stockmind/core/utils/firebase_bootstrap.dart';
 import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/features/company/data/services/company_profile_service.dart';
 import 'package:stockmind/features/company/providers/company_profile_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/alerts/data/services/stock_alert_service.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/auth/data/services/auth_service.dart';
@@ -52,33 +53,42 @@ Future<void> main() async {
   final userProvider = UserProvider(authProvider: authProvider);
   final notificationService = NotificationService(authProvider: authProvider);
   final pwaService = PwaService();
+  final currentCompanyProvider = CurrentCompanyProvider(
+    authProvider: authProvider,
+  );
   final companyProfileProvider = CompanyProfileProvider(
     authProvider: authProvider,
+    currentCompanyProvider: currentCompanyProvider,
     service: CompanyProfileService(),
     storageService: storageService,
   );
   final productsProvider = ProductsProvider(
     authProvider: authProvider,
+    currentCompanyProvider: currentCompanyProvider,
     productService: ProductService(),
     storageService: storageService,
     alertService: alertService,
   );
   final locationsProvider = LocationsProvider(
     authProvider: authProvider,
+    currentCompanyProvider: currentCompanyProvider,
     productsProvider: productsProvider,
     locationService: LocationService(),
     storageService: storageService,
   );
   final alertsProvider = AlertsProvider(
     authProvider: authProvider,
+    currentCompanyProvider: currentCompanyProvider,
     alertService: alertService,
   );
   final stockRequestsProvider = StockRequestsProvider(
     authProvider: authProvider,
+    currentCompanyProvider: currentCompanyProvider,
     stockRequestService: StockRequestService(),
   );
   final dashboardProvider = DashboardProvider(
     authProvider: authProvider,
+    currentCompanyProvider: currentCompanyProvider,
     productsProvider: productsProvider,
     locationsProvider: locationsProvider,
     alertsProvider: alertsProvider,
@@ -100,6 +110,9 @@ Future<void> main() async {
           value: notificationService,
         ),
         ChangeNotifierProvider<PwaService>.value(value: pwaService),
+        ChangeNotifierProvider<CurrentCompanyProvider>.value(
+          value: currentCompanyProvider,
+        ),
         ChangeNotifierProvider<CompanyProfileProvider>.value(
           value: companyProfileProvider,
         ),
