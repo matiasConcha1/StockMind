@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
-import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
 import 'package:stockmind/features/locations/providers/locations_provider.dart';
@@ -38,7 +38,7 @@ class _ScanProductScreenState extends State<ScanProductScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
+    final company = context.watch<CurrentCompanyProvider>();
 
     return DashboardFrame(
       title: 'Escanear producto',
@@ -49,7 +49,16 @@ class _ScanProductScreenState extends State<ScanProductScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (!auth.canManageInventory)
+          if (!company.hasAcceptedMembership || company.companyId == null)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'No hay un espacio activo. Crea o selecciona un espacio de trabajo para registrar movimientos.',
+                ),
+              ),
+            )
+          else if (!company.canManageInventory)
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(24),
@@ -196,9 +205,8 @@ class _ScanProductScreenState extends State<ScanProductScreen> {
     await showAppAlertDialog(
       context,
       type: provider.error == null ? AppAlertType.success : AppAlertType.error,
-      title: provider.error == null
-          ? 'Producto creado'
-          : 'No se pudo crear el producto',
+      title:
+          provider.error == null ? 'Producto creado' : 'No se pudo crear el producto',
       message: provider.error == null
           ? 'El producto fue agregado correctamente al inventario.'
           : provider.error!,
@@ -517,8 +525,7 @@ class _QuickAdjustDialogState extends State<_QuickAdjustDialog> {
         context,
         type: AppAlertType.error,
         title: 'No se pudo actualizar el stock',
-        message:
-            provider.error ?? 'No pudimos completar la operación.',
+        message: provider.error ?? 'No pudimos completar la operación.',
       );
       return;
     }
@@ -575,8 +582,7 @@ class _QuickAdjustDialogState extends State<_QuickAdjustDialog> {
         context,
         type: AppAlertType.error,
         title: 'No se pudo ajustar el stock',
-        message:
-            provider.error ?? 'No pudimos completar la operación.',
+        message: provider.error ?? 'No pudimos completar la operación.',
       );
       return;
     }

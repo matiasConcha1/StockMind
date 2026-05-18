@@ -10,6 +10,7 @@ import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/company/providers/company_profile_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/products/data/services/inventory_export_service.dart';
 import 'package:stockmind/features/products/models/product.dart';
@@ -24,58 +25,66 @@ class ProductsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProductsProvider>();
-    final auth = context.watch<AuthProvider>();
+    final company = context.watch<CurrentCompanyProvider>();
     final exportItems = provider.filteredProducts;
+    final hasActiveCompany =
+        company.hasAcceptedMembership && company.companyId != null;
 
     return DashboardFrame(
       title: 'Productos',
       subtitle:
           'Gestiona tu catálogo con filtros, exportación y control inteligente del stock.',
       actions: [
+        if (!hasActiveCompany)
+          FilledButton.icon(
+            onPressed: () => context.go(AppRoutePaths.company),
+            icon: const Icon(Icons.add_business_outlined),
+            label: const Text('Crear espacio'),
+          ),
         FilledButton.tonalIcon(
-          onPressed: exportItems.isEmpty || !auth.canExport
+          onPressed: exportItems.isEmpty || !company.canExport
               ? null
               : () => _exportCsv(context),
           icon: const Icon(Icons.download_rounded),
           label: const Text('Exportar CSV'),
         ),
         OutlinedButton.icon(
-          onPressed: exportItems.isEmpty || !auth.canExport
+          onPressed: exportItems.isEmpty || !company.canExport
               ? null
               : () => _exportLocationStockCsv(context),
           icon: const Icon(Icons.location_on_outlined),
           label: const Text('Stock x ubicación'),
         ),
         OutlinedButton.icon(
-          onPressed: exportItems.isEmpty || !auth.canExport
+          onPressed: exportItems.isEmpty || !company.canExport
               ? null
               : () => _exportExcel(context),
           icon: const Icon(Icons.table_chart_outlined),
           label: const Text('Exportar Excel'),
         ),
         FilledButton.tonalIcon(
-          onPressed: exportItems.isEmpty || !auth.canExport
+          onPressed: exportItems.isEmpty || !company.canExport
               ? null
               : () => _exportPdf(context),
           icon: const Icon(Icons.picture_as_pdf_outlined),
           label: const Text('Exportar PDF'),
         ),
         FilledButton.icon(
-          onPressed: provider.isLoading || !auth.canManageCatalog
+          onPressed: provider.isLoading || !hasActiveCompany || !company.canManageCatalog
               ? null
               : () => _openDialog(context),
           icon: const Icon(Icons.add_rounded),
           label: const Text('Nuevo producto'),
         ),
         FilledButton.tonalIcon(
-          onPressed: auth.canManageInventory
+          onPressed: hasActiveCompany && company.canManageInventory
               ? () => context.go(AppRoutePaths.scan)
               : null,
           icon: const Icon(Icons.qr_code_scanner_rounded),
           label: const Text('Escanear'),
         ),
         FilledButton.tonalIcon(
-          onPressed: auth.canCreateRequests
+          onPressed: hasActiveCompany && company.canCreateRequests
               ? () => context.go(AppRoutePaths.replenishment)
               : null,
           icon: const Icon(Icons.add_alert_outlined),
@@ -89,6 +98,22 @@ class ProductsScreen extends StatelessWidget {
 
           return Column(
             children: [
+              if (!hasActiveCompany) ...[
+                SectionCard(
+                  child: SizedBox(
+                    height: 320,
+                    child: EmptyState(
+                      title: 'Configura tu espacio de trabajo para comenzar',
+                      subtitle:
+                          'Crea o selecciona un espacio para gestionar productos, movimientos y analytics desde un solo lugar.',
+                      icon: Icons.business_outlined,
+                      actionLabel: 'Crear espacio',
+                      onAction: () => context.go(AppRoutePaths.company),
+                      compact: true,
+                    ),
+                  ),
+                ),
+              ] else ...[
               if (provider.error != null) ...[
                 _ProductsErrorBanner(message: provider.error!),
                 const SizedBox(height: 16),
@@ -276,11 +301,11 @@ class ProductsScreen extends StatelessWidget {
                   children: [
                     ProductTable(
                       products: provider.filteredProducts,
-                      canEdit: auth.canManageCatalog,
-                      canDelete: auth.canDelete,
+                      canEdit: company.canManageCatalog,
+                      canDelete: company.canDelete,
                       onEdit: (product) => _openDialog(context, product: product),
                       onDelete: (product) => _confirmDelete(context, product),
-                      onRequestReplenishment: auth.canCreateRequests
+                      onRequestReplenishment: company.canCreateRequests
                           ? (product) => showStockRequestDialog(
                                 context,
                                 initialProduct: product,
@@ -299,6 +324,7 @@ class ProductsScreen extends StatelessWidget {
                       ),
                   ],
                 ),
+              ],
             ],
           );
         },

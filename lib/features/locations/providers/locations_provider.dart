@@ -95,21 +95,18 @@ class LocationsProvider extends ChangeNotifier {
     InventoryLocation location, {
     PickedImageFile? imageFile,
   }) async {
-    final userId = _authProvider.user?.id;
-    final companyId = _currentCompanyProvider.companyId;
+    final validationError = _validateLocationAccess();
+    if (validationError != null) {
+      _error = validationError;
+      notifyListeners();
+      return;
+    }
+
+    final userId = _authProvider.user!.id;
+    final companyId = _currentCompanyProvider.companyId!;
     debugPrint(
-      'LocationsProvider.createLocation: companyId=${companyId ?? 'null'} name=${location.name}',
+      'LocationsProvider.createLocation: companyId=$companyId name=${location.name}',
     );
-    if (userId == null || companyId == null) {
-      _error = 'Debes iniciar sesión para crear ubicaciones.';
-      notifyListeners();
-      return;
-    }
-    if (!_authProvider.canManageLocations) {
-      _error = 'No tienes permisos para crear ubicaciones.';
-      notifyListeners();
-      return;
-    }
     await _execute(() async {
       final locationId = location.id.isEmpty
           ? _locationService.createLocationId(companyId)
@@ -135,21 +132,22 @@ class LocationsProvider extends ChangeNotifier {
     PickedImageFile? imageFile,
     bool removeImage = false,
   }) async {
-    final userId = _authProvider.user?.id;
-    final companyId = _currentCompanyProvider.companyId;
-    debugPrint(
-      'LocationsProvider.updateLocation: companyId=${companyId ?? 'null'} locationId=${location.id}',
+    final validationError = _validateLocationAccess(
+      action: 'editar',
+      permissionDeniedMessage:
+          'No tienes permisos para editar ubicaciones en esta empresa.',
     );
-    if (userId == null || companyId == null) {
-      _error = 'Debes iniciar sesión para editar ubicaciones.';
+    if (validationError != null) {
+      _error = validationError;
       notifyListeners();
       return;
     }
-    if (!_authProvider.canManageLocations) {
-      _error = 'No tienes permisos para editar ubicaciones.';
-      notifyListeners();
-      return;
-    }
+
+    final userId = _authProvider.user!.id;
+    final companyId = _currentCompanyProvider.companyId!;
+    debugPrint(
+      'LocationsProvider.updateLocation: companyId=$companyId locationId=${location.id}',
+    );
     await _execute(() async {
       String? imageUrl = location.imageUrl;
       if (removeImage) {
@@ -173,21 +171,22 @@ class LocationsProvider extends ChangeNotifier {
   }
 
   Future<bool> deleteLocation(String locationId) async {
-    final userId = _authProvider.user?.id;
-    final companyId = _currentCompanyProvider.companyId;
-    debugPrint(
-      'LocationsProvider.deleteLocation: userId=${userId ?? 'null'} locationId=$locationId',
+    final validationError = _validateLocationAccess(
+      action: 'eliminar',
+      requiresDeletePermission: true,
+      permissionDeniedMessage:
+          'No tienes permisos para eliminar ubicaciones en esta empresa.',
     );
-    if (userId == null || companyId == null) {
-      _error = 'Debes iniciar sesión para eliminar ubicaciones.';
+    if (validationError != null) {
+      _error = validationError;
       notifyListeners();
       return false;
     }
-    if (!_authProvider.canDelete) {
-      _error = 'Solo un administrador puede eliminar ubicaciones.';
-      notifyListeners();
-      return false;
-    }
+
+    final companyId = _currentCompanyProvider.companyId!;
+    debugPrint(
+      'LocationsProvider.deleteLocation: companyId=$companyId locationId=$locationId',
+    );
     if (productCountForLocation(locationId) > 0) {
       _error =
           'No puedes eliminar una ubicación que todavía tiene productos asignados.';
@@ -307,6 +306,28 @@ class LocationsProvider extends ChangeNotifier {
     }
   }
 
+  String? _validateLocationAccess({
+    String action = 'crear',
+    bool requiresDeletePermission = false,
+    String? permissionDeniedMessage,
+  }) {
+    if (!_authProvider.isAuthenticated || _authProvider.user == null) {
+      return 'Debes iniciar sesión para $action ubicaciones.';
+    }
+    if (!_currentCompanyProvider.hasAcceptedMembership ||
+        _currentCompanyProvider.companyId == null) {
+      return 'Configura tu espacio de trabajo para comenzar y agregar ubicaciones.';
+    }
+    final hasPermission = requiresDeletePermission
+        ? _currentCompanyProvider.canDelete
+        : _currentCompanyProvider.canManageLocations;
+    if (!hasPermission) {
+      return permissionDeniedMessage ??
+          'No tienes permisos para crear ubicaciones en este espacio.';
+    }
+    return null;
+  }
+
   InventoryLocation? _locationById(String locationId) {
     for (final item in _locations) {
       if (item.id == locationId) return item;
@@ -322,7 +343,7 @@ class LocationsProvider extends ChangeNotifier {
     _error = null;
 
     final companyId = _currentCompanyProvider.companyId;
-    if (companyId == null) {
+    if (companyId == null || !_currentCompanyProvider.hasAcceptedMembership) {
       _locationsLoading = false;
       _typesLoading = false;
       notifyListeners();

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
 import 'package:stockmind/core/widgets/stockmind_loading_screen.dart';
-import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
 import 'package:stockmind/features/locations/presentation/widgets/location_detail_dialog.dart';
@@ -18,18 +20,28 @@ class LocationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LocationsProvider>();
-    final auth = context.watch<AuthProvider>();
+    final company = context.watch<CurrentCompanyProvider>();
     final width = MediaQuery.sizeOf(context).width;
     final crossAxisCount = width < 760 ? 1 : width < 1180 ? 2 : 3;
+    final hasActiveCompany =
+        company.hasAcceptedMembership && company.companyId != null;
+    final canManageLocations = company.canManageLocations;
+    final canDeleteLocations = company.canDelete;
 
     return DashboardFrame(
       title: 'Ubicaciones',
       subtitle:
           'Gestiona espacios físicos como refrigeradores, congeladoras, cajas y closets.',
       actions: [
+        if (!hasActiveCompany)
+          FilledButton.icon(
+            onPressed: () => context.go(AppRoutePaths.company),
+            icon: const Icon(Icons.add_business_outlined),
+            label: const Text('Crear espacio'),
+          ),
         FilledButton.icon(
           onPressed:
-              provider.isLoading || !auth.canManageLocations
+              provider.isLoading || !hasActiveCompany || !canManageLocations
                   ? null
                   : () => _openDialog(context),
           icon: const Icon(Icons.add_location_alt_outlined),
@@ -38,70 +50,87 @@ class LocationsScreen extends StatelessWidget {
       ],
       child: Column(
         children: [
-          if (provider.error != null) ...[
-            _LocationsErrorBanner(message: provider.error!),
-            const SizedBox(height: 16),
-          ],
-          if (provider.isLoading && !provider.hasLocations)
-            const SectionCard(
-              child: SizedBox(
-                height: 320,
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: StockMindLoadingPanel(
-                      compact: true,
-                      statusMessage: 'Cargando ubicaciones...',
-                    ),
-                  ),
-                ),
-              ),
-            )
-          else if (!provider.isLoading && !provider.hasLocations)
+          if (!hasActiveCompany)
             SectionCard(
               child: SizedBox(
                 height: 320,
                 child: EmptyState(
-                  title: 'Sin ubicaciones todavía',
+                  title: 'Configura tu espacio de trabajo para comenzar',
                   subtitle:
-                      'Crea espacios físicos para distribuir productos y controlar stock real por ubicación.',
-                  icon: Icons.place_outlined,
-                  actionLabel:
-                      auth.canManageLocations ? 'Crear ubicación' : null,
-                  onAction: auth.canManageLocations
-                      ? () => _openDialog(context)
-                      : null,
+                      'Crea o selecciona un espacio para organizar ubicaciones, stock real y operaciones del inventario.',
+                  icon: Icons.business_outlined,
+                  actionLabel: 'Crear espacio',
+                  onAction: () => context.go(AppRoutePaths.company),
                   compact: true,
                 ),
               ),
             )
-          else
-            GridView.builder(
-              itemCount: provider.locations.length,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: width < 760 ? 1.28 : 1.06,
+          else ...[
+            if (provider.error != null) ...[
+              _LocationsErrorBanner(message: provider.error!),
+              const SizedBox(height: 16),
+            ],
+            if (provider.isLoading && !provider.hasLocations)
+              const SectionCard(
+                child: SizedBox(
+                  height: 320,
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: StockMindLoadingPanel(
+                        compact: true,
+                        statusMessage: 'Cargando ubicaciones...',
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else if (!provider.isLoading && !provider.hasLocations)
+              SectionCard(
+                child: SizedBox(
+                  height: 320,
+                  child: EmptyState(
+                    title: 'Sin ubicaciones todavía',
+                    subtitle:
+                        'Crea espacios físicos para distribuir productos y controlar stock real por ubicación.',
+                    icon: Icons.place_outlined,
+                    actionLabel:
+                        canManageLocations ? 'Crear ubicación' : null,
+                    onAction:
+                        canManageLocations ? () => _openDialog(context) : null,
+                    compact: true,
+                  ),
+                ),
+              )
+            else
+              GridView.builder(
+                itemCount: provider.locations.length,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: width < 760 ? 1.28 : 1.06,
+                ),
+                itemBuilder: (context, index) {
+                  final location = provider.locations[index];
+                  final productCount =
+                      provider.productCountForLocation(location.id);
+                  final totalUnits = provider.totalUnitsForLocation(location.id);
+                  return _LocationCard(
+                    location: location,
+                    productCount: productCount,
+                    totalUnits: totalUnits,
+                    canEdit: canManageLocations,
+                    canDelete: canDeleteLocations,
+                    onOpen: () => _openDetail(context, location),
+                    onEdit: () => _openDialog(context, location: location),
+                    onDelete: () => _confirmDelete(context, location),
+                  );
+                },
               ),
-              itemBuilder: (context, index) {
-                final location = provider.locations[index];
-                final productCount = provider.productCountForLocation(location.id);
-                final totalUnits = provider.totalUnitsForLocation(location.id);
-                return _LocationCard(
-                  location: location,
-                  productCount: productCount,
-                  totalUnits: totalUnits,
-                  canEdit: auth.canManageLocations,
-                  canDelete: auth.canDelete,
-                  onOpen: () => _openDetail(context, location),
-                  onEdit: () => _openDialog(context, location: location),
-                  onDelete: () => _confirmDelete(context, location),
-                );
-              },
-            ),
+          ],
         ],
       ),
     );
@@ -127,9 +156,8 @@ class LocationsScreen extends StatelessWidget {
       await showAppAlertDialog(
         context,
         type: provider.error == null ? AppAlertType.success : AppAlertType.error,
-        title: provider.error == null
-            ? 'Ubicación creada'
-            : 'No se pudo crear la ubicación',
+        title:
+            provider.error == null ? 'Ubicación creada' : 'No se pudo crear la ubicación',
         message: provider.error == null
             ? 'La ubicación fue creada correctamente.'
             : provider.error!,

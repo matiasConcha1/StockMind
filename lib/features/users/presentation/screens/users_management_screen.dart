@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,8 @@ import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/permission_guard.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
+import 'package:stockmind/features/company/models/company_invitation.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
 import 'package:stockmind/features/users/providers/user_provider.dart';
 
@@ -20,25 +23,32 @@ class UsersManagementScreen extends StatefulWidget {
 
 class _UsersManagementScreenState extends State<UsersManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _inviteEmailController = TextEditingController();
+  String _inviteRole = 'viewer';
 
   @override
   void dispose() {
     _searchController.dispose();
+    _inviteEmailController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final userProvider = context.watch<UserProvider>();
+    final companyProvider = context.watch<CurrentCompanyProvider>();
     final query = _searchController.text.trim().toLowerCase();
 
     return DashboardFrame(
-      title: 'Usuarios',
-      subtitle: 'Gestiona usuarios, roles y el estado operativo del sistema.',
+      title: 'Miembros',
+      subtitle:
+          companyProvider.hasCompany
+              ? 'Gestiona miembros, roles e invitaciones de ${companyProvider.companyName}.'
+              : 'Debes pertenecer a una empresa para gestionar miembros.',
       onBackPressed: () => context.go(AppRoutePaths.dashboard),
       backLabel: 'Volver al centro de inventario',
       child: PermissionGuard(
-        allowed: userProvider.canManageUsers,
+        allowed: userProvider.canManageUsers && companyProvider.hasCompany,
         actionLabel: 'Volver al centro de inventario',
         onAction: () => context.go(AppRoutePaths.dashboard),
         child: Column(
@@ -47,29 +57,145 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
             SectionCard(
               child: Padding(
                 padding: const EdgeInsets.all(18),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: 'Buscar por nombre o correo',
-                    prefixIcon: Icon(Icons.search_rounded),
-                  ),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _searchController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Buscar por nombre o correo',
+                        prefixIcon: Icon(Icons.search_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final compact = constraints.maxWidth < 780;
+                        final inviteFields = [
+                          Expanded(
+                            flex: 4,
+                            child: TextField(
+                              controller: _inviteEmailController,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: const InputDecoration(
+                                labelText: 'Correo opcional',
+                                prefixIcon: Icon(Icons.mail_outline_rounded),
+                              ),
+                            ),
+                          ),
+                          if (!compact) const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _inviteRole,
+                              decoration: const InputDecoration(
+                                labelText: 'Rol inicial',
+                                prefixIcon: Icon(Icons.verified_user_outlined),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'editor',
+                                  child: Text('Editor'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'operator',
+                                  child: Text('Operador'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'viewer',
+                                  child: Text('Visualizador'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                if (value == null) return;
+                                setState(() => _inviteRole = value);
+                              },
+                            ),
+                          ),
+                          if (!compact) const SizedBox(width: 12),
+                          Expanded(
+                            flex: compact ? 0 : 2,
+                            child: FilledButton.icon(
+                              onPressed: () => _inviteUser(
+                                context,
+                                requireEmail: true,
+                              ),
+                              icon: const Icon(Icons.person_add_alt_1_rounded),
+                              label: const Text('Invitar correo'),
+                            ),
+                          ),
+                          if (!compact) const SizedBox(width: 12),
+                          Expanded(
+                            flex: compact ? 0 : 2,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _inviteUser(
+                                context,
+                                requireEmail: false,
+                              ),
+                              icon: const Icon(Icons.link_rounded),
+                              label: const Text('Generar link'),
+                            ),
+                          ),
+                        ];
+
+                        if (compact) {
+                          return Column(
+                            children: [
+                              inviteFields[0],
+                              const SizedBox(height: 12),
+                              inviteFields[2],
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _inviteUser(
+                                    context,
+                                    requireEmail: false,
+                                  ),
+                                  icon: const Icon(Icons.link_rounded),
+                                  label: const Text('Generar link de acceso'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  onPressed: () => _inviteUser(
+                                    context,
+                                    requireEmail: true,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.person_add_alt_1_rounded,
+                                  ),
+                                  label: const Text('Invitar por correo'),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+
+                        return Row(children: inviteFields);
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
             const SizedBox(height: 16),
+            Text(
+              'Miembros activos',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
             StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: userProvider.watchUsers(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  debugPrint(
-                    'UsersManagementScreen.watchUsers error: ${snapshot.error}',
-                  );
                   return const SectionCard(
                     child: SizedBox(
-                      height: 240,
+                      height: 220,
                       child: EmptyState(
-                        title: 'No se pudieron cargar los usuarios',
+                        title: 'No se pudieron cargar los miembros',
                         subtitle:
                             'Revisa tu conexión o los permisos de Firestore.',
                         icon: Icons.group_off_outlined,
@@ -78,46 +204,100 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                     ),
                   );
                 }
-
                 if (!snapshot.hasData) {
                   return const SectionCard(
                     child: SizedBox(
-                      height: 240,
+                      height: 220,
                       child: Center(child: CircularProgressIndicator()),
                     ),
                   );
                 }
-
-                final users = snapshot.data!.docs.where((doc) {
+                final members = snapshot.data!.docs.where((doc) {
                   final data = doc.data();
-                  final name = ((data['name'] ?? '') as String).toLowerCase();
+                  final name = ((data['displayName'] ?? '') as String)
+                      .toLowerCase();
                   final email = ((data['email'] ?? '') as String).toLowerCase();
                   return query.isEmpty ||
                       name.contains(query) ||
                       email.contains(query);
                 }).toList();
-
-                if (users.isEmpty) {
+                if (members.isEmpty) {
                   return const SectionCard(
                     child: SizedBox(
-                      height: 240,
+                      height: 220,
                       child: EmptyState(
-                        title: 'No hay usuarios registrados',
+                        title: 'Sin miembros visibles',
                         subtitle:
-                            'Ajusta la búsqueda para encontrar usuarios registrados.',
-                        icon: Icons.manage_accounts_outlined,
+                            'Cuando invites personas o ajustes la búsqueda, aparecerán aquí.',
+                        icon: Icons.groups_2_outlined,
                         compact: true,
                       ),
                     ),
                   );
                 }
-
                 return Column(
-                  children: users
+                  children: members
                       .map(
                         (doc) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: _UserCard(doc: doc),
+                          child: _MemberCard(doc: doc),
+                        ),
+                      )
+                      .toList(),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Invitaciones',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: userProvider.watchInvitations(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const SectionCard(
+                    child: SizedBox(
+                      height: 220,
+                      child: EmptyState(
+                        title: 'No se pudieron cargar las invitaciones',
+                        subtitle: 'Revisa permisos o vuelve a intentarlo.',
+                        icon: Icons.mark_email_unread_outlined,
+                        compact: true,
+                      ),
+                    ),
+                  );
+                }
+                if (!snapshot.hasData) {
+                  return const SectionCard(
+                    child: SizedBox(
+                      height: 180,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  );
+                }
+                final invites = snapshot.data!.docs;
+                if (invites.isEmpty) {
+                  return const SectionCard(
+                    child: SizedBox(
+                      height: 180,
+                      child: EmptyState(
+                        title: 'Sin invitaciones registradas',
+                        subtitle:
+                            'Las invitaciones pendientes, aceptadas o revocadas aparecerán aquí.',
+                        icon: Icons.mail_outline_rounded,
+                        compact: true,
+                      ),
+                    ),
+                  );
+                }
+                return Column(
+                  children: invites
+                      .map(
+                        (doc) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _InvitationCard(doc: doc),
                         ),
                       )
                       .toList(),
@@ -129,10 +309,68 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
       ),
     );
   }
+
+  Future<void> _inviteUser(
+    BuildContext context, {
+    required bool requireEmail,
+  }) async {
+    final provider = context.read<UserProvider>();
+    final email = _inviteEmailController.text.trim();
+    if (requireEmail && email.isEmpty) {
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.warning,
+        title: 'Falta el correo del invitado',
+        message:
+            'Ingresa un email si quieres enviar una invitación dirigida a una persona concreta.',
+      );
+      return;
+    }
+    try {
+      final invitation = await provider.inviteUser(
+        email: email.isEmpty ? null : email,
+        role: _inviteRole,
+      );
+      _inviteEmailController.clear();
+      if (!context.mounted) return;
+      final invitationLink = provider.buildInvitationLink(invitation);
+      if (!requireEmail) {
+        await Clipboard.setData(ClipboardData(text: invitationLink));
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Link de invitación copiado al portapapeles.'),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('La invitación por correo quedó registrada.'),
+          ),
+        );
+      }
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.success,
+        title: requireEmail ? 'Invitación enviada' : 'Link generado',
+        message: requireEmail
+            ? 'La invitación quedó registrada y también puede compartirse como link seguro.'
+            : 'El link quedó listo y fue copiado para compartirlo con tu equipo.',
+      );
+    } on FirebaseException catch (error) {
+      if (!context.mounted) return;
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.error,
+        title: 'No se pudo enviar la invitación',
+        message: error.message ?? 'Ocurrió un error inesperado.',
+      );
+    }
+  }
 }
 
-class _UserCard extends StatelessWidget {
-  const _UserCard({required this.doc});
+class _MemberCard extends StatelessWidget {
+  const _MemberCard({required this.doc});
 
   final QueryDocumentSnapshot<Map<String, dynamic>> doc;
 
@@ -140,14 +378,12 @@ class _UserCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final userProvider = context.read<UserProvider>();
     final data = doc.data();
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final name = ((data['name'] ?? 'Usuario') as String).trim();
+    final name = ((data['displayName'] ?? 'Usuario') as String).trim();
     final email = ((data['email'] ?? '') as String).trim();
-    final role = _normalizeRole(data['role']);
+    final role = ((data['role'] ?? 'viewer') as String).trim().toLowerCase();
+    final status = ((data['status'] ?? 'accepted') as String).trim();
+    final joinedAt = _formatDate(data['joinedAt']);
     final isActive = (data['isActive'] ?? true) == true;
-    final createdAt = _formatDate(data['createdAt']);
-    final lastLoginAt = _formatDate(data['lastLoginAt']);
     final isSelf = userProvider.currentUser?.id == doc.id;
 
     return SectionCard(
@@ -155,48 +391,20 @@ class _UserCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
-                child: Text(
-                  _initials(name),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: theme.textTheme.titleMedium),
+                    Text(name, style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 4),
-                    Text(
-                      email,
-                      style: theme.textTheme.bodyMedium,
-                    ),
+                    Text(email),
                   ],
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: (isActive ? Colors.green : colorScheme.error)
-                      .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  isActive ? 'Activo' : 'Inactivo',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: isActive ? Colors.green : colorScheme.error,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              _StatusPill(
+                label: isActive ? 'Activo' : 'Inactivo',
+                color: isActive ? Colors.green : Theme.of(context).colorScheme.error,
               ),
             ],
           ),
@@ -205,178 +413,224 @@ class _UserCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _pill(context, Icons.admin_panel_settings_outlined,
-                  _roleLabel(role)),
-              _pill(context, Icons.calendar_today_outlined, 'Creado: $createdAt'),
-              _pill(context, Icons.login_rounded, 'Último acceso: $lastLoginAt'),
+              _MetaPill(icon: Icons.verified_user_outlined, label: _roleLabel(role)),
+              _MetaPill(icon: Icons.event_outlined, label: 'Ingreso: $joinedAt'),
+              _MetaPill(icon: Icons.info_outline_rounded, label: status),
             ],
           ),
           const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 720;
-              final controls = [
-                SizedBox(
-                  width: compact ? double.infinity : 220,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: role,
-                    decoration: const InputDecoration(
-                      labelText: 'Rol',
-                      prefixIcon: Icon(Icons.verified_user_outlined),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'admin',
-                        child: Text('Administrador'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'editor',
-                        child: Text('Editor'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'operator',
-                        child: Text('Operador'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'viewer',
-                        child: Text('Visualizador'),
-                      ),
-                    ],
-                    onChanged: isSelf
-                        ? null
-                        : (value) async {
-                            if (value == null || value == role) return;
-                            await _updateRole(
-                              context,
-                              userProvider: userProvider,
-                              userId: doc.id,
-                              role: value,
-                            );
-                          },
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              SizedBox(
+                width: 220,
+                child: DropdownButtonFormField<String>(
+                  initialValue: role,
+                  decoration: const InputDecoration(
+                    labelText: 'Rol',
+                    prefixIcon: Icon(Icons.shield_outlined),
                   ),
+                  items: const [
+                    DropdownMenuItem(value: 'admin', child: Text('Administrador')),
+                    DropdownMenuItem(value: 'editor', child: Text('Editor')),
+                    DropdownMenuItem(value: 'operator', child: Text('Operador')),
+                    DropdownMenuItem(value: 'viewer', child: Text('Visualizador')),
+                  ],
+                  onChanged: isSelf
+                      ? null
+                      : (value) async {
+                          if (value == null || value == role) return;
+                          await userProvider.updateUserRole(
+                            userId: doc.id,
+                            role: value,
+                          );
+                        },
                 ),
-                SizedBox(
-                  width: compact ? double.infinity : 220,
-                  child: SwitchListTile.adaptive(
-                    value: isActive,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Usuario activo'),
-                    subtitle: Text(
-                      isSelf
-                          ? 'No puedes desactivarte a ti mismo.'
-                          : 'Controla si puede seguir operando en StockMind.',
-                    ),
-                    onChanged: isSelf
-                        ? null
-                        : (value) async {
-                            await _updateActive(
-                              context,
-                              userProvider: userProvider,
-                              userId: doc.id,
-                              isActive: value,
-                            );
-                          },
-                  ),
+              ),
+              if (!isSelf)
+                OutlinedButton.icon(
+                  onPressed: () => _removeMember(context, userProvider, doc.id),
+                  icon: const Icon(Icons.person_remove_outlined),
+                  label: const Text('Remover'),
                 ),
-              ];
-
-              return compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: controls
-                          .expand((item) => [item, const SizedBox(height: 12)])
-                          .toList()
-                        ..removeLast(),
-                    )
-                  : Wrap(
-                      spacing: 16,
-                      runSpacing: 12,
-                      children: controls,
-                    );
-            },
+            ],
           ),
         ],
       ),
     );
   }
 
-  Future<void> _updateRole(
-    BuildContext context, {
-    required UserProvider userProvider,
-    required String userId,
-    required String role,
-  }) async {
+  Future<void> _removeMember(
+    BuildContext context,
+    UserProvider provider,
+    String userId,
+  ) async {
     final confirmed = await showAppConfirmDialog(
       context,
-      title: '¿Cambiar rol de usuario?',
-      message: 'Esta acción actualizará los permisos del usuario en StockMind.',
-      confirmLabel: 'Cambiar rol',
+      title: '¿Remover miembro?',
+      message: 'El usuario perderá acceso a esta empresa.',
+      confirmLabel: 'Remover',
       cancelLabel: 'Cancelar',
     );
     if (!confirmed || !context.mounted) return;
     try {
-      await userProvider.updateUserRole(userId: userId, role: role);
+      await provider.removeMember(userId);
       if (!context.mounted) return;
       await showAppAlertDialog(
         context,
         type: AppAlertType.success,
-        title: 'Rol actualizado',
-        message: 'Los permisos del usuario fueron actualizados correctamente.',
+        title: 'Miembro removido',
+        message: 'El usuario fue removido de la empresa activa.',
       );
     } on FirebaseException catch (error) {
       if (!context.mounted) return;
       await showAppAlertDialog(
         context,
         type: AppAlertType.error,
-        title: 'No se pudo cambiar el rol',
-        message: error.message?.trim().isNotEmpty == true
-            ? error.message!.trim()
-            : 'Solo un administrador puede actualizar roles.',
+        title: 'No se pudo remover',
+        message: error.message ?? 'No fue posible completar la operación.',
       );
     }
   }
+}
 
-  Future<void> _updateActive(
-    BuildContext context, {
-    required UserProvider userProvider,
-    required String userId,
-    required bool isActive,
-  }) async {
+class _InvitationCard extends StatelessWidget {
+  const _InvitationCard({required this.doc});
+
+  final QueryDocumentSnapshot<Map<String, dynamic>> doc;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.read<UserProvider>();
+    final invitation = CompanyInvitation.fromFirestore(doc);
+    final email = invitation.email.trim();
+    final role = invitation.role.trim().toLowerCase();
+    final status = invitation.status.trim().toLowerCase();
+    final createdAt = _formatDate(invitation.createdAt);
+    final expiresAt = invitation.expiresAt == null
+        ? 'Sin expiración'
+        : _formatDate(invitation.expiresAt);
+
+    return SectionCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  email.isEmpty ? 'Invitación por link' : email,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _MetaPill(
+                      icon: Icons.verified_user_outlined,
+                      label: _roleLabel(role),
+                    ),
+                    _MetaPill(
+                      icon: Icons.schedule_rounded,
+                      label: 'Enviada: $createdAt',
+                    ),
+                    _MetaPill(
+                      icon: Icons.timelapse_rounded,
+                      label: 'Expira: $expiresAt',
+                    ),
+                    _StatusPill(
+                      label: _statusLabel(status),
+                      color: _statusColor(context, status),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (invitation.inviteToken.trim().isNotEmpty)
+                OutlinedButton.icon(
+                  onPressed: () => _copyLink(context, provider, invitation),
+                  icon: const Icon(Icons.copy_all_rounded),
+                  label: const Text('Copiar link'),
+                ),
+              if (status == 'pending')
+                OutlinedButton.icon(
+                  onPressed: () => _revoke(context, provider, doc.id),
+                  icon: const Icon(Icons.block_outlined),
+                  label: const Text('Revocar'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _copyLink(
+    BuildContext context,
+    UserProvider provider,
+    CompanyInvitation invitation,
+  ) async {
+    await Clipboard.setData(
+      ClipboardData(text: provider.buildInvitationLink(invitation)),
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Link de invitación copiado al portapapeles.'),
+      ),
+    );
+  }
+
+  Future<void> _revoke(
+    BuildContext context,
+    UserProvider provider,
+    String invitationId,
+  ) async {
     final confirmed = await showAppConfirmDialog(
       context,
-      title: isActive ? '¿Activar usuario?' : '¿Desactivar usuario?',
-      message: isActive
-          ? 'El usuario volverá a operar en StockMind.'
-          : 'El usuario dejará de poder acceder a StockMind.',
-      confirmLabel: isActive ? 'Activar' : 'Desactivar',
+      title: '¿Revocar invitación?',
+      message: 'La invitación dejará de estar disponible para el usuario.',
+      confirmLabel: 'Revocar',
       cancelLabel: 'Cancelar',
     );
     if (!confirmed || !context.mounted) return;
     try {
-      await userProvider.setUserActive(userId: userId, isActive: isActive);
+      await provider.revokeInvitation(invitationId);
       if (!context.mounted) return;
       await showAppAlertDialog(
         context,
         type: AppAlertType.success,
-        title: isActive ? 'Usuario activado' : 'Usuario desactivado',
-        message: isActive
-            ? 'El usuario fue activado correctamente.'
-            : 'El usuario fue desactivado correctamente.',
+        title: 'Invitación revocada',
+        message: 'La invitación fue revocada correctamente.',
       );
     } on FirebaseException catch (error) {
       if (!context.mounted) return;
       await showAppAlertDialog(
         context,
         type: AppAlertType.error,
-        title: 'No se pudo actualizar el estado',
-        message: error.message?.trim().isNotEmpty == true
-            ? error.message!.trim()
-            : 'Solo un administrador puede cambiar este estado.',
+        title: 'No se pudo revocar',
+        message: error.message ?? 'No fue posible revocar la invitación.',
       );
     }
   }
+}
 
-  Widget _pill(BuildContext context, IconData icon, String label) {
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -394,49 +648,78 @@ class _UserCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  static String _normalizeRole(dynamic value) {
-    final role = (value is String ? value : '').trim().toLowerCase();
-    switch (role) {
-      case 'admin':
-      case 'editor':
-      case 'operator':
-      case 'viewer':
-        return role;
-      default:
-        return 'viewer';
-    }
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+      ),
+    );
   }
+}
 
-  static String _roleLabel(String role) {
-    switch (role) {
-      case 'admin':
-        return 'Administrador';
-      case 'editor':
-        return 'Editor';
-      case 'operator':
-        return 'Operador';
-      case 'viewer':
-        return 'Visualizador';
-      default:
-        return 'Usuario';
-    }
+String _formatDate(dynamic value) {
+  DateTime? date;
+  if (value is Timestamp) date = value.toDate();
+  if (value is DateTime) date = value;
+  if (date == null) return 'Sin registro';
+  return DateFormat('dd/MM/yyyy HH:mm').format(date);
+}
+
+String _roleLabel(String role) {
+  switch (role) {
+    case 'admin':
+      return 'Administrador';
+    case 'editor':
+      return 'Editor';
+    case 'operator':
+      return 'Operador';
+    case 'viewer':
+      return 'Visualizador';
+    default:
+      return 'Usuario';
   }
+}
 
-  static String _formatDate(dynamic value) {
-    DateTime? date;
-    if (value is Timestamp) date = value.toDate();
-    if (value is DateTime) date = value;
-    if (date == null) return 'Sin registro';
-    return DateFormat('dd/MM/yyyy HH:mm').format(date);
+String _statusLabel(String status) {
+  switch (status) {
+    case 'pending':
+      return 'Pendiente';
+    case 'accepted':
+      return 'Aceptada';
+    case 'revoked':
+      return 'Revocada';
+    default:
+      return status;
   }
+}
 
-  static String _initials(String value) {
-    final clean = value.trim();
-    if (clean.isEmpty) return '?';
-    final parts = clean.split(RegExp(r'\s+'));
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return '${parts.first.substring(0, 1)}${parts[1].substring(0, 1)}'
-        .toUpperCase();
+Color _statusColor(BuildContext context, String status) {
+  switch (status) {
+    case 'pending':
+      return Colors.amber.shade700;
+    case 'accepted':
+      return Colors.green;
+    case 'revoked':
+      return Theme.of(context).colorScheme.error;
+    default:
+      return Theme.of(context).colorScheme.primary;
   }
 }

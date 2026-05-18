@@ -99,21 +99,18 @@ class ProductsProvider extends ChangeNotifier {
     Product product, {
     PickedImageFile? imageFile,
   }) async {
-    final userId = _authProvider.user?.id;
-    final companyId = _currentCompanyProvider.companyId;
+    final validationError = _validateCatalogAccess();
+    if (validationError != null) {
+      _error = validationError;
+      notifyListeners();
+      return;
+    }
+
+    final userId = _authProvider.user!.id;
+    final companyId = _currentCompanyProvider.companyId!;
     debugPrint(
-      'ProductsProvider.createProduct: companyId=${companyId ?? 'null'} name=${product.name}',
+      'ProductsProvider.createProduct: companyId=$companyId name=${product.name}',
     );
-    if (userId == null || companyId == null) {
-      _error = 'Debes iniciar sesión para crear productos.';
-      notifyListeners();
-      return;
-    }
-    if (!_authProvider.canManageCatalog) {
-      _error = 'No tienes permisos para crear productos.';
-      notifyListeners();
-      return;
-    }
     await _execute(() async {
       final productId = product.id.isEmpty
           ? _productService.createProductId(companyId)
@@ -128,10 +125,7 @@ class ProductsProvider extends ChangeNotifier {
       }
       final productToCreate =
           product.copyWith(id: productId, imageUrl: imageUrl);
-      await _productService.createProduct(
-        companyId,
-        productToCreate,
-      );
+      await _productService.createProduct(companyId, productToCreate);
       await _syncProductAlertBestEffort(companyId, productToCreate);
     });
   }
@@ -142,21 +136,22 @@ class ProductsProvider extends ChangeNotifier {
     PickedImageFile? imageFile,
     bool removeImage = false,
   }) async {
-    final userId = _authProvider.user?.id;
-    final companyId = _currentCompanyProvider.companyId;
-    debugPrint(
-      'ProductsProvider.updateProduct: companyId=${companyId ?? 'null'} productId=${product.id}',
+    final validationError = _validateCatalogAccess(
+      action: 'editar',
+      permissionDeniedMessage:
+          'No tienes permisos para editar productos en esta empresa.',
     );
-    if (userId == null || companyId == null) {
-      _error = 'Debes iniciar sesión para editar productos.';
+    if (validationError != null) {
+      _error = validationError;
       notifyListeners();
       return;
     }
-    if (!_authProvider.canManageCatalog) {
-      _error = 'No tienes permisos para editar productos.';
-      notifyListeners();
-      return;
-    }
+
+    final userId = _authProvider.user!.id;
+    final companyId = _currentCompanyProvider.companyId!;
+    debugPrint(
+      'ProductsProvider.updateProduct: companyId=$companyId productId=${product.id}',
+    );
     Product? previousProduct;
     for (final item in _products) {
       if (item.id == product.id) {
@@ -191,21 +186,23 @@ class ProductsProvider extends ChangeNotifier {
   }
 
   Future<void> deleteProduct(String productId) async {
-    final userId = _authProvider.user?.id;
-    final companyId = _currentCompanyProvider.companyId;
-    debugPrint(
-      'ProductsProvider.deleteProduct: companyId=${companyId ?? 'null'} productId=$productId',
+    final validationError = _validateCatalogAccess(
+      action: 'eliminar',
+      requiresDeletePermission: true,
+      permissionDeniedMessage:
+          'No tienes permisos para eliminar productos en esta empresa.',
     );
-    if (userId == null || companyId == null) {
-      _error = 'Debes iniciar sesión para eliminar productos.';
+    if (validationError != null) {
+      _error = validationError;
       notifyListeners();
       return;
     }
-    if (!_authProvider.canDelete) {
-      _error = 'Solo un administrador puede archivar productos.';
-      notifyListeners();
-      return;
-    }
+
+    final userId = _authProvider.user!.id;
+    final companyId = _currentCompanyProvider.companyId!;
+    debugPrint(
+      'ProductsProvider.deleteProduct: companyId=$companyId productId=$productId',
+    );
     Product? previous;
     for (final item in _products) {
       if (item.id == productId) {
@@ -229,19 +226,18 @@ class ProductsProvider extends ChangeNotifier {
   }
 
   Future<ProductLookupResult?> findProductByCode(String code) async {
-    final companyId = _currentCompanyProvider.companyId;
-    if (companyId == null) {
-      _error = 'Debes iniciar sesión para escanear productos.';
+    final validationError = _validateInventoryAccess(
+      action: 'escanear',
+      permissionDeniedMessage:
+          'No tienes permisos para escanear productos en esta empresa.',
+    );
+    if (validationError != null) {
+      _error = validationError;
       notifyListeners();
       return null;
     }
 
-    if (!_authProvider.canManageInventory) {
-      _error = 'No tienes permisos para escanear productos.';
-      notifyListeners();
-      return null;
-    }
-
+    final companyId = _currentCompanyProvider.companyId!;
     try {
       _error = null;
       notifyListeners();
@@ -270,19 +266,18 @@ class ProductsProvider extends ChangeNotifier {
     required int quantity,
     required bool increase,
   }) async {
-    final companyId = _currentCompanyProvider.companyId;
-    if (companyId == null) {
-      _error = 'Debes iniciar sesión para actualizar el stock.';
+    final validationError = _validateInventoryAccess(
+      action: 'actualizar',
+      permissionDeniedMessage:
+          'No tienes permisos para registrar movimientos de stock en esta empresa.',
+    );
+    if (validationError != null) {
+      _error = validationError;
       notifyListeners();
       return false;
     }
 
-    if (!_authProvider.canManageInventory) {
-      _error = 'No tienes permisos para registrar movimientos de stock.';
-      notifyListeners();
-      return false;
-    }
-
+    final companyId = _currentCompanyProvider.companyId!;
     var success = false;
     await _execute(() async {
       final result = await _productService.adjustProductStock(
@@ -311,19 +306,18 @@ class ProductsProvider extends ChangeNotifier {
     required String locationName,
     required int quantity,
   }) async {
-    final companyId = _currentCompanyProvider.companyId;
-    if (companyId == null) {
-      _error = 'Debes iniciar sesión para actualizar el stock.';
+    final validationError = _validateInventoryAccess(
+      action: 'actualizar',
+      permissionDeniedMessage:
+          'No tienes permisos para registrar movimientos de stock en esta empresa.',
+    );
+    if (validationError != null) {
+      _error = validationError;
       notifyListeners();
       return false;
     }
 
-    if (!_authProvider.canManageInventory) {
-      _error = 'No tienes permisos para registrar movimientos de stock.';
-      notifyListeners();
-      return false;
-    }
-
+    final companyId = _currentCompanyProvider.companyId!;
     var success = false;
     await _execute(() async {
       final result = await _productService.setProductLocationStock(
@@ -350,19 +344,18 @@ class ProductsProvider extends ChangeNotifier {
     required String targetLocationName,
     required int quantity,
   }) async {
-    final companyId = _currentCompanyProvider.companyId;
-    if (companyId == null) {
-      _error = 'Debes iniciar sesión para actualizar el stock.';
+    final validationError = _validateInventoryAccess(
+      action: 'transferir',
+      permissionDeniedMessage:
+          'No tienes permisos para transferir stock en esta empresa.',
+    );
+    if (validationError != null) {
+      _error = validationError;
       notifyListeners();
       return false;
     }
 
-    if (!_authProvider.canManageInventory) {
-      _error = 'No tienes permisos para transferir stock.';
-      notifyListeners();
-      return false;
-    }
-
+    final companyId = _currentCompanyProvider.companyId!;
     var success = false;
     await _execute(() async {
       final result = await _productService.transferProductStock(
@@ -433,7 +426,7 @@ class ProductsProvider extends ChangeNotifier {
     _products = const [];
     _error = null;
     final companyId = _currentCompanyProvider.companyId;
-    if (companyId == null) {
+    if (companyId == null || !_currentCompanyProvider.hasAcceptedMembership) {
       _loading = false;
       notifyListeners();
       return;
@@ -538,6 +531,46 @@ class ProductsProvider extends ChangeNotifier {
             ? error.message!.trim()
             : 'Ocurrió un error inesperado al guardar.';
     }
+  }
+
+  String? _validateCatalogAccess({
+    String action = 'crear',
+    bool requiresDeletePermission = false,
+    String? permissionDeniedMessage,
+  }) {
+    if (!_authProvider.isAuthenticated || _authProvider.user == null) {
+      return 'Debes iniciar sesión para $action productos.';
+    }
+    if (!_currentCompanyProvider.hasAcceptedMembership ||
+        _currentCompanyProvider.companyId == null) {
+      return 'Configura tu espacio de trabajo para comenzar y gestionar productos.';
+    }
+    final hasPermission = requiresDeletePermission
+        ? _currentCompanyProvider.canDelete
+        : _currentCompanyProvider.canManageCatalog;
+    if (!hasPermission) {
+      return permissionDeniedMessage ??
+          'No tienes permisos para crear productos en este espacio.';
+    }
+    return null;
+  }
+
+  String? _validateInventoryAccess({
+    String action = 'actualizar',
+    String? permissionDeniedMessage,
+  }) {
+    if (!_authProvider.isAuthenticated || _authProvider.user == null) {
+      return 'Debes iniciar sesión para $action el stock.';
+    }
+    if (!_currentCompanyProvider.hasAcceptedMembership ||
+        _currentCompanyProvider.companyId == null) {
+      return 'Configura tu espacio de trabajo para comenzar y gestionar inventario.';
+    }
+    if (!_currentCompanyProvider.canManageInventory) {
+      return permissionDeniedMessage ??
+          'No tienes permisos para registrar movimientos de stock en este espacio.';
+    }
+    return null;
   }
 
   @override
