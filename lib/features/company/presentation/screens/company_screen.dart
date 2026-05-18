@@ -92,7 +92,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
                         'Selecciona o crea un espacio de trabajo para configurar identidad, branding y demo data.',
                     icon: Icons.business_center_outlined,
                     actionLabel: 'Crear espacio',
-                    onAction: () => context.go(AppRoutePaths.company),
+                    onAction: () => context.go(AppRoutePaths.workspaceSetup),
                     compact: true,
                   ),
                 ),

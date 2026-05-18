@@ -61,6 +61,11 @@ class CurrentCompanyProvider extends ChangeNotifier {
   bool get canManageUsers => canReadCompanyData && role == 'admin';
   bool get canManageSettings => canReadCompanyData && role == 'admin';
   bool get hasMultipleCompanies => _companies.length > 1;
+  bool get needsWorkspaceSelection =>
+      !_loading &&
+      _authProvider.isAuthenticated &&
+      _companies.isEmpty &&
+      _company == null;
 
   Future<void> refresh() {
     final user = _authProvider.user;
@@ -106,29 +111,11 @@ class CurrentCompanyProvider extends ChangeNotifier {
       final userRef = _firestore.collection('users').doc(user.id);
       final userSnapshot = await userRef.get();
       final userData = userSnapshot.data() ?? const <String, dynamic>{};
-      final accountType = _normalizeAccountType(
-        userData['accountType'] ?? user.accountType,
-      );
       final preferredCompanyId =
           (userData['currentCompanyId'] as String?)?.trim();
 
       var memberships = await _loadAcceptedMemberships(user.id);
       _debug('initializeForUser: accepted memberships=${memberships.length}');
-
-      if (memberships.isEmpty) {
-        _debug('initializeForUser: no memberships found, bootstrapping workspace');
-        await _ensureWorkspace(
-          uid: user.id,
-          displayName: user.displayName,
-          email: user.email,
-          role: user.role,
-          accountType: accountType,
-        );
-        memberships = await _loadAcceptedMemberships(user.id);
-        _debug(
-          'initializeForUser: memberships after bootstrap=${memberships.length}',
-        );
-      }
 
       memberships = await _repairOwnedWorkspaceMemberships(
         userId: user.id,
@@ -242,73 +229,6 @@ class CurrentCompanyProvider extends ChangeNotifier {
     return memberships.first;
   }
 
-  Future<String> _ensureWorkspace({
-    required String uid,
-    required String displayName,
-    required String email,
-    required String role,
-    required String accountType,
-  }) async {
-    final companyId = 'company_$uid';
-    final companyRef = _firestore.collection('companies').doc(companyId);
-    final companySnapshot = await companyRef.get();
-    final userRef = _firestore.collection('users').doc(uid);
-    final legacyCompanyProfile = await userRef
-        .collection('company_profile')
-        .doc('company_profile')
-        .get();
-    final legacyProfileData =
-        legacyCompanyProfile.data() ?? const <String, dynamic>{};
-    final companyName = _resolveCompanyName(
-      accountType: accountType,
-      displayName: displayName,
-      fallbackEmail: email,
-      rawCompanyName: legacyProfileData['name'],
-    );
-    final normalizedRole = _roleForWorkspaceOwner(
-      role: role,
-      accountType: accountType,
-      workspaceType: accountType == 'person' ? 'personal' : 'business',
-    );
-
-    await companyRef.set({
-      'id': companyId,
-      'ownerId': uid,
-      'plan': 'trial',
-      'companyName': companyName,
-      'logoUrl': legacyProfileData['logoUrl'],
-      'settings': {
-        'defaultMinStock': 5,
-        'multiTenantReady': true,
-        'workspaceType': accountType == 'person' ? 'personal' : 'business',
-      },
-      if (!companySnapshot.exists) 'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    await companyRef.collection('users').doc(uid).set({
-      'uid': uid,
-      'role': normalizedRole,
-      'joinedAt': FieldValue.serverTimestamp(),
-      'invitedBy': uid,
-      'status': 'accepted',
-      'accountType': accountType,
-      'email': email,
-      'displayName': displayName,
-      'isActive': true,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    await userRef.set({
-      'currentCompanyId': companyId,
-      'companyIds': FieldValue.arrayUnion([companyId]),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    await _migrateLegacyWorkspace(uid: uid, companyId: companyId);
-    return companyId;
-  }
-
   Future<void> switchCompany(String companyId) async {
     final userId = _authProvider.user?.id;
     if (userId == null) return;
@@ -343,124 +263,38 @@ class CurrentCompanyProvider extends ChangeNotifier {
       );
     }
 
-    final companyRef = _firestore.collection('companies').doc();
-    final userRef = _firestore.collection('users').doc(authUser.id);
     final normalizedIndustry = (industry ?? '').trim();
     final normalizedWorkspaceType =
         _normalizeWorkspaceType(workspaceType, authUser.accountType);
-    final accountType = _normalizeAccountType(authUser.accountType);
-    final ownerRole = _roleForWorkspaceOwner(
-      role: authUser.role,
-      accountType: accountType,
+    final accountType = normalizedWorkspaceType == 'personal'
+        ? 'person'
+        : 'business';
+    return _createWorkspace(
+      companyName: normalizedCompanyName,
+      industry: normalizedIndustry,
       workspaceType: normalizedWorkspaceType,
+      accountType: accountType,
     );
-    final batch = _firestore.batch();
-
-    batch.set(companyRef, {
-      'id': companyRef.id,
-      'ownerId': authUser.id,
-      'plan': 'free',
-      'companyName': normalizedCompanyName,
-      'logoUrl': null,
-      'settings': {
-        'defaultMinStock': 5,
-        'multiTenantReady': true,
-        'workspaceType': normalizedWorkspaceType,
-        if (normalizedIndustry.isNotEmpty) 'industry': normalizedIndustry,
-      },
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    batch.set(companyRef.collection('users').doc(authUser.id), {
-      'uid': authUser.id,
-      'role': ownerRole,
-      'joinedAt': FieldValue.serverTimestamp(),
-      'invitedBy': authUser.id,
-      'status': 'accepted',
-      'accountType': accountType,
-      'email': authUser.email,
-      'displayName': authUser.displayName,
-      'isActive': true,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    batch.set(companyRef.collection('company_profile').doc('company_profile'), {
-      'id': 'company_profile',
-      'name': normalizedCompanyName,
-      'industry': normalizedIndustry,
-      'phone': '',
-      'email': authUser.email,
-      'address': '',
-      'website': '',
-      'logoUrl': null,
-      'createdBy': authUser.id,
-      'isActive': true,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    batch.set(userRef, {
-      'companyIds': FieldValue.arrayUnion([companyRef.id]),
-      'currentCompanyId': companyRef.id,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    try {
-      await batch.commit();
-      await refresh();
-      return companyRef.id;
-    } on FirebaseException catch (error, stackTrace) {
-      _debug('createCompany FirebaseException: ${error.code} ${error.message}');
-      _debug('$stackTrace');
-      throw _WorkspaceOperationException(_friendlyWorkspaceError(error));
-    } catch (error, stackTrace) {
-      _debug('createCompany error: $error');
-      _debug('$stackTrace');
-      throw const _WorkspaceOperationException(
-        'No se pudo crear el espacio de trabajo. Verifica tus permisos o intenta nuevamente.',
-      );
-    }
   }
 
-  Future<void> _migrateLegacyWorkspace({
-    required String uid,
-    required String companyId,
-  }) async {
-    final legacyUserRef = _firestore.collection('users').doc(uid);
-    final companyRef = _firestore.collection('companies').doc(companyId);
-    for (final collectionName in const [
-      'products',
-      'locations',
-      'location_types',
-      'alerts',
-      'stock_movements',
-      'stock_requests',
-      'activity_logs',
-      'company_profile',
-    ]) {
-      final targetSnapshot =
-          await companyRef.collection(collectionName).limit(1).get();
-      if (targetSnapshot.docs.isNotEmpty) continue;
-      final sourceSnapshot = await legacyUserRef.collection(collectionName).get();
-      if (sourceSnapshot.docs.isEmpty) continue;
+  Future<String> createPersonalWorkspace() {
+    return _createWorkspace(
+      companyName: 'Inventario personal',
+      workspaceType: 'personal',
+      accountType: 'person',
+    );
+  }
 
-      WriteBatch? batch;
-      var ops = 0;
-      for (final doc in sourceSnapshot.docs) {
-        batch ??= _firestore.batch();
-        batch.set(companyRef.collection(collectionName).doc(doc.id), doc.data());
-        ops++;
-        if (ops == 400) {
-          await batch.commit();
-          batch = null;
-          ops = 0;
-        }
-      }
-      if (batch != null && ops > 0) {
-        await batch.commit();
-      }
-    }
+  Future<String> createBusinessWorkspace({
+    required String companyName,
+    String? industry,
+  }) {
+    return _createWorkspace(
+      companyName: companyName.trim(),
+      industry: (industry ?? '').trim(),
+      workspaceType: 'business',
+      accountType: 'business',
+    );
   }
 
   Future<List<CompanyWorkspace>> _repairOwnedWorkspaceMemberships({
@@ -504,6 +338,101 @@ class CurrentCompanyProvider extends ChangeNotifier {
       return memberships;
     }
     return _loadAcceptedMemberships(userId);
+  }
+
+  Future<String> _createWorkspace({
+    required String companyName,
+    required String workspaceType,
+    required String accountType,
+    String industry = '',
+  }) async {
+    final authUser = _authProvider.user;
+    if (authUser == null) {
+      throw const _WorkspaceOperationException(
+        'Debes iniciar sesión para crear un espacio de trabajo.',
+      );
+    }
+    if (companyName.trim().isEmpty) {
+      throw const _WorkspaceOperationException(
+        'Ingresa un nombre válido para el espacio de trabajo.',
+      );
+    }
+
+    final companyRef = _firestore.collection('companies').doc();
+    final membershipRef = companyRef.collection('users').doc(authUser.id);
+    final profileRef = companyRef.collection('company_profile').doc('company_profile');
+    final userRef = _firestore.collection('users').doc(authUser.id);
+    final ownerRole = _roleForWorkspaceOwner(
+      role: authUser.role,
+      accountType: accountType,
+      workspaceType: workspaceType,
+    );
+
+    try {
+      await companyRef.set({
+        'id': companyRef.id,
+        'ownerId': authUser.id,
+        'plan': 'free',
+        'companyName': companyName.trim(),
+        'logoUrl': null,
+        'settings': {
+          'defaultMinStock': 5,
+          'multiTenantReady': true,
+          'workspaceType': workspaceType,
+          if (industry.trim().isNotEmpty) 'industry': industry.trim(),
+        },
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await membershipRef.set({
+        'uid': authUser.id,
+        'role': ownerRole,
+        'joinedAt': FieldValue.serverTimestamp(),
+        'invitedBy': authUser.id,
+        'status': 'accepted',
+        'accountType': accountType,
+        'email': authUser.email,
+        'displayName': authUser.displayName,
+        'isActive': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await profileRef.set({
+        'id': 'company_profile',
+        'name': companyName.trim(),
+        'industry': industry.trim(),
+        'phone': '',
+        'email': authUser.email,
+        'address': '',
+        'website': '',
+        'logoUrl': null,
+        'createdBy': authUser.id,
+        'isActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await userRef.set({
+        'accountType': accountType,
+        'companyIds': FieldValue.arrayUnion([companyRef.id]),
+        'currentCompanyId': companyRef.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await refresh();
+      return companyRef.id;
+    } on FirebaseException catch (error, stackTrace) {
+      _debug('_createWorkspace FirebaseException: ${error.code} ${error.message}');
+      _debug('$stackTrace');
+      throw _WorkspaceOperationException(_friendlyWorkspaceError(error));
+    } catch (error, stackTrace) {
+      _debug('_createWorkspace error: $error');
+      _debug('$stackTrace');
+      throw const _WorkspaceOperationException(
+        'No se pudo crear el espacio de trabajo. Verifica tus permisos o intenta nuevamente.',
+      );
+    }
   }
 
   String _normalizeRole(String role) {
@@ -559,24 +488,6 @@ class CurrentCompanyProvider extends ChangeNotifier {
 
   String _normalizeAccountType(String value) {
     return value.trim().toLowerCase() == 'business' ? 'business' : 'person';
-  }
-
-  String _resolveCompanyName({
-    required String accountType,
-    required String displayName,
-    required String fallbackEmail,
-    dynamic rawCompanyName,
-  }) {
-    final candidate = (rawCompanyName is String ? rawCompanyName : '').trim();
-    if (candidate.isNotEmpty) return candidate;
-    if (accountType == 'business') {
-      return displayName.trim().isNotEmpty ? displayName.trim() : 'Mi empresa';
-    }
-    if (displayName.trim().isNotEmpty) {
-      return 'Espacio de ${displayName.trim()}';
-    }
-    final handle = fallbackEmail.split('@').first.trim();
-    return handle.isNotEmpty ? 'Espacio de $handle' : 'Espacio personal';
   }
 
   bool _sameIdSet(List<String> left, List<String> right) {

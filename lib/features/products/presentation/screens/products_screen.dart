@@ -29,15 +29,16 @@ class ProductsScreen extends StatelessWidget {
     final exportItems = provider.filteredProducts;
     final hasActiveCompany =
         company.hasAcceptedMembership && company.companyId != null;
+    final isPersonalWorkspace = company.company?.isPersonalWorkspace == true;
 
     return DashboardFrame(
-      title: 'Productos',
+      title: isPersonalWorkspace ? 'Tus productos' : 'Productos',
       subtitle:
           'Gestiona tu catálogo con filtros, exportación y control inteligente del stock.',
       actions: [
         if (!hasActiveCompany)
           FilledButton.icon(
-            onPressed: () => context.go(AppRoutePaths.company),
+            onPressed: () => context.go(AppRoutePaths.workspaceSetup),
             icon: const Icon(Icons.add_business_outlined),
             label: const Text('Crear espacio'),
           ),
@@ -108,7 +109,7 @@ class ProductsScreen extends StatelessWidget {
                           'Crea o selecciona un espacio para gestionar productos, movimientos y analytics desde un solo lugar.',
                       icon: Icons.business_outlined,
                       actionLabel: 'Crear espacio',
-                      onAction: () => context.go(AppRoutePaths.company),
+                      onAction: () => context.go(AppRoutePaths.workspaceSetup),
                       compact: true,
                     ),
                   ),

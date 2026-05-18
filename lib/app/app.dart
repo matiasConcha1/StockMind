@@ -17,6 +17,7 @@ import 'package:stockmind/core/utils/firebase_bootstrap.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/firebase_setup_screen.dart';
 import 'package:stockmind/features/company/providers/company_profile_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/company/presentation/widgets/initial_onboarding_dialog.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/users/providers/user_provider.dart';
@@ -50,6 +51,7 @@ class _StockMindAppState extends State<StockMindApp> {
   late final NotificationService _notificationService;
   late final UserProvider _userProvider;
   late final CompanyProfileProvider _companyProvider;
+  late final CurrentCompanyProvider _currentCompanyProvider;
 
   @override
   void initState() {
@@ -58,8 +60,10 @@ class _StockMindAppState extends State<StockMindApp> {
     _notificationService = context.read<NotificationService>();
     _userProvider = context.read<UserProvider>();
     _companyProvider = context.read<CompanyProfileProvider>();
+    _currentCompanyProvider = context.read<CurrentCompanyProvider>();
     _router = AppRoutes.createRouter(
       authProvider: _authProvider,
+      currentCompanyProvider: _currentCompanyProvider,
     );
     _messageSubscription =
         _notificationService.foregroundMessages.listen((message) {

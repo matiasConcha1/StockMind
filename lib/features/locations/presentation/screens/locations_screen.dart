@@ -27,15 +27,16 @@ class LocationsScreen extends StatelessWidget {
         company.hasAcceptedMembership && company.companyId != null;
     final canManageLocations = company.canManageLocations;
     final canDeleteLocations = company.canDelete;
+    final isPersonalWorkspace = company.company?.isPersonalWorkspace == true;
 
     return DashboardFrame(
-      title: 'Ubicaciones',
+      title: isPersonalWorkspace ? 'Tus ubicaciones' : 'Ubicaciones',
       subtitle:
           'Gestiona espacios físicos como refrigeradores, congeladoras, cajas y closets.',
       actions: [
         if (!hasActiveCompany)
           FilledButton.icon(
-            onPressed: () => context.go(AppRoutePaths.company),
+            onPressed: () => context.go(AppRoutePaths.workspaceSetup),
             icon: const Icon(Icons.add_business_outlined),
             label: const Text('Crear espacio'),
           ),
@@ -60,7 +61,7 @@ class LocationsScreen extends StatelessWidget {
                       'Crea o selecciona un espacio para organizar ubicaciones, stock real y operaciones del inventario.',
                   icon: Icons.business_outlined,
                   actionLabel: 'Crear espacio',
-                  onAction: () => context.go(AppRoutePaths.company),
+                  onAction: () => context.go(AppRoutePaths.workspaceSetup),
                   compact: true,
                 ),
               ),

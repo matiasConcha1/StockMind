@@ -7,8 +7,10 @@ import 'package:stockmind/features/auth/presentation/screens/forgot_password_scr
 import 'package:stockmind/features/auth/presentation/screens/login_screen.dart';
 import 'package:stockmind/features/auth/presentation/screens/register_screen.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/company/presentation/screens/company_screen.dart';
 import 'package:stockmind/features/company/presentation/screens/invite_acceptance_screen.dart';
+import 'package:stockmind/features/company/presentation/screens/workspace_type_selection_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/settings_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/stock_movements_screen.dart';
@@ -29,6 +31,7 @@ final class AppRoutePaths {
   static const alerts = '/alerts';
   static const locations = '/locations';
   static const settings = '/settings';
+  static const workspaceSetup = '/workspace-setup';
   static const company = '/company';
   static const companyLegacy = '/empresa';
   static const users = '/users';
@@ -51,6 +54,7 @@ final class AppRouteNames {
   static const alerts = 'alerts';
   static const locations = 'locations';
   static const settings = 'settings';
+  static const workspaceSetup = 'workspace-setup';
   static const company = 'company';
   static const companyLegacy = 'empresa';
   static const users = 'users';
@@ -65,10 +69,16 @@ final class AppRouteNames {
 class AppRoutes {
   const AppRoutes._();
 
-  static GoRouter createRouter({required AuthProvider authProvider}) {
+  static GoRouter createRouter({
+    required AuthProvider authProvider,
+    required CurrentCompanyProvider currentCompanyProvider,
+  }) {
     return GoRouter(
       initialLocation: AppRoutePaths.loading,
-      refreshListenable: authProvider,
+      refreshListenable: Listenable.merge([
+        authProvider,
+        currentCompanyProvider,
+      ]),
       redirect: (context, state) {
         final currentLocation = state.matchedLocation;
         final isAuthRoute = <String>{
@@ -100,6 +110,20 @@ class AppRoutes {
           return AppRoutePaths.login;
         }
 
+        if (currentCompanyProvider.isLoading) {
+          if (currentLocation == AppRoutePaths.loading || isInviteRoute) {
+            return null;
+          }
+          return AppRoutePaths.loading;
+        }
+
+        if (currentCompanyProvider.needsWorkspaceSelection) {
+          if (currentLocation == AppRoutePaths.workspaceSetup || isInviteRoute) {
+            return null;
+          }
+          return AppRoutePaths.workspaceSetup;
+        }
+
         if (authProvider.isAuthenticated &&
             (isAuthRoute || currentLocation == AppRoutePaths.loading)) {
           final redirectTarget = state.uri.queryParameters['redirect']?.trim();
@@ -109,9 +133,21 @@ class AppRoutes {
           return AppRoutePaths.dashboard;
         }
 
+        if (authProvider.isAuthenticated &&
+            currentLocation == AppRoutePaths.workspaceSetup &&
+            currentCompanyProvider.hasAcceptedMembership) {
+          return AppRoutePaths.dashboard;
+        }
+
         return null;
       },
       routes: [
+        GoRoute(
+          path: AppRoutePaths.workspaceSetup,
+          name: AppRouteNames.workspaceSetup,
+          pageBuilder: (context, state) =>
+              _buildPage(state, const WorkspaceTypeSelectionScreen()),
+        ),
         GoRoute(
           path: AppRoutePaths.loading,
           name: AppRouteNames.loading,

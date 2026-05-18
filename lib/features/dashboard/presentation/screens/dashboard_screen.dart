@@ -44,6 +44,8 @@ class DashboardScreen extends StatelessWidget {
     final requestsProvider = context.watch<StockRequestsProvider>();
     final snapshot = provider.snapshot;
     final width = MediaQuery.sizeOf(context).width;
+    final isPersonalWorkspace =
+        currentCompany.company?.isPersonalWorkspace == true;
     final heroGreeting =
         (userProvider.currentUser?.displayName ?? auth.user?.displayName ?? 'equipo')
             .split(' ')
@@ -51,7 +53,7 @@ class DashboardScreen extends StatelessWidget {
     final canExport = currentCompany.canExport;
 
     return DashboardFrame(
-      title: 'Analytics center',
+      title: isPersonalWorkspace ? 'Inventario personal' : 'Centro de inventario',
       subtitle: companyProvider.isComplete
           ? 'Rendimiento operativo de ${companyProvider.companyName} con señales reales de stock, alertas y colaboración.'
           : 'Activa un centro de analytics más claro mientras terminas de configurar tu espacio de trabajo.',
@@ -99,7 +101,7 @@ class DashboardScreen extends StatelessWidget {
         primaryLabel: 'Reintentar',
         onPrimaryAction: currentCompany.refresh,
         secondaryLabel: 'Crear espacio',
-        onSecondaryAction: () => context.go(AppRoutePaths.company),
+        onSecondaryAction: () => context.go(AppRoutePaths.workspaceSetup),
       );
     }
 
@@ -110,7 +112,7 @@ class DashboardScreen extends StatelessWidget {
             'Crea o selecciona un espacio de trabajo para cargar analytics, inventario e invitaciones.',
         icon: Icons.business_center_outlined,
         primaryLabel: 'Crear espacio de trabajo',
-        onPrimaryAction: () => context.go(AppRoutePaths.company),
+        onPrimaryAction: () => context.go(AppRoutePaths.workspaceSetup),
       );
     }
 

@@ -88,7 +88,7 @@ class AppHeader extends StatelessWidget {
                 child: Text(strings.retryAction),
               ),
               TextButton(
-                onPressed: () => _openCreateWorkspaceDialog(context, company),
+                onPressed: () => context.go(AppRoutePaths.workspaceSetup),
                 child: Text(strings.createWorkspace),
               ),
             ],
@@ -101,7 +101,7 @@ class AppHeader extends StatelessWidget {
             text: strings.workspaceDemoBanner,
             actions: [
               TextButton.icon(
-                onPressed: () => _openCreateWorkspaceDialog(context, company),
+                onPressed: () => context.go(AppRoutePaths.workspaceSetup),
                 icon: const Icon(Icons.add_business_outlined),
                 label: Text(strings.createMyWorkspace),
               ),
@@ -121,7 +121,7 @@ class AppHeader extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: () => context.go(AppRoutePaths.company),
+              onPressed: () => context.go(AppRoutePaths.workspaceSetup),
               icon: const Icon(Icons.apartment_outlined),
               label: Text(strings.goToWorkspace),
             ),
@@ -206,7 +206,7 @@ class AppHeader extends StatelessWidget {
 
     if (provider.companies.isEmpty) {
       return FilledButton.icon(
-        onPressed: () => _openCreateWorkspaceDialog(context, provider),
+        onPressed: () => context.go(AppRoutePaths.workspaceSetup),
         icon: const Icon(Icons.add_business_outlined),
         label: Text(strings.createWorkspaceAction),
       );
