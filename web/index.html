@@ -7,7 +7,7 @@
     <meta content="IE=Edge" http-equiv="X-UA-Compatible" />
     <meta
       name="description"
-      content="StockMind is a Flutter Web inventory management SaaS with smart alerts, analytics, and a responsive control center."
+      content="StockMind is a multi-tenant inventory management SaaS with analytics, invitations, RBAC and a premium responsive dashboard."
     />
     <meta name="theme-color" content="#1D4ED8" />
 
@@ -18,7 +18,7 @@
 
     <link rel="icon" type="image/png" href="favicon.png" />
 
-    <title>StockMind</title>
+    <title>StockMind | Multi-tenant Inventory SaaS</title>
     <link rel="manifest" href="manifest.json" />
 
     <style>
@@ -242,14 +242,14 @@
           <div class="loader-logo-fallback" id="loader-logo-fallback">📦</div>
         </div>
         <h1 class="loader-title">StockMind</h1>
-        <p class="loader-subtitle">Preparing your inventory workspace...</p>
+        <p class="loader-subtitle" id="loader-subtitle">Preparando tu espacio de inventario...</p>
         <div class="loader-spinner" aria-hidden="true"></div>
-        <p class="loader-status" id="loader-status">Checking your session...</p>
+        <p class="loader-status" id="loader-status">Verificando tu sesión...</p>
         <div class="loader-progress" aria-hidden="true"></div>
         <div class="loader-fallback-wrap" id="loader-fallback">
-          <p class="loader-fallback">This is taking longer than expected.</p>
-          <button class="loader-button" type="button" onclick="window.location.reload()">
-            Retry
+          <p class="loader-fallback" id="loader-fallback-text">Esto está tardando más de lo esperado.</p>
+          <button class="loader-button" id="loader-retry-button" type="button" onclick="window.location.reload()">
+            Reintentar
           </button>
         </div>
       </div>
@@ -257,16 +257,46 @@
 
     <script>
       (function () {
+        const locale =
+          window.localStorage.getItem("stockmind_locale") ||
+          window.localStorage.getItem("flutter.stockmind_locale") ||
+          "es";
+        const isEnglish = String(locale).toLowerCase() === "en";
         const statusEl = document.getElementById("loader-status");
+        const subtitleEl = document.getElementById("loader-subtitle");
         const fallbackEl = document.getElementById("loader-fallback");
+        const fallbackTextEl = document.getElementById("loader-fallback-text");
+        const retryButtonEl = document.getElementById("loader-retry-button");
         const loaderEl = document.getElementById("stockmind-loader");
         const logoFallbackEl = document.getElementById("loader-logo-fallback");
         const logoImgEl = document.getElementById("loader-logo-image");
-        const messages = [
-          "Checking your session...",
-          "Connecting to Firebase...",
-          "Preparing your inventory workspace...",
-        ];
+        const copy = isEnglish
+          ? {
+              subtitle: "Preparing your inventory workspace...",
+              fallback: "This is taking longer than expected.",
+              retry: "Retry",
+              messages: [
+                "Checking your session...",
+                "Connecting to Firebase...",
+                "Preparing your inventory workspace...",
+              ],
+            }
+          : {
+              subtitle: "Preparando tu espacio de inventario...",
+              fallback: "Esto está tardando más de lo esperado.",
+              retry: "Reintentar",
+              messages: [
+                "Verificando tu sesión...",
+                "Conectando con Firebase...",
+                "Preparando tu espacio de inventario...",
+              ],
+            };
+        const messages = copy.messages;
+
+        if (subtitleEl) subtitleEl.textContent = copy.subtitle;
+        if (fallbackTextEl) fallbackTextEl.textContent = copy.fallback;
+        if (retryButtonEl) retryButtonEl.textContent = copy.retry;
+        if (statusEl) statusEl.textContent = messages[0];
 
         if (logoImgEl && logoFallbackEl) {
           logoImgEl.addEventListener("error", function () {

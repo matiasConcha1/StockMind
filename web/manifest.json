@@ -6,7 +6,7 @@
   "display": "standalone",
   "background_color": "#0B1220",
   "theme_color": "#1D4ED8",
-  "description": "StockMind is a Flutter Web inventory management SaaS with smart alerts, analytics, and a responsive control center.",
+  "description": "StockMind is a multi-tenant inventory management SaaS with analytics, invitations, RBAC and a premium responsive dashboard.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [

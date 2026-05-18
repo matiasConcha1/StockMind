@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/constants/app_constants.dart';
+import 'package:stockmind/core/i18n/app_strings.dart';
+import 'package:stockmind/core/i18n/locale_provider.dart';
 import 'package:stockmind/core/services/notification_service.dart';
 import 'package:stockmind/core/services/pwa_service.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
@@ -38,6 +41,7 @@ class _StockMindAppState extends State<StockMindApp> {
   bool _updateBannerVisible = false;
   bool _notificationPromptShownThisSession = false;
   bool _onboardingShownThisSession = false;
+  bool _invitationPromptShownThisSession = false;
   late final VoidCallback _pwaListener;
   PwaService? _pwaService;
   Timer? _notificationPromptTimer;
@@ -77,11 +81,14 @@ class _StockMindAppState extends State<StockMindApp> {
     _authProvider.addListener(_handleNotificationPromptState);
     _notificationService.addListener(_handleNotificationPromptState);
     _userProvider.addListener(_handleOnboardingState);
+    _userProvider.addListener(_handleInvitationState);
     _companyProvider.addListener(_handleOnboardingState);
     _router.routeInformationProvider.addListener(_handleNotificationPromptState);
     _router.routeInformationProvider.addListener(_handleOnboardingState);
+    _router.routeInformationProvider.addListener(_handleInvitationState);
     _handleNotificationPromptState();
     _handleOnboardingState();
+    _handleInvitationState();
   }
 
   @override
@@ -92,9 +99,11 @@ class _StockMindAppState extends State<StockMindApp> {
     _authProvider.removeListener(_handleNotificationPromptState);
     _notificationService.removeListener(_handleNotificationPromptState);
     _userProvider.removeListener(_handleOnboardingState);
+    _userProvider.removeListener(_handleInvitationState);
     _companyProvider.removeListener(_handleOnboardingState);
     _router.routeInformationProvider.removeListener(_handleNotificationPromptState);
     _router.routeInformationProvider.removeListener(_handleOnboardingState);
+    _router.routeInformationProvider.removeListener(_handleInvitationState);
     _pwaService?.removeListener(_pwaListener);
     _router.dispose();
     super.dispose();
@@ -103,6 +112,7 @@ class _StockMindAppState extends State<StockMindApp> {
   void _handlePwaStateChanged() {
     final messenger = _messengerKey.currentState;
     if (messenger == null) return;
+    final strings = context.strings;
 
     final pwaService = _pwaService;
     if (pwaService == null) return;
@@ -113,7 +123,7 @@ class _StockMindAppState extends State<StockMindApp> {
         ..hideCurrentMaterialBanner()
         ..showMaterialBanner(
           MaterialBanner(
-            content: const Text('Nueva versión disponible'),
+            content: Text(strings.newVersionAvailable),
             leading: const Icon(Icons.system_update_rounded),
             actions: [
               TextButton(
@@ -122,7 +132,7 @@ class _StockMindAppState extends State<StockMindApp> {
                   _updateBannerVisible = false;
                   await pwaService.applyUpdate();
                 },
-                child: const Text('Actualizar ahora'),
+                child: Text(strings.updateNow),
               ),
             ],
           ),
@@ -142,6 +152,7 @@ class _StockMindAppState extends State<StockMindApp> {
     final onPrivateArea = currentPath != AppRoutePaths.login &&
         currentPath != AppRoutePaths.register &&
         currentPath != AppRoutePaths.forgotPassword &&
+        !currentPath.startsWith('${AppRoutePaths.invite}/') &&
         currentPath != AppRoutePaths.loading;
 
     if (!isAuthenticated) {
@@ -170,14 +181,14 @@ class _StockMindAppState extends State<StockMindApp> {
       }
 
       _notificationPromptShownThisSession = true;
+      final strings = context.strings;
       final accepted = await showAppAlertDialog(
         context,
         type: AppAlertType.confirm,
-        title: 'Activa las notificaciones',
-        message:
-            'Recibe alertas de stock bajo, productos por vencer y reposiciones pendientes.',
-        confirmLabel: 'Activar notificaciones',
-        cancelLabel: 'Ahora no',
+        title: strings.enableNotifications,
+        message: strings.notificationPromptMessage,
+        confirmLabel: strings.enableNotificationsAction,
+        cancelLabel: strings.notNow,
       );
       if (!mounted) return;
       if (accepted == true) {
@@ -195,6 +206,7 @@ class _StockMindAppState extends State<StockMindApp> {
     final onPrivateArea = currentPath != AppRoutePaths.login &&
         currentPath != AppRoutePaths.register &&
         currentPath != AppRoutePaths.forgotPassword &&
+        !currentPath.startsWith('${AppRoutePaths.invite}/') &&
         currentPath != AppRoutePaths.loading;
 
     if (!isAuthenticated) {
@@ -234,15 +246,82 @@ class _StockMindAppState extends State<StockMindApp> {
     });
   }
 
+  void _handleInvitationState() {
+    final isAuthenticated = _authProvider.isAuthenticated;
+    final currentPath = _router.routeInformationProvider.value.uri.path;
+    final onPrivateArea = currentPath != AppRoutePaths.login &&
+        currentPath != AppRoutePaths.register &&
+        currentPath != AppRoutePaths.forgotPassword &&
+        !currentPath.startsWith('${AppRoutePaths.invite}/') &&
+        currentPath != AppRoutePaths.loading;
+
+    if (!isAuthenticated) {
+      _invitationPromptShownThisSession = false;
+      return;
+    }
+    if (_invitationPromptShownThisSession ||
+        !_userProvider.hasPendingInvitations ||
+        !onPrivateArea) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted ||
+          _invitationPromptShownThisSession ||
+          !_userProvider.hasPendingInvitations) {
+        return;
+      }
+      _invitationPromptShownThisSession = true;
+      final strings = context.strings;
+      final invitation = _userProvider.pendingInvitations.first;
+      final accepted = await showAppAlertDialog(
+        context,
+        type: AppAlertType.confirm,
+        title: strings.availableInvitation,
+        message: strings.invitationPendingMessage(
+          invitation.companyName,
+          invitation.role,
+        ),
+        confirmLabel: strings.acceptInvitation,
+        cancelLabel: strings.notNow,
+      );
+      if (!mounted) return;
+      if (accepted == true) {
+        try {
+          await _userProvider.acceptInvitation(invitation.id);
+          if (!mounted) return;
+          _messengerKey.currentState?.showSnackBar(
+            SnackBar(
+              content: Text(
+                strings.nowPartOfCompany(invitation.companyName),
+              ),
+            ),
+          );
+        } catch (error) {
+          _messengerKey.currentState?.showSnackBar(
+            SnackBar(content: Text(error.toString())),
+          );
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
+    final localeProvider = context.watch<LocaleProvider>();
 
     if (!widget.bootstrap.isReady) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         title: AppConstants.appName,
         scaffoldMessengerKey: _messengerKey,
+        locale: localeProvider.locale,
+        supportedLocales: LocaleProvider.supportedLocales,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: themeProvider.themeMode,
@@ -255,6 +334,13 @@ class _StockMindAppState extends State<StockMindApp> {
       debugShowCheckedModeBanner: false,
       title: AppConstants.appName,
       scaffoldMessengerKey: _messengerKey,
+      locale: localeProvider.locale,
+      supportedLocales: LocaleProvider.supportedLocales,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,

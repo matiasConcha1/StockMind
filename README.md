@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  StockMind helps teams control products, locations, alerts, and stock movements from a responsive web platform designed for modern operations.
+StockMind helps teams control products, locations, alerts, invitations, analytics, and stock movements from a responsive web platform designed for modern operations.
 </p>
 
 <p align="center">
@@ -30,13 +30,18 @@ It is positioned as a lightweight SaaS for companies that need a cleaner alterna
 - Multi-location inventory organization
 - Low-stock monitoring and alert flows
 - Inventory analytics and movement tracking
+- Multi-tenant workspace architecture by company
+- RBAC with `admin`, `editor`, `operator`, and `viewer`
+- Team invitations by email and secure shareable link
 - Export capabilities for operational reporting
 - PWA support for installable web experience
 - Firebase Hosting deployment ready
+- Demo mode seeding for public walkthroughs and interviews
 
 ## Demo
 
 - Production demo: `https://ejemplofirebase-38f98.web.app`
+- Fast path: use `Entrar a demo` on the login screen to create an isolated demo workspace with curated seed data
 
 ## Screenshots
 
@@ -73,10 +78,16 @@ It is positioned as a lightweight SaaS for companies that need a cleaner alterna
 ## Core Features
 
 - Authentication and protected access flows
+- Multi-company memberships with active workspace switching
+- Company-scoped data isolation with Firestore rules
+- Role-based access control for catalog, inventory, and members
 - Product registration, editing, and stock visibility
 - Inventory location management
 - Stock movement and operational snapshot views
+- Invitation flows by email and tokenized link
 - Smart low-stock alerts
+- Analytics center with KPIs, trends, movement charts, severity views, and activity insights
+- Demo seed flow for generating a realistic workspace safely
 - File and image storage for operational records
 - Excel and PDF export support
 - Responsive UI for mobile-aware web usage
@@ -108,8 +119,9 @@ lib/
     activity_logs/        Activity and audit-related services
     alerts/               Low-stock alert logic and UI
     auth/                 Authentication flows and providers
-    company/              Company profile and onboarding
-    dashboard/            Inventory analytics and overview screens
+    company/              Company profile, onboarding, memberships, invitations
+    dashboard/            Analytics center, overview screens, charts
+    demo/                 Demo workspace seed services
     locations/            Inventory location management
     products/             Product catalog and stock operations
     replenishment/        Replenishment requests and workflows
@@ -160,14 +172,81 @@ flutter build web --release --dart-define=FCM_WEB_VAPID_KEY=YOUR_PUBLIC_VAPID_KE
 firebase deploy
 ```
 
+## Demo Mode
+
+StockMind includes a safe demo seed flow for public walkthroughs.
+
+- Go to `Ajustes > Empresa`
+- Use `Cargar demo`
+- Confirm the action
+
+What it creates:
+
+- sample products
+- locations
+- stock movements
+- smart alerts
+- replenishment requests
+- activity logs
+
+Notes:
+
+- the action is intended for admins
+- it is idempotent and will refuse to run if the company already contains data
+- demo data is written inside the active `companies/{companyId}` tenant, so it does not break multi-tenant isolation
+
+## How To Try The Demo
+
+1. Open the live demo
+2. Click `Entrar a demo`
+3. Authenticate with Google
+4. StockMind creates or reuses an isolated demo company for your user
+5. You land in the analytics dashboard with realistic seed data already loaded
+
+## What To Review In 3 Minutes
+
+1. Check the KPI strip and analytics charts
+2. Open active alerts and pending replenishment requests
+3. Switch companies from the workspace selector
+4. Open `Miembros` and create an invite by email or link
+5. Visit `Ajustes > Empresa` and reset or reseed demo data if needed
+
+## Technical Highlights
+
+- Flutter Web application with premium responsive UI
+- Firebase Auth with email/password and Google sign-in
+- Firestore multi-tenant architecture under `companies/{companyId}`
+- RBAC with `admin`, `editor`, `operator`, `viewer`
+- Invitation system by email and tokenized share link
+- Analytics dashboard with charts, trends, KPIs, and activity insights
+- PWA-ready hosting experience on Firebase Hosting
+- Demo seed flow for recruiter demos, GitHub showcases, and interview walkthroughs
+
+## Public Demo Deploy
+
+Recommended steps for a public StockMind demo:
+
+1. `flutter pub get`
+2. `flutter analyze`
+3. `flutter build web --release`
+4. `firebase login`
+5. `firebase deploy --only hosting,firestore:rules`
+
+Checklist before sharing:
+
+- confirm `firebase.json` rewrites `"/invite/**"` and all SPA routes to `index.html`
+- confirm `web/index.html` and `web/manifest.json` carry StockMind metadata
+- create a fresh company from the app
+- load demo data from `Ajustes > Empresa`
+- verify invitations, dashboard analytics, and multi-company switching in production hosting
+
 ## Roadmap
 
-- Multi-tenant SaaS setup by company or workspace
+- Multi-tenant SaaS collaboration across multiple workspaces per user
 - Advanced inventory forecasting and replenishment suggestions
 - Richer analytics for stock turnover and demand trends
-- Role-based permissions refinement
-- Operational audit trail and activity insights
 - Billing and subscription readiness
+- Stronger audit reporting and environment-specific demo controls
 
 ## Author
 

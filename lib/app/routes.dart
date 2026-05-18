@@ -8,6 +8,7 @@ import 'package:stockmind/features/auth/presentation/screens/login_screen.dart';
 import 'package:stockmind/features/auth/presentation/screens/register_screen.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/company/presentation/screens/company_screen.dart';
+import 'package:stockmind/features/company/presentation/screens/invite_acceptance_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/settings_screen.dart';
 import 'package:stockmind/features/dashboard/presentation/screens/stock_movements_screen.dart';
@@ -22,6 +23,7 @@ final class AppRoutePaths {
   static const login = '/login';
   static const register = '/register';
   static const forgotPassword = '/forgot-password';
+  static const invite = '/invite';
   static const dashboard = '/dashboard';
   static const products = '/products';
   static const alerts = '/alerts';
@@ -43,6 +45,7 @@ final class AppRouteNames {
   static const login = 'login';
   static const register = 'register';
   static const forgotPassword = 'forgot-password';
+  static const invite = 'invite';
   static const dashboard = 'dashboard';
   static const products = 'products';
   static const alerts = 'alerts';
@@ -73,6 +76,7 @@ class AppRoutes {
           AppRoutePaths.register,
           AppRoutePaths.forgotPassword,
         }.contains(currentLocation);
+        final isInviteRoute = currentLocation.startsWith('${AppRoutePaths.invite}/');
 
         debugPrint(
           'AppRoutes.redirect: location=$currentLocation '
@@ -89,7 +93,8 @@ class AppRoutes {
         if (!authProvider.isAuthenticated) {
           if (currentLocation == AppRoutePaths.login ||
               currentLocation == AppRoutePaths.register ||
-              currentLocation == AppRoutePaths.forgotPassword) {
+              currentLocation == AppRoutePaths.forgotPassword ||
+              isInviteRoute) {
             return null;
           }
           return AppRoutePaths.login;
@@ -97,6 +102,10 @@ class AppRoutes {
 
         if (authProvider.isAuthenticated &&
             (isAuthRoute || currentLocation == AppRoutePaths.loading)) {
+          final redirectTarget = state.uri.queryParameters['redirect']?.trim();
+          if (redirectTarget != null && redirectTarget.startsWith('/')) {
+            return redirectTarget;
+          }
           return AppRoutePaths.dashboard;
         }
 
@@ -125,6 +134,16 @@ class AppRoutes {
           name: AppRouteNames.forgotPassword,
           pageBuilder: (context, state) =>
               _buildPage(state, const ForgotPasswordScreen()),
+        ),
+        GoRoute(
+          path: '${AppRoutePaths.invite}/:token',
+          name: AppRouteNames.invite,
+          pageBuilder: (context, state) => _buildPage(
+            state,
+            InviteAcceptanceScreen(
+              inviteToken: state.pathParameters['token'] ?? '',
+            ),
+          ),
         ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {

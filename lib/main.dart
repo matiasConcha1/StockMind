@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/app.dart';
 import 'package:stockmind/core/services/alert_service.dart';
+import 'package:stockmind/core/i18n/locale_provider.dart';
 import 'package:stockmind/core/services/notification_service.dart';
 import 'package:stockmind/core/services/pwa_service.dart';
 import 'package:stockmind/core/theme/theme_provider.dart';
@@ -14,6 +15,8 @@ import 'package:stockmind/features/alerts/data/services/stock_alert_service.dart
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/auth/data/services/auth_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
+import 'package:stockmind/features/dashboard/analytics/providers/dashboard_analytics_provider.dart';
+import 'package:stockmind/features/dashboard/analytics/services/dashboard_analytics_service.dart';
 import 'package:stockmind/features/dashboard/data/services/stock_movement_service.dart';
 import 'package:stockmind/features/dashboard/data/services/stock_service.dart';
 import 'package:stockmind/features/dashboard/providers/dashboard_provider.dart';
@@ -45,17 +48,23 @@ Future<void> main() async {
   final themeProvider = ThemeProvider();
   await themeProvider.load();
   debugPrint('main: theme loaded');
+  final localeProvider = LocaleProvider();
+  await localeProvider.load();
+  debugPrint('main: locale loaded');
 
   final storageService = StorageService();
   final stockAlertService = StockAlertService();
   final authProvider = AuthProvider(AuthService())..start();
   final alertService = AlertService(stockAlertService: stockAlertService);
-  final userProvider = UserProvider(authProvider: authProvider);
-  final notificationService = NotificationService(authProvider: authProvider);
-  final pwaService = PwaService();
   final currentCompanyProvider = CurrentCompanyProvider(
     authProvider: authProvider,
   );
+  final userProvider = UserProvider(
+    authProvider: authProvider,
+    currentCompanyProvider: currentCompanyProvider,
+  );
+  final notificationService = NotificationService(authProvider: authProvider);
+  final pwaService = PwaService();
   final companyProfileProvider = CompanyProfileProvider(
     authProvider: authProvider,
     currentCompanyProvider: currentCompanyProvider,
@@ -96,12 +105,22 @@ Future<void> main() async {
     stockService: StockService(),
     stockMovementService: StockMovementService(),
   );
+  final dashboardAnalyticsProvider = DashboardAnalyticsProvider(
+    authProvider: authProvider,
+    currentCompanyProvider: currentCompanyProvider,
+    productsProvider: productsProvider,
+    locationsProvider: locationsProvider,
+    alertsProvider: alertsProvider,
+    stockRequestsProvider: stockRequestsProvider,
+    analyticsService: DashboardAnalyticsService(),
+  );
 
   debugPrint('main: running app');
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider<ThemeProvider>(create: (_) => themeProvider),
+        ChangeNotifierProvider<LocaleProvider>(create: (_) => localeProvider),
         Provider<StorageService>.value(value: storageService),
         Provider<AlertService>.value(value: alertService),
         ChangeNotifierProvider<AuthProvider>(create: (_) => authProvider),
@@ -123,6 +142,9 @@ Future<void> main() async {
           create: (_) => stockRequestsProvider,
         ),
         ChangeNotifierProvider<DashboardProvider>(create: (_) => dashboardProvider),
+        ChangeNotifierProvider<DashboardAnalyticsProvider>.value(
+          value: dashboardAnalyticsProvider,
+        ),
       ],
       child: StockMindApp(bootstrap: bootstrap),
     ),

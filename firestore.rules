@@ -47,6 +47,14 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/companies/$(companyId)/users/$(userId));
     }
 
+    function companyDocAfter(companyId) {
+      return getAfter(/databases/$(database)/documents/companies/$(companyId));
+    }
+
+    function companyMembershipDocAfter(companyId, userId) {
+      return getAfter(/databases/$(database)/documents/companies/$(companyId)/users/$(userId));
+    }
+
     function isCompanyMember(companyId) {
       return isSignedIn()
         && exists(/databases/$(database)/documents/companies/$(companyId)/users/$(request.auth.uid));
@@ -60,7 +68,8 @@ service cloud.firestore {
 
     function isCompanyActive(companyId) {
       return isCompanyMember(companyId)
-        && companyMembershipDoc(companyId, request.auth.uid).data.isActive != false;
+        && companyMembershipDoc(companyId, request.auth.uid).data.isActive != false
+        && companyMembershipDoc(companyId, request.auth.uid).data.status == 'accepted';
     }
 
     function canCompanyRead(companyId) {
@@ -85,6 +94,30 @@ service cloud.firestore {
     function canCompanyManageProfile(companyId) {
       return canCompanyRead(companyId)
         && normalizedRole(companyRole(companyId)) in ['admin', 'editor'];
+    }
+
+    function isCompanyBootstrapOwner(companyId, userId) {
+      return isOwner(userId)
+        && existsAfter(/databases/$(database)/documents/companies/$(companyId))
+        && companyDocAfter(companyId).data.ownerId == request.auth.uid
+        && existsAfter(/databases/$(database)/documents/companies/$(companyId)/users/$(userId))
+        && normalizedRole(companyMembershipDocAfter(companyId, userId).data.role) == 'admin'
+        && companyMembershipDocAfter(companyId, userId).data.status == 'accepted';
+    }
+
+    function invitationBelongsToCurrentIdentity(data) {
+      return isSignedIn()
+        && (
+          data.emailLower == ''
+          || (data.inviteeUid != null && data.inviteeUid == request.auth.uid)
+          || (request.auth.token.email != null && data.emailLower == request.auth.token.email)
+        );
+    }
+
+    function invitationNotExpired(data) {
+      return !('expiresAt' in data)
+        || data.expiresAt == null
+        || data.expiresAt > request.time;
     }
 
     function touchesDeleteFields() {
@@ -139,11 +172,40 @@ service cloud.firestore {
         allow read: if canCompanyRead(companyId);
         allow create: if (
             isOwner(userId)
-            && companyDoc(companyId).data.ownerId == request.auth.uid
+            && (
+              companyDoc(companyId).data.ownerId == request.auth.uid
+              || isCompanyBootstrapOwner(companyId, userId)
+            )
           ) || canCompanyManageUsers(companyId);
         allow update: if canCompanyManageUsers(companyId)
           || (isOwner(userId)
             && request.resource.data.role == resource.data.role);
+        allow delete: if false;
+      }
+
+      match /invitations/{inviteId} {
+        allow list: if canCompanyManageUsers(companyId);
+        allow get: if canCompanyManageUsers(companyId)
+          || (
+            resource.data.status == 'pending'
+            && invitationNotExpired(resource.data)
+          )
+          || invitationBelongsToCurrentIdentity(resource.data);
+        allow create: if canCompanyManageUsers(companyId);
+        allow update: if canCompanyManageUsers(companyId)
+          || (
+            isSignedIn()
+            && resource.data.status == 'pending'
+            && invitationNotExpired(resource.data)
+            && request.resource.data.status in ['accepted', 'revoked']
+            && request.resource.data.companyId == resource.data.companyId
+            && request.resource.data.inviteToken == resource.data.inviteToken
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.emailLower == resource.data.emailLower
+            && request.resource.data.email == resource.data.email
+            && request.resource.data.invitedBy == resource.data.invitedBy
+            && invitationBelongsToCurrentIdentity(resource.data)
+          );
         allow delete: if false;
       }
 
@@ -193,7 +255,9 @@ service cloud.firestore {
 
       match /company_profile/{docId} {
         allow read: if canCompanyRead(companyId);
-        allow create, update: if canCompanyManageProfile(companyId);
+        allow create: if canCompanyManageProfile(companyId)
+          || isCompanyBootstrapOwner(companyId, request.auth.uid);
+        allow update: if canCompanyManageProfile(companyId);
         allow delete: if false;
       }
     }
