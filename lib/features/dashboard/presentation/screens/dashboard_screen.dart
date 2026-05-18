@@ -1,27 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/app/routes.dart';
 import 'package:stockmind/core/services/report_export_service.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/export_feedback.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
-import 'package:stockmind/core/widgets/stat_card.dart';
 import 'package:stockmind/features/alerts/presentation/widgets/low_stock_list.dart';
 import 'package:stockmind/features/alerts/providers/alerts_provider.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/company/providers/company_profile_provider.dart';
-import 'package:stockmind/features/dashboard/data/models/dashboard_snapshot.dart';
-import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
-import 'package:stockmind/features/dashboard/presentation/widgets/category_chart_card.dart';
-import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
-import 'package:stockmind/features/dashboard/presentation/widgets/inventory_movement_chart_card.dart';
-import 'package:stockmind/features/dashboard/presentation/widgets/recent_stock_movements_card.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
+import 'package:stockmind/features/dashboard/analytics/models/dashboard_analytics_snapshot.dart';
+import 'package:stockmind/features/dashboard/analytics/providers/dashboard_analytics_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/activity_feed_card.dart';
-import 'package:stockmind/features/dashboard/presentation/widgets/stock_bar_chart_card.dart';
-import 'package:stockmind/features/dashboard/providers/dashboard_provider.dart';
-import 'package:stockmind/features/products/models/product.dart';
+import 'package:stockmind/features/dashboard/presentation/widgets/analytics_bar_chart_card.dart';
+import 'package:stockmind/features/dashboard/presentation/widgets/analytics_donut_chart_card.dart';
+import 'package:stockmind/features/dashboard/presentation/widgets/analytics_filter_bar.dart';
+import 'package:stockmind/features/dashboard/presentation/widgets/analytics_kpi_card.dart';
+import 'package:stockmind/features/dashboard/presentation/widgets/analytics_line_chart_card.dart';
+import 'package:stockmind/features/dashboard/presentation/widgets/analytics_ranked_list_card.dart';
+import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
+import 'package:stockmind/features/dashboard/presentation/widgets/demo_tour_card.dart';
+import 'package:stockmind/features/dashboard/presentation/widgets/onboarding_checklist_card.dart';
 import 'package:stockmind/features/products/providers/products_provider.dart';
 import 'package:stockmind/features/replenishment/presentation/widgets/stock_request_dialog.dart';
 import 'package:stockmind/features/replenishment/providers/stock_requests_provider.dart';
@@ -32,162 +35,131 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<DashboardProvider>();
+    final provider = context.watch<DashboardAnalyticsProvider>();
     final auth = context.watch<AuthProvider>();
     final userProvider = context.watch<UserProvider>();
     final companyProvider = context.watch<CompanyProfileProvider>();
+    final currentCompany = context.watch<CurrentCompanyProvider>();
     final alertsProvider = context.watch<AlertsProvider>();
     final requestsProvider = context.watch<StockRequestsProvider>();
     final snapshot = provider.snapshot;
-    final currency = NumberFormat.currency(symbol: '\$');
     final width = MediaQuery.sizeOf(context).width;
-    final isMobile = width < 768;
-    final movementPoints = _buildMovementPoints(snapshot.recentMovements);
-
-    final statCards = [
-      StatCard(
-        label: 'Total productos',
-        value: snapshot.totalProducts.toString(),
-        helper: 'Catálogo sincronizado',
-        icon: Icons.inventory_2_outlined,
-        color: AppTheme.brand,
-        trend: '${snapshot.totalUnits} unidades',
-      ),
-      StatCard(
-        label: 'Stock bajo',
-        value: snapshot.lowStockProducts.toString(),
-        helper: '5 unidades o menos',
-        icon: Icons.warning_amber_rounded,
-        color: AppTheme.warning,
-        trend: '${snapshot.activeAlerts} alertas activas',
-      ),
-      StatCard(
-        label: 'Próximos a vencer',
-        value: snapshot.expiringSoonProducts.toString(),
-        helper: 'Vencen en 7 días',
-        icon: Icons.event_available_outlined,
-        color: const Color(0xFFF97316),
-        trend: '${snapshot.expiredProducts} vencidos',
-      ),
-      StatCard(
-        label: 'Ubicaciones',
-        value: snapshot.totalLocations.toString(),
-        helper: 'Espacios físicos registrados',
-        icon: Icons.location_on_outlined,
-        color: const Color(0xFF38BDF8),
-        trend: '${snapshot.categories} categorías',
-      ),
-      StatCard(
-        label: 'Alertas activas',
-        value: snapshot.activeAlerts.toString(),
-        helper: 'Incidencias abiertas en Firebase',
-        icon: Icons.notifications_active_outlined,
-        color: AppTheme.brandViolet,
-        trend: '${alertsProvider.unreadAlertsCount} sin leer',
-      ),
-      StatCard(
-        label: 'Valor inventario',
-        value: currency.format(snapshot.totalInventoryValue),
-        helper: 'Capital comprometido',
-        icon: Icons.attach_money_rounded,
-        color: AppTheme.success,
-        trend: '${snapshot.recentMovements.length} movimientos',
-      ),
-    ];
-
     final heroGreeting =
         (userProvider.currentUser?.displayName ?? auth.user?.displayName ?? 'equipo')
             .split(' ')
             .first;
+    final canExport = currentCompany.canExport;
 
     return DashboardFrame(
-      title: 'Hola, $heroGreeting',
+      title: 'Analytics center',
       subtitle: companyProvider.isComplete
-          ? 'Gestionando inventario de ${companyProvider.companyName}.'
-          : 'Completa el perfil de empresa para personalizar tu operación en StockMind.',
+          ? 'Rendimiento operativo de ${companyProvider.companyName} con señales reales de stock, alertas y colaboración.'
+          : 'Activa un centro de analytics más claro mientras terminas de configurar tu espacio de trabajo.',
       actions: [
         FilledButton.tonalIcon(
-          onPressed: auth.canExport ? () => _exportInventory(context) : null,
+          onPressed: canExport ? () => _exportInventory(context) : null,
           icon: const Icon(Icons.download_rounded),
           label: const Text('Exportar'),
         ),
       ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (provider.error != null) ...[
-            _DashboardErrorBanner(message: provider.error!),
-            const SizedBox(height: 16),
-          ],
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 260),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            child: provider.isLoading && !provider.hasProducts
-                ? const _DashboardSkeleton(key: ValueKey('dashboard-skeleton'))
-                : !provider.isLoading && !provider.hasProducts
-                    ? const SectionCard(
-                        key: ValueKey('dashboard-empty'),
-                        child: SizedBox(
-                          height: 320,
-                          child: EmptyState(
-                            title: 'Tu inventario está vacío',
-                            subtitle:
-                                'Agrega productos para activar métricas, alertas y seguimiento operativo en tiempo real.',
-                            icon: Icons.space_dashboard_outlined,
-                            compact: true,
-                          ),
-                        ),
-                      )
-                    : _DashboardContent(
-                        key: const ValueKey('dashboard-content'),
-                        width: width,
-                        isMobile: isMobile,
-                        companyProvider: companyProvider,
-                        snapshot: snapshot,
-                        statCards: statCards,
-                        movementPoints: movementPoints,
-                        alertsProvider: alertsProvider,
-                        requestsProvider: requestsProvider,
-                        contextForRequest: context,
-                      ),
-          ),
-        ],
+      child: _buildBody(
+        context,
+        provider: provider,
+        currentCompany: currentCompany,
+        companyProvider: companyProvider,
+        alertsProvider: alertsProvider,
+        requestsProvider: requestsProvider,
+        snapshot: snapshot,
+        width: width,
+        heroGreeting: heroGreeting,
       ),
     );
   }
 
-  List<InventoryMovementPoint> _buildMovementPoints(
-    List<StockMovement> movements,
-  ) {
-    if (movements.isEmpty) return const [];
-
-    final now = DateTime.now();
-    final dailyTotals = <DateTime, int>{};
-    for (var i = 6; i >= 0; i--) {
-      final date = DateTime(now.year, now.month, now.day - i);
-      dailyTotals[date] = 0;
+  Widget _buildBody(
+    BuildContext context, {
+    required DashboardAnalyticsProvider provider,
+    required CurrentCompanyProvider currentCompany,
+    required CompanyProfileProvider companyProvider,
+    required AlertsProvider alertsProvider,
+    required StockRequestsProvider requestsProvider,
+    required DashboardAnalyticsSnapshot snapshot,
+    required double width,
+    required String heroGreeting,
+  }) {
+    if (currentCompany.isLoading) {
+      return const _DashboardAnalyticsSkeleton();
     }
 
-    for (final movement in movements) {
-      final day = DateTime(
-        movement.createdAt.year,
-        movement.createdAt.month,
-        movement.createdAt.day,
+    if (currentCompany.errorMessage != null && !currentCompany.hasCompany) {
+      return _DashboardCompanyState(
+        title: 'No pudimos cargar tu espacio activo',
+        subtitle: currentCompany.errorMessage!,
+        icon: Icons.error_outline_rounded,
+        primaryLabel: 'Reintentar',
+        onPrimaryAction: currentCompany.refresh,
+        secondaryLabel: 'Crear espacio',
+        onSecondaryAction: () => context.go(AppRoutePaths.company),
       );
-      if (dailyTotals.containsKey(day)) {
-        dailyTotals[day] = dailyTotals[day]! + movement.quantity;
-      }
     }
 
-    const labels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-    return dailyTotals.entries.map((entry) {
-      final weekdayLabel = labels[entry.key.weekday - 1];
-      return InventoryMovementPoint(
-        label: weekdayLabel,
-        value: entry.value.toDouble(),
+    if (!currentCompany.hasCompany || !currentCompany.hasAcceptedMembership) {
+      return _DashboardCompanyState(
+        title: 'Sin espacio de trabajo activo',
+        subtitle:
+            'Crea o selecciona un espacio de trabajo para cargar analytics, inventario e invitaciones.',
+        icon: Icons.business_center_outlined,
+        primaryLabel: 'Crear espacio de trabajo',
+        onPrimaryAction: () => context.go(AppRoutePaths.company),
       );
-    }).toList();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _AnalyticsHero(
+          greeting: heroGreeting,
+          snapshot: snapshot,
+          selectedRange: provider.range,
+          onRangeChanged: context.read<DashboardAnalyticsProvider>().updateRange,
+        ),
+        const SizedBox(height: 16),
+        OnboardingChecklistCard(snapshot: snapshot),
+        const SizedBox(height: 16),
+        if (currentCompany.company?.isDemoMode == true) ...[
+          const DemoTourCard(),
+          const SizedBox(height: 16),
+        ],
+        if (provider.error != null) ...[
+          _DashboardErrorBanner(
+            message: provider.error!,
+            onRetry: currentCompany.refresh,
+          ),
+          const SizedBox(height: 16),
+        ],
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 260),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          child: provider.isLoading && !provider.hasData
+              ? const _DashboardAnalyticsSkeleton(
+                  key: ValueKey('analytics-skeleton'),
+                )
+              : !provider.isLoading && !provider.hasData
+                  ? _AnalyticsEmptyState(
+                      key: const ValueKey('analytics-empty'),
+                      onAction: () => context.go(AppRoutePaths.products),
+                    )
+                  : _AnalyticsContent(
+                      key: const ValueKey('analytics-content'),
+                      width: width,
+                      snapshot: snapshot,
+                      alertsProvider: alertsProvider,
+                      requestsProvider: requestsProvider,
+                    ),
+        ),
+      ],
+    );
   }
 
   Future<void> _exportInventory(BuildContext context) async {
@@ -208,385 +180,93 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-class _DashboardContent extends StatelessWidget {
-  const _DashboardContent({
-    required this.width,
-    required this.isMobile,
-    required this.companyProvider,
+class _AnalyticsHero extends StatelessWidget {
+  const _AnalyticsHero({
+    required this.greeting,
     required this.snapshot,
-    required this.statCards,
-    required this.movementPoints,
-    required this.alertsProvider,
-    required this.requestsProvider,
-    required this.contextForRequest,
-    super.key,
+    required this.selectedRange,
+    required this.onRangeChanged,
   });
 
-  final double width;
-  final bool isMobile;
-  final CompanyProfileProvider companyProvider;
-  final DashboardSnapshot snapshot;
-  final List<Widget> statCards;
-  final List<InventoryMovementPoint> movementPoints;
-  final AlertsProvider alertsProvider;
-  final StockRequestsProvider requestsProvider;
-  final BuildContext contextForRequest;
+  final String greeting;
+  final DashboardAnalyticsSnapshot snapshot;
+  final AnalyticsTimeRange selectedRange;
+  final ValueChanged<AnalyticsTimeRange> onRangeChanged;
 
   @override
   Widget build(BuildContext context) {
-    final statCrossAxisCount = width < 900 ? 1 : width < 1260 ? 2 : 3;
-    final statAspectRatio = width >= 1260 ? 1.22 : width >= 900 ? 1.08 : 1.0;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _OverviewHero(
-          snapshot: snapshot,
-          unreadAlerts: alertsProvider.unreadAlertsCount,
-        ),
-        const SizedBox(height: 16),
-        if (!companyProvider.isComplete) ...[
-          const _InlineSetupBanner(),
-          const SizedBox(height: 16),
-        ],
-        _SectionTitle(
-          title: 'Visión general',
-          subtitle: 'Indicadores clave de inventario y operación.',
-        ),
-        const SizedBox(height: 12),
-        if (isMobile)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final card in statCards) ...[
-                card,
-                const SizedBox(height: 14),
-              ],
-            ],
-          )
-        else
-          GridView.count(
-            crossAxisCount: statCrossAxisCount,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: statAspectRatio,
-            children: statCards,
-          ),
-        const SizedBox(height: 16),
-        _PremiumMetricBand(
-          title: 'Salud operativa',
-          subtitle: 'Cobertura, alertas y riesgo de vencimiento en una sola lectura.',
-          isMobile: isMobile,
-          children: [
-            _ExecutiveKpi(
-              title: 'Stock health score',
-              value: '${snapshot.stockHealthScore.toStringAsFixed(0)}%',
-              helper: 'Cobertura saludable del catálogo',
-            ),
-            _ExecutiveKpi(
-              title: 'Alertas sin leer',
-              value: alertsProvider.unreadAlertsCount.toString(),
-              helper: 'Pendientes de revisión del equipo',
-            ),
-            _ExecutiveKpi(
-              title: 'Productos vencidos',
-              value: snapshot.expiredProducts.toString(),
-              helper: 'Requieren revisión inmediata',
-            ),
-          ],
-        ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
-        const SizedBox(height: 16),
-        _PremiumMetricBand(
-          title: 'Flujo diario',
-          subtitle: 'Movimiento, reposición y productos con mayor actividad.',
-          isMobile: isMobile,
-          trailing: snapshot.topMovedProductNames.isNotEmpty
-              ? Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: snapshot.topMovedProductNames
-                      .map((name) => _movementChip(context, name))
-                      .toList(),
-                )
-              : null,
-          children: [
-            _ExecutiveKpi(
-              title: 'Entradas hoy',
-              value: '${snapshot.entriesToday}',
-              helper: 'Unidades ingresadas hoy',
-            ),
-            _ExecutiveKpi(
-              title: 'Salidas hoy',
-              value: '${snapshot.exitsToday}',
-              helper: 'Unidades retiradas hoy',
-            ),
-            _ExecutiveKpi(
-              title: 'Solicitudes pendientes',
-              value: '${snapshot.pendingRequests}',
-              helper: 'Reposiciones esperando gestión',
-            ),
-            _ExecutiveKpi(
-              title: 'Críticos sin solicitud',
-              value: '${snapshot.criticalWithoutRequest}',
-              helper: 'Stock bajo sin reposición',
-            ),
-          ],
-        ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
-        const SizedBox(height: 16),
-        _InsightCard(
-          title: 'Reposición',
-          subtitle:
-              'Solicitudes abiertas, completadas y productos que más reposición concentran esta semana.',
-          isMobile: isMobile,
-          leading: _ExecutiveKpi(
-            title: 'Completadas esta semana',
-            value: '${snapshot.completedRequestsThisWeek}',
-            helper: 'Reposiciones cerradas recientemente',
-          ),
-          trailing: _LocationInsightBlock(
-            title: 'Productos con más reposiciones',
-            items: snapshot.productsWithMoreRequests,
-          ),
-        ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
-        const SizedBox(height: 16),
-        _InsightCard(
-          title: 'Distribución por ubicación',
-          subtitle:
-              'Lectura rápida de zonas con menos stock, productos agotados y movimientos recientes.',
-          isMobile: isMobile,
-          leading: _LocationInsightBlock(
-            title: 'Ubicaciones con menos stock',
-            items: snapshot.lowStockLocations
-                .map((item) => '${item.label} · ${item.quantity} unid.')
-                .toList(),
-          ),
-          middle: _LocationInsightBlock(
-            title: 'Agotados por ubicación',
-            items: snapshot.outOfStockByLocation,
-          ),
-          trailing: _LocationInsightBlock(
-            title: 'Movimientos por ubicación',
-            items: snapshot.movementLocationNames,
-          ),
-        ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
-        const SizedBox(height: 16),
-        if (width < 1100) ...[
-          InventoryMovementChartCard(points: movementPoints),
-          const SizedBox(height: 16),
-          _RecentProductsCard(products: snapshot.recentlyUpdatedProducts),
-          const SizedBox(height: 16),
-          RecentStockMovementsCard(movements: snapshot.recentMovements),
-          const SizedBox(height: 16),
-          ActivityFeedCard(
-            movements: snapshot.recentMovements,
-            alerts: alertsProvider.activeAlerts,
-            criticalProducts: snapshot.lowestStockProducts,
-          ),
-          const SizedBox(height: 16),
-          StockBarChartCard(products: snapshot.lowestStockProducts),
-          const SizedBox(height: 16),
-          CategoryChartCard(categories: snapshot.topCategories),
-          const SizedBox(height: 16),
-          LowStockList(
-            alerts: alertsProvider.activeAlerts.take(6).toList(),
-            onMarkAsRead: (alert) => alertsProvider.markAsRead(alert.id),
-            onResolve: (alert) => alertsProvider.resolveAlert(alert.id),
-            onCreateRequest: (alert) {
-              if (requestsProvider.hasPendingRequestForProduct(alert.productId)) {
-                return;
-              }
-              showStockRequestDialog(
-                contextForRequest,
-                initialProductId: alert.productId,
-              );
-            },
-            canCreateRequest: (alert) =>
-                !requestsProvider.hasPendingRequestForProduct(alert.productId),
-          ),
-        ] else
-          Column(
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 7,
-                    child: InventoryMovementChartCard(points: movementPoints),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 5,
-                    child: _RecentProductsCard(
-                      products: snapshot.recentlyUpdatedProducts,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 5,
-                    child: RecentStockMovementsCard(
-                      movements: snapshot.recentMovements,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 7,
-                    child: StockBarChartCard(
-                      products: snapshot.lowestStockProducts,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ActivityFeedCard(
-                movements: snapshot.recentMovements,
-                alerts: alertsProvider.activeAlerts,
-                criticalProducts: snapshot.lowestStockProducts,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 5,
-                    child: LowStockList(
-                      alerts: alertsProvider.activeAlerts.take(6).toList(),
-                      onMarkAsRead: (alert) => alertsProvider.markAsRead(alert.id),
-                      onResolve: (alert) => alertsProvider.resolveAlert(alert.id),
-                      onCreateRequest: (alert) {
-                        if (requestsProvider
-                            .hasPendingRequestForProduct(alert.productId)) {
-                          return;
-                        }
-                        showStockRequestDialog(
-                          contextForRequest,
-                          initialProductId: alert.productId,
-                        );
-                      },
-                      canCreateRequest: (alert) => !requestsProvider
-                          .hasPendingRequestForProduct(alert.productId),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 7,
-                    child: CategoryChartCard(categories: snapshot.topCategories),
-                  ),
-                ],
-              ),
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _movementChip(BuildContext context, String label) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: colorScheme.primary.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.10)),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-    );
-  }
-}
-
-class _OverviewHero extends StatelessWidget {
-  const _OverviewHero({
-    required this.snapshot,
-    required this.unreadAlerts,
-  });
-
-  final DashboardSnapshot snapshot;
-  final int unreadAlerts;
-
-  @override
-  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final isCompact = width < 980;
     return SectionCard(
       borderRadius: 30,
       gradient: LinearGradient(
         colors: [
           AppTheme.brand.withValues(alpha: 0.18),
           AppTheme.brandViolet.withValues(alpha: 0.12),
-          Theme.of(context).colorScheme.surface.withValues(alpha: 0.96),
+          theme.colorScheme.surface.withValues(alpha: 0.96),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 860;
-          final metrics = [
-            _HeroMetric(
-              label: 'Movimientos',
-              value: snapshot.recentMovements.length.toString(),
-            ),
-            _HeroMetric(
-              label: 'Alertas sin leer',
-              value: unreadAlerts.toString(),
-            ),
-            _HeroMetric(
-              label: 'Cobertura',
-              value: '${snapshot.stockHealthScore.toStringAsFixed(0)}%',
-            ),
-          ];
-          if (compact) {
-            return Column(
+      child: isCompact
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _HeroHeading(),
+                _HeroText(greeting: greeting, snapshot: snapshot),
                 const SizedBox(height: 18),
-                ...metrics.expand((item) => [item, const SizedBox(height: 12)]).toList()
-                  ..removeLast(),
-              ],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Expanded(flex: 5, child: _HeroHeading()),
-              const SizedBox(width: 18),
-              Expanded(
-                flex: 4,
-                child: Column(
-                  children: [
-                    for (final metric in metrics) ...[
-                      metric,
-                      const SizedBox(height: 12),
-                    ],
-                  ]..removeLast(),
+                AnalyticsFilterBar(
+                  selectedRange: selectedRange,
+                  onRangeChanged: onRangeChanged,
                 ),
-              ),
-            ],
-          );
-        },
-      ),
+                const SizedBox(height: 18),
+                _HeroMeta(snapshot: snapshot),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 6,
+                  child: _HeroText(greeting: greeting, snapshot: snapshot),
+                ),
+                const SizedBox(width: 18),
+                Expanded(
+                  flex: 4,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AnalyticsFilterBar(
+                        selectedRange: selectedRange,
+                        onRangeChanged: onRangeChanged,
+                      ),
+                      const SizedBox(height: 18),
+                      _HeroMeta(snapshot: snapshot),
+                    ],
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
 
-class _HeroHeading extends StatelessWidget {
-  const _HeroHeading();
+class _HeroText extends StatelessWidget {
+  const _HeroText({
+    required this.greeting,
+    required this.snapshot,
+  });
+
+  final String greeting;
+  final DashboardAnalyticsSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final delta = snapshot.movementDeltaPercent;
+    final deltaLabel = delta >= 0
+        ? '+${delta.toStringAsFixed(0)}% actividad'
+        : '${delta.toStringAsFixed(0)}% actividad';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -597,7 +277,7 @@ class _HeroHeading extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
-            'Panel ejecutivo',
+            'Hola, $greeting',
             style: theme.textTheme.labelLarge?.copyWith(
               color: theme.colorScheme.primary,
             ),
@@ -605,19 +285,61 @@ class _HeroHeading extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          'Tu operación se ve más clara cuando el inventario respira bien.',
-          style: theme.textTheme.headlineSmall?.copyWith(
-            letterSpacing: -0.9,
-          ),
+          'Un centro de analytics listo para decisiones de inventario en tiempo real.',
+          style: theme.textTheme.headlineSmall?.copyWith(letterSpacing: -0.9),
         ),
         const SizedBox(height: 10),
         Text(
-          'Monitorea ritmo de stock, alertas activas y puntos críticos desde una vista preparada para decisiones rápidas.',
+          'Sigue entradas, salidas, riesgo operativo, severidad de alertas y colaboración desde una vista tipo SaaS enterprise.',
           style: theme.textTheme.bodyLarge?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.76),
           ),
         ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _HeroBadge(
+              icon: Icons.sync_alt_rounded,
+              label: '${snapshot.movementsInRange} movimientos',
+            ),
+            _HeroBadge(
+              icon: Icons.trending_up_rounded,
+              label: deltaLabel,
+            ),
+            _HeroBadge(
+              icon: Icons.health_and_safety_outlined,
+              label: '${snapshot.stockCoverageScore.toStringAsFixed(0)}% health score',
+            ),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+class _HeroMeta extends StatelessWidget {
+  const _HeroMeta({required this.snapshot});
+
+  final DashboardAnalyticsSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final metrics = [
+      ('Stock total', snapshot.totalStock.toString()),
+      ('Usuarios activos', snapshot.activeUsers.toString()),
+      ('Pendientes', snapshot.pendingRequests.toString()),
+    ];
+    return Column(
+      children: metrics
+          .map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _HeroMetric(label: item.$1, value: item.$2),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -644,17 +366,10 @@ class _HeroMetric extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              label,
-              style: theme.textTheme.titleMedium,
-            ),
-          ),
+          Expanded(child: Text(label, style: theme.textTheme.titleMedium)),
           Text(
             value,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              letterSpacing: -0.8,
-            ),
+            style: theme.textTheme.headlineSmall?.copyWith(letterSpacing: -0.8),
           ),
         ],
       ),
@@ -662,165 +377,367 @@ class _HeroMetric extends StatelessWidget {
   }
 }
 
-class _PremiumMetricBand extends StatelessWidget {
-  const _PremiumMetricBand({
-    required this.title,
-    required this.subtitle,
-    required this.isMobile,
-    required this.children,
-    this.trailing,
+class _HeroBadge extends StatelessWidget {
+  const _HeroBadge({
+    required this.icon,
+    required this.label,
   });
 
-  final String title;
-  final String subtitle;
-  final bool isMobile;
-  final List<Widget> children;
-  final Widget? trailing;
+  final IconData icon;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return SectionCard(
-      gradient: LinearGradient(
-        colors: [
-          AppTheme.brand.withValues(alpha: 0.12),
-          AppTheme.brandViolet.withValues(alpha: 0.07),
-          Theme.of(context).colorScheme.surface.withValues(alpha: 0.98),
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _SectionTitle(title: title, subtitle: subtitle, compact: true),
-          const SizedBox(height: 16),
-          if (isMobile)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final child in children) ...[
-                  child,
-                  const SizedBox(height: 16),
-                ],
-                if (trailing != null) trailing!,
-              ],
-            )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: children
-                      .map(
-                        (child) => SizedBox(
-                          width: 220,
-                          child: child,
-                        ),
-                      )
-                      .toList(),
-                ),
-                if (trailing != null) ...[
-                  const SizedBox(height: 18),
-                  trailing!,
-                ],
-              ],
-            ),
+          Icon(icon, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
+          Text(label),
         ],
       ),
     );
   }
 }
 
-class _InsightCard extends StatelessWidget {
-  const _InsightCard({
-    required this.title,
-    required this.subtitle,
-    required this.isMobile,
-    required this.leading,
-    this.middle,
-    this.trailing,
+class _AnalyticsContent extends StatelessWidget {
+  const _AnalyticsContent({
+    required this.width,
+    required this.snapshot,
+    required this.alertsProvider,
+    required this.requestsProvider,
+    super.key,
   });
 
-  final String title;
-  final String subtitle;
-  final bool isMobile;
-  final Widget leading;
-  final Widget? middle;
-  final Widget? trailing;
+  final double width;
+  final DashboardAnalyticsSnapshot snapshot;
+  final AlertsProvider alertsProvider;
+  final StockRequestsProvider requestsProvider;
 
   @override
   Widget build(BuildContext context) {
-    final blocks = [
-      leading,
-      if (middle != null) middle!,
-      if (trailing != null) trailing!,
+    final columns = width < 780 ? 1 : width < 1180 ? 2 : 3;
+    final kpis = [
+      AnalyticsKpiCard(
+        label: 'Stock total',
+        value: snapshot.totalStock,
+        helper: 'Unidades disponibles en todo el workspace',
+        icon: Icons.inventory_2_outlined,
+        accent: AppTheme.brand,
+        trendLabel: '${snapshot.totalProducts} productos',
+      ),
+      AnalyticsKpiCard(
+        label: 'Productos críticos',
+        value: snapshot.criticalProducts,
+        helper: 'Stock agotado o en punto crítico',
+        icon: Icons.warning_amber_rounded,
+        accent: AppTheme.warning,
+        trendLabel: '${snapshot.expiredProducts} vencidos',
+      ),
+      AnalyticsKpiCard(
+        label: 'Movimientos hoy',
+        value: snapshot.movementsToday,
+        helper: 'Actividad registrada en la jornada actual',
+        icon: Icons.sync_alt_rounded,
+        accent: AppTheme.success,
+        trendLabel: '${snapshot.movementsWeek} semana',
+      ),
+      AnalyticsKpiCard(
+        label: 'Entradas vs salidas',
+        value: snapshot.entryExitBalance,
+        helper: 'Balance neto del rango seleccionado',
+        icon: Icons.compare_arrows_rounded,
+        accent: AppTheme.brandViolet,
+        trendLabel: '${snapshot.entriesInRange}/${snapshot.exitsInRange}',
+      ),
+      AnalyticsKpiCard(
+        label: 'Crecimiento inventario',
+        value: snapshot.inventoryGrowthPercent,
+        helper: 'Variación estimada contra el stock de apertura',
+        icon: Icons.trending_up_rounded,
+        accent: const Color(0xFF38BDF8),
+        trendLabel: '${snapshot.range.label} ',
+      ),
+      AnalyticsKpiCard(
+        label: 'Ubicaciones activas',
+        value: snapshot.activeLocations,
+        helper: 'Espacios operativos registrados',
+        icon: Icons.location_on_outlined,
+        accent: const Color(0xFFF97316),
+      ),
+      AnalyticsKpiCard(
+        label: 'Usuarios activos',
+        value: snapshot.activeUsers,
+        helper: 'Miembros activos dentro del workspace',
+        icon: Icons.groups_2_outlined,
+        accent: const Color(0xFF14B8A6),
+      ),
+      AnalyticsKpiCard(
+        label: 'Requests pendientes',
+        value: snapshot.pendingRequests,
+        helper: 'Reposiciones esperando gestión',
+        icon: Icons.assignment_late_outlined,
+        accent: const Color(0xFFFB7185),
+      ),
+      AnalyticsKpiCard(
+        label: 'Alertas activas',
+        value: snapshot.activeAlerts,
+        helper: 'Señales operativas abiertas en el workspace',
+        icon: Icons.notification_important_outlined,
+        accent: AppTheme.brandViolet,
+      ),
     ];
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionTitle(title: title, subtitle: subtitle, compact: true),
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GridView.count(
+          crossAxisCount: columns,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: width < 780 ? 1.24 : 1.18,
+          children: kpis,
+        ).animate().fadeIn(duration: 320.ms),
+        const SizedBox(height: 16),
+        _SectionTitle(
+          title: 'Tendencias',
+          subtitle: 'Comportamiento del inventario en el rango temporal seleccionado.',
+        ),
+        const SizedBox(height: 12),
+        if (width < 1100) ...[
+          AnalyticsLineChartCard(
+            title: 'Movimientos por día',
+            subtitle: 'Volumen agregado de unidades movidas.',
+            points: snapshot.movementsByDay,
+          ),
           const SizedBox(height: 16),
-          if (isMobile)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final block in blocks) ...[
-                  block,
-                  const SizedBox(height: 16),
-                ],
-              ]..removeLast(),
-            )
-          else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: blocks
-                  .map(
-                    (block) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 16),
-                        child: block,
-                      ),
-                    ),
-                  )
-                  .toList()
-                ..removeLast()
-                ..add(Expanded(child: blocks.last)),
-            ),
+          AnalyticsBarChartCard(
+            title: 'Entradas vs salidas',
+            subtitle: 'Comparativa directa entre abastecimiento y consumo.',
+            points: snapshot.entriesVsExitsByDay,
+          ),
+          const SizedBox(height: 16),
+          AnalyticsLineChartCard(
+            title: 'Tendencia semanal',
+            subtitle: 'Balance neto por semana para detectar aceleración o caída.',
+            points: snapshot.weeklyTrend,
+            accent: AppTheme.brandViolet,
+          ),
+        ] else ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 7,
+                child: AnalyticsLineChartCard(
+                  title: 'Movimientos por día',
+                  subtitle: 'Volumen agregado de unidades movidas.',
+                  points: snapshot.movementsByDay,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 5,
+                child: AnalyticsBarChartCard(
+                  title: 'Entradas vs salidas',
+                  subtitle: 'Comparativa directa del flujo operativo.',
+                  points: snapshot.entriesVsExitsByDay,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          AnalyticsLineChartCard(
+            title: 'Tendencia semanal',
+            subtitle: 'Balance neto por semana para detectar aceleración o caída.',
+            points: snapshot.weeklyTrend,
+            accent: AppTheme.brandViolet,
+          ),
         ],
+        const SizedBox(height: 16),
+        _SectionTitle(
+          title: 'Breakdowns',
+          subtitle: 'Las distribuciones ayudan a leer dónde está el peso del negocio.',
+        ),
+        const SizedBox(height: 12),
+        if (width < 1100) ...[
+          AnalyticsRankedListCard(
+            title: 'Productos más movidos',
+            subtitle: 'SKU con mayor rotación en el rango seleccionado.',
+            items: snapshot.topMovedProducts,
+          ),
+          const SizedBox(height: 16),
+          AnalyticsDonutChartCard(
+            title: 'Stock por categoría',
+            subtitle: 'Distribución de unidades por categoría de producto.',
+            items: snapshot.stockByCategory,
+          ),
+          const SizedBox(height: 16),
+          AnalyticsDonutChartCard(
+            title: 'Alertas por severidad',
+            subtitle: 'Presión operativa de riesgo crítico, medio e informativo.',
+            items: snapshot.alertsBySeverity,
+          ),
+        ] else ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 5,
+                child: AnalyticsRankedListCard(
+                  title: 'Productos más movidos',
+                  subtitle: 'SKU con mayor rotación en el rango seleccionado.',
+                  items: snapshot.topMovedProducts,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 4,
+                child: AnalyticsDonutChartCard(
+                  title: 'Stock por categoría',
+                  subtitle: 'Distribución de unidades por categoría de producto.',
+                  items: snapshot.stockByCategory,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 3,
+                child: AnalyticsDonutChartCard(
+                  title: 'Alertas por severidad',
+                  subtitle: 'Riesgo operativo activo del workspace.',
+                  items: snapshot.alertsBySeverity,
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 16),
+        if (width < 1100) ...[
+          ActivityFeedCard(items: snapshot.activityItems),
+          const SizedBox(height: 16),
+          LowStockList(
+            alerts: alertsProvider.activeAlerts.take(6).toList(),
+            onMarkAsRead: (alert) => alertsProvider.markAsRead(alert.id),
+            onResolve: (alert) => alertsProvider.resolveAlert(alert.id),
+            onCreateRequest: (alert) {
+              if (requestsProvider.hasPendingRequestForProduct(alert.productId)) {
+                return;
+              }
+              showStockRequestDialog(
+                context,
+                initialProductId: alert.productId,
+              );
+            },
+            canCreateRequest: (alert) =>
+                !requestsProvider.hasPendingRequestForProduct(alert.productId),
+          ),
+        ] else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 6,
+                child: ActivityFeedCard(items: snapshot.activityItems),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 5,
+                child: LowStockList(
+                  alerts: alertsProvider.activeAlerts.take(6).toList(),
+                  onMarkAsRead: (alert) => alertsProvider.markAsRead(alert.id),
+                  onResolve: (alert) => alertsProvider.resolveAlert(alert.id),
+                  onCreateRequest: (alert) {
+                    if (requestsProvider.hasPendingRequestForProduct(alert.productId)) {
+                      return;
+                    }
+                    showStockRequestDialog(
+                      context,
+                      initialProductId: alert.productId,
+                    );
+                  },
+                  canCreateRequest: (alert) =>
+                      !requestsProvider.hasPendingRequestForProduct(alert.productId),
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _AnalyticsEmptyState extends StatelessWidget {
+  const _AnalyticsEmptyState({
+    required this.onAction,
+    super.key,
+  });
+
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      child: SizedBox(
+        height: 360,
+        child: Column(
+          children: [
+            const Expanded(
+              child: EmptyState(
+                title: 'Todavía no hay suficiente señal para analytics',
+                subtitle:
+                    'Agrega productos, registra movimientos y activa alertas para convertir este panel en un centro de decisiones.',
+                icon: Icons.insights_rounded,
+                compact: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: onAction,
+                  icon: const Icon(Icons.add_box_outlined),
+                  label: const Text('Agregar productos'),
+                ),
+                const _MockInsightChip(label: 'KPIs en tiempo real'),
+                const _MockInsightChip(label: 'Comparativas por rango'),
+                const _MockInsightChip(label: 'Activity insights'),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _InlineSetupBanner extends StatelessWidget {
-  const _InlineSetupBanner();
+class _MockInsightChip extends StatelessWidget {
+  const _MockInsightChip({required this.label});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return SectionCard(
-      gradient: LinearGradient(
-        colors: [
-          AppTheme.brand.withValues(alpha: 0.12),
-          AppTheme.brandViolet.withValues(alpha: 0.06),
-        ],
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Personaliza tu espacio',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Completa el perfil de empresa desde Ajustes > Empresa para mostrar el nombre y logo de tu negocio en reportes y centro de inventario.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
-      ),
+      child: Text(label, style: theme.textTheme.labelLarge),
     );
   }
 }
@@ -829,12 +746,10 @@ class _SectionTitle extends StatelessWidget {
   const _SectionTitle({
     required this.title,
     required this.subtitle,
-    this.compact = false,
   });
 
   final String title;
   final String subtitle;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -842,10 +757,7 @@ class _SectionTitle extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: compact ? theme.textTheme.titleLarge : theme.textTheme.headlineSmall,
-        ),
+        Text(title, style: theme.textTheme.headlineSmall),
         const SizedBox(height: 6),
         Text(
           subtitle,
@@ -858,193 +770,33 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _ExecutiveKpi extends StatelessWidget {
-  const _ExecutiveKpi({
-    required this.title,
-    required this.value,
-    required this.helper,
-  });
-
-  final String title;
-  final String value;
-  final String helper;
+class _DashboardAnalyticsSkeleton extends StatelessWidget {
+  const _DashboardAnalyticsSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.78),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              letterSpacing: -0.8,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(helper, style: theme.textTheme.bodyMedium),
-        ],
-      ),
-    );
-  }
-}
-
-class _LocationInsightBlock extends StatelessWidget {
-  const _LocationInsightBlock({
-    required this.title,
-    required this.items,
-  });
-
-  final String title;
-  final List<String> items;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 10),
-        if (items.isEmpty)
-          Text(
-            'Sin datos todavía.',
-            style: theme.textTheme.bodyMedium,
-          )
-        else
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: items
-                .map(
-                  (item) => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.28),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      item,
-                      style: theme.textTheme.labelLarge,
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-      ],
-    );
-  }
-}
-
-class _RecentProductsCard extends StatelessWidget {
-  const _RecentProductsCard({required this.products});
-
-  final List<Product> products;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Últimos productos actualizados', style: theme.textTheme.titleLarge),
-          const SizedBox(height: 6),
-          Text(
-            'Actividad reciente del catálogo sincronizada desde Firestore.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          if (products.isEmpty)
-            const SizedBox(
-              height: 180,
-              child: EmptyState(
-                title: 'Sin actividad reciente',
-                subtitle: 'Los últimos productos editados aparecerán aquí.',
-                icon: Icons.inventory_2_outlined,
-                compact: true,
-              ),
-            )
-          else
-            ...products.map(
-              (product) => Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.20),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: theme.colorScheme.outlineVariant),
-                ),
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor:
-                        theme.colorScheme.primary.withValues(alpha: 0.12),
-                    child: Icon(
-                      Icons.inventory_2_outlined,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  title: Text(product.name),
-                  subtitle: Text(product.category),
-                  trailing: Text(
-                    '${product.totalStock} unid.',
-                    style: theme.textTheme.labelLarge,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DashboardSkeleton extends StatelessWidget {
-  const _DashboardSkeleton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SkeletonBlock(height: 180, radius: 30),
+        const _SkeletonBlock(height: 320, radius: 30),
         const SizedBox(height: 16),
         GridView.count(
-          crossAxisCount: MediaQuery.sizeOf(context).width < 900 ? 1 : 3,
+          crossAxisCount: width < 780 ? 1 : width < 1180 ? 2 : 3,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
           childAspectRatio: 1.18,
           children: List.generate(
-            MediaQuery.sizeOf(context).width < 900 ? 3 : 6,
+            width < 780 ? 3 : 6,
             (_) => const _SkeletonBlock(height: 160, radius: 28),
           ),
         ),
         const SizedBox(height: 16),
-        const _SkeletonBlock(height: 220, radius: 28),
+        const _SkeletonBlock(height: 280, radius: 28),
         const SizedBox(height: 16),
-        const _SkeletonBlock(height: 220, radius: 28),
+        const _SkeletonBlock(height: 280, radius: 28),
       ],
     );
   }
@@ -1102,22 +854,88 @@ class _SkeletonBlockState extends State<_SkeletonBlock>
   }
 }
 
-class _DashboardErrorBanner extends StatelessWidget {
-  const _DashboardErrorBanner({required this.message});
+class _DashboardCompanyState extends StatelessWidget {
+  const _DashboardCompanyState({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.primaryLabel,
+    required this.onPrimaryAction,
+    this.secondaryLabel,
+    this.onSecondaryAction,
+  });
 
-  final String message;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String primaryLabel;
+  final VoidCallback onPrimaryAction;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondaryAction;
 
   @override
   Widget build(BuildContext context) {
     return SectionCard(
-      child: Row(
+      child: SizedBox(
+        height: 360,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: EmptyState(
+                title: title,
+                subtitle: subtitle,
+                icon: icon,
+                actionLabel: primaryLabel,
+                onAction: onPrimaryAction,
+                compact: true,
+              ),
+            ),
+            if (secondaryLabel != null && onSecondaryAction != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: OutlinedButton.icon(
+                  onPressed: onSecondaryAction,
+                  icon: const Icon(Icons.add_business_outlined),
+                  label: Text(secondaryLabel!),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardErrorBanner extends StatelessWidget {
+  const _DashboardErrorBanner({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Icon(
             Icons.error_outline_rounded,
             color: Theme.of(context).colorScheme.error,
           ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(message)),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Text(message),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Reintentar'),
+          ),
         ],
       ),
     );

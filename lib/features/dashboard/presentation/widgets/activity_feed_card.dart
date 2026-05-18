@@ -2,49 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:stockmind/core/widgets/empty_state.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
-import 'package:stockmind/features/alerts/data/models/stock_alert.dart';
-import 'package:stockmind/features/dashboard/data/models/stock_movement.dart';
-import 'package:stockmind/features/products/models/product.dart';
+import 'package:stockmind/features/dashboard/analytics/models/dashboard_analytics_snapshot.dart';
 
 class ActivityFeedCard extends StatelessWidget {
   const ActivityFeedCard({
-    required this.movements,
-    required this.alerts,
-    required this.criticalProducts,
+    required this.items,
     super.key,
   });
 
-  final List<StockMovement> movements;
-  final List<StockAlert> alerts;
-  final List<Product> criticalProducts;
+  final List<ActivityInsightItem> items;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final items = <_FeedItem>[
-      ...movements.take(3).map(_FeedItem.fromMovement),
-      ...alerts.take(3).map(_FeedItem.fromAlert),
-      ...criticalProducts.take(3).map(_FeedItem.fromProduct),
-    ]..sort((a, b) => b.when.compareTo(a.when));
 
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Activity feed', style: theme.textTheme.titleLarge),
+          Text('Activity insights', style: theme.textTheme.titleLarge),
           const SizedBox(height: 6),
           Text(
-            'Movimientos recientes, alertas activas y productos críticos en una sola línea de tiempo.',
+            'Eventos importantes del workspace agrupados por prioridad operativa.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 18),
           if (items.isEmpty)
             const SizedBox(
-              height: 220,
+              height: 240,
               child: EmptyState(
-                title: 'Sin actividad reciente',
+                title: 'Sin actividad todavía',
                 subtitle:
-                    'Cuando el inventario tenga movimientos o alertas, verás aquí el pulso operativo.',
+                    'Cuando haya movimientos, alertas o solicitudes, verás aquí el pulso operativo.',
                 icon: Icons.timeline_rounded,
                 compact: true,
               ),
@@ -70,12 +59,15 @@ class ActivityFeedCard extends StatelessWidget {
 class _FeedTile extends StatelessWidget {
   const _FeedTile({required this.item});
 
-  final _FeedItem item;
+  final ActivityInsightItem item;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final formatter = DateFormat('dd/MM · HH:mm');
+    final accent = _accentFor(item.priority, theme.colorScheme);
+    final icon = _iconFor(item.kind);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -90,88 +82,98 @@ class _FeedTile extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: item.color.withValues(alpha: 0.12),
+              color: accent.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(item.icon, color: item.color, size: 20),
+            child: Icon(icon, color: accent, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.title, style: theme.textTheme.titleSmall),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _PriorityPill(priority: item.priority),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 Text(item.subtitle, style: theme.textTheme.bodyMedium),
+                const SizedBox(height: 8),
+                Text(
+                  formatter.format(item.when),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.68),
+                  ),
+                ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            formatter.format(item.when),
-            style: theme.textTheme.bodySmall,
           ),
         ],
       ),
     );
   }
+
+  Color _accentFor(ActivityInsightPriority priority, ColorScheme colorScheme) {
+    switch (priority) {
+      case ActivityInsightPriority.high:
+        return colorScheme.error;
+      case ActivityInsightPriority.medium:
+        return const Color(0xFFF59E0B);
+      case ActivityInsightPriority.low:
+        return colorScheme.primary;
+    }
+  }
+
+  IconData _iconFor(ActivityInsightKind kind) {
+    switch (kind) {
+      case ActivityInsightKind.movement:
+        return Icons.swap_horiz_rounded;
+      case ActivityInsightKind.alert:
+        return Icons.notifications_active_outlined;
+      case ActivityInsightKind.request:
+        return Icons.inventory_outlined;
+      case ActivityInsightKind.product:
+        return Icons.inventory_2_outlined;
+    }
+  }
 }
 
-class _FeedItem {
-  const _FeedItem({
-    required this.title,
-    required this.subtitle,
-    required this.when,
-    required this.icon,
-    required this.color,
-  });
+class _PriorityPill extends StatelessWidget {
+  const _PriorityPill({required this.priority});
 
-  final String title;
-  final String subtitle;
-  final DateTime when;
-  final IconData icon;
-  final Color color;
+  final ActivityInsightPriority priority;
 
-  factory _FeedItem.fromMovement(StockMovement movement) {
-    return _FeedItem(
-      title: movement.productName,
-      subtitle:
-          '${movement.type.toUpperCase()} · ${movement.quantity} unid. · ${movement.reason}',
-      when: movement.createdAt,
-      icon: movement.isEntry
-          ? Icons.south_west_rounded
-          : movement.isExit
-              ? Icons.north_east_rounded
-              : Icons.swap_horiz_rounded,
-      color: movement.isEntry
-          ? Colors.green
-          : movement.isExit
-              ? Colors.redAccent
-              : Colors.amber.shade700,
-    );
-  }
-
-  factory _FeedItem.fromAlert(StockAlert alert) {
-    return _FeedItem(
-      title: alert.title,
-      subtitle: '${alert.productName} · ${alert.message}',
-      when: alert.updatedAt,
-      icon: Icons.notifications_active_outlined,
-      color: alert.isHigh
-          ? Colors.redAccent
-          : alert.isMedium
-              ? Colors.orangeAccent
-              : Colors.blueAccent,
-    );
-  }
-
-  factory _FeedItem.fromProduct(Product product) {
-    return _FeedItem(
-      title: 'Stock crítico',
-      subtitle: '${product.name} · ${product.totalStock} unid. disponibles',
-      when: product.updatedAt,
-      icon: Icons.inventory_2_outlined,
-      color: Colors.deepOrangeAccent,
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final color = switch (priority) {
+      ActivityInsightPriority.high => colorScheme.error,
+      ActivityInsightPriority.medium => const Color(0xFFF59E0B),
+      ActivityInsightPriority.low => colorScheme.primary,
+    };
+    final label = switch (priority) {
+      ActivityInsightPriority.high => 'Alta',
+      ActivityInsightPriority.medium => 'Media',
+      ActivityInsightPriority.low => 'Info',
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color),
+      ),
     );
   }
 }
