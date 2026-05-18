@@ -5,6 +5,7 @@ import 'package:stockmind/core/services/notification_service.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/company/models/company_profile.dart';
 import 'package:stockmind/features/company/providers/company_profile_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/locations/models/inventory_location.dart';
 import 'package:stockmind/features/locations/providers/locations_provider.dart';
 import 'package:stockmind/features/users/providers/user_provider.dart';
@@ -207,6 +208,7 @@ class _InitialOnboardingDialogState extends State<InitialOnboardingDialog> {
     setState(() => _saving = true);
     try {
       final auth = context.read<AuthProvider>();
+      final currentCompany = context.read<CurrentCompanyProvider>();
       final userProvider = context.read<UserProvider>();
       final companyProvider = context.read<CompanyProfileProvider>();
       final locationsProvider = context.read<LocationsProvider>();
@@ -215,7 +217,7 @@ class _InitialOnboardingDialogState extends State<InitialOnboardingDialog> {
       final userId = auth.user?.id;
       if (userId == null) return;
 
-      if (auth.canManageSettings &&
+      if (currentCompany.canManageSettings &&
           _companyNameController.text.trim().isNotEmpty) {
         await companyProvider.saveProfile(
           (companyProvider.profile ?? const CompanyProfile.empty()).copyWith(
@@ -245,7 +247,7 @@ class _InitialOnboardingDialogState extends State<InitialOnboardingDialog> {
         );
       }
 
-      if (auth.canManageSettings) {
+      if (currentCompany.canManageSettings) {
         final defaultMinStock =
             int.tryParse(_defaultMinStockController.text.trim()) ?? 5;
         await appConfigService.updateDefaultMinStock(defaultMinStock);

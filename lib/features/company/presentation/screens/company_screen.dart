@@ -10,7 +10,9 @@ import 'package:stockmind/core/widgets/remote_image_frame.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 import 'package:stockmind/features/company/models/company_profile.dart';
 import 'package:stockmind/features/company/providers/company_profile_provider.dart';
+import 'package:stockmind/features/company/providers/current_company_provider.dart';
 import 'package:stockmind/features/dashboard/presentation/widgets/dashboard_frame.dart';
+import 'package:stockmind/features/demo/services/demo_seed_service.dart';
 
 class CompanyScreen extends StatefulWidget {
   const CompanyScreen({super.key});
@@ -43,21 +45,59 @@ class _CompanyScreenState extends State<CompanyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
     final provider = context.watch<CompanyProfileProvider>();
+    final currentCompany = context.watch<CurrentCompanyProvider>();
+    final canManageWorkspace = currentCompany.canManageSettings;
     final profile = provider.profile ?? const CompanyProfile.empty();
     _syncControllers(profile);
 
     return DashboardFrame(
-      title: 'Empresa',
-      subtitle: 'Configura la identidad de tu negocio dentro de StockMind.',
+      title: 'Espacio de trabajo',
+      subtitle: 'Configura la identidad, branding y contexto del workspace activo.',
       onBackPressed: () => context.go(AppRoutePaths.settings),
       backLabel: 'Volver a ajustes',
+      actions: [
+        Tooltip(
+          message: 'Carga datos ficticios sólo para una demo pública segura.',
+          child: OutlinedButton.icon(
+            onPressed: canManageWorkspace && currentCompany.hasCompany
+                ? _seedDemoData
+                : null,
+            icon: const Icon(Icons.auto_awesome_outlined),
+            label: const Text('Cargar demo'),
+          ),
+        ),
+        if (currentCompany.company?.isDemoMode == true)
+          Tooltip(
+            message:
+                'Limpia y vuelve a generar el workspace demo aislado del usuario actual.',
+            child: OutlinedButton.icon(
+              onPressed: canManageWorkspace ? _resetDemoData : null,
+              icon: const Icon(Icons.restart_alt_rounded),
+              label: const Text('Resetear demo'),
+            ),
+          ),
+      ],
       child: PermissionGuard(
-        allowed: auth.canManageSettings,
+        allowed: canManageWorkspace,
         actionLabel: 'Volver al centro de inventario',
         onAction: () => context.go(AppRoutePaths.dashboard),
-        child: provider.requiresCompanyProfile || provider.hasProfile
+        child: !currentCompany.hasCompany
+            ? Card(
+                child: SizedBox(
+                  height: 300,
+                  child: EmptyState(
+                    title: 'Sin espacio activo',
+                    subtitle:
+                        'Selecciona o crea un espacio de trabajo para configurar identidad, branding y demo data.',
+                    icon: Icons.business_center_outlined,
+                    actionLabel: 'Crear espacio',
+                    onAction: () => context.go(AppRoutePaths.company),
+                    compact: true,
+                  ),
+                ),
+              )
+            : provider.requiresCompanyProfile || provider.hasProfile
             ? Form(
                 key: _formKey,
                 child: Column(
@@ -101,7 +141,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
                       label: Text(
                         provider.isLoading
                             ? 'Guardando...'
-                            : 'Guardar empresa',
+                            : 'Guardar workspace',
                       ),
                     ),
                   ],
@@ -111,9 +151,9 @@ class _CompanyScreenState extends State<CompanyScreen> {
                 child: SizedBox(
                   height: 300,
                   child: EmptyState(
-                    title: 'Perfil de empresa opcional',
+                    title: 'Perfil del workspace opcional',
                     subtitle:
-                        'Tu cuenta personal puede operar sin company profile. Si luego trabajas con una marca o negocio, podrás completarlo desde aquí.',
+                        'Tu cuenta personal puede operar sin perfil completo. Si luego trabajas con una marca o negocio, podrás completarlo desde aquí.',
                     icon: Icons.storefront_outlined,
                     compact: true,
                   ),
@@ -121,6 +161,99 @@ class _CompanyScreenState extends State<CompanyScreen> {
               ),
       ),
     );
+  }
+
+  Future<void> _seedDemoData() async {
+    final currentCompany = context.read<CurrentCompanyProvider>();
+    final auth = context.read<AuthProvider>();
+    final companyId = currentCompany.companyId;
+    if (companyId == null || auth.user == null) return;
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: '¿Cargar demo data?',
+      message:
+          'Se crearán productos, ubicaciones, movimientos, alertas, requests y activity logs ficticios en la empresa activa. La carga es idempotente y fallará si ya existen datos.',
+      confirmLabel: 'Cargar demo',
+      cancelLabel: 'Cancelar',
+    );
+    if (!confirmed || !mounted) return;
+
+    try {
+      await DemoSeedService().seedCompany(
+        companyId: companyId,
+        companyName: currentCompany.companyName,
+        actorUserId: auth.user!.id,
+        actorUserName: auth.user!.displayName,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'El demo workspace quedó poblado con datos ficticios para analytics y flujos SaaS.',
+          ),
+        ),
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.error,
+        title: 'No se pudo cargar la demo',
+        message: _friendlyError(error),
+      );
+    }
+  }
+
+  Future<void> _resetDemoData() async {
+    final currentCompany = context.read<CurrentCompanyProvider>();
+    final auth = context.read<AuthProvider>();
+    final companyId = currentCompany.companyId;
+    if (companyId == null || auth.user == null) return;
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: '¿Resetear demo?',
+      message:
+          'Se eliminarán productos, ubicaciones, movimientos, requests, alertas y logs del workspace demo actual para regenerarlos desde cero.',
+      confirmLabel: 'Resetear demo',
+      cancelLabel: 'Cancelar',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await DemoSeedService().resetDemoWorkspace(
+        companyId: companyId,
+        companyName: currentCompany.companyName,
+        actorUserId: auth.user!.id,
+        actorUserName: auth.user!.displayName,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La demo aislada quedó regenerada correctamente.'),
+        ),
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      await showAppAlertDialog(
+        context,
+        type: AppAlertType.error,
+        title: 'No se pudo resetear la demo',
+        message: _friendlyError(error),
+      );
+    }
+  }
+
+  String _friendlyError(Object error) {
+    final text = error.toString();
+    if (text.contains('already-exists')) {
+      return 'Este espacio ya tiene datos. Para una demo limpia, crea un workspace nuevo y vuelve a intentarlo.';
+    }
+    if (text.contains('permission-denied')) {
+      return 'No tienes permisos suficientes para poblar este espacio con demo data.';
+    }
+    if (text.contains('unavailable')) {
+      return 'La conexión con Firestore está lenta o no disponible. Intenta nuevamente.';
+    }
+    return text;
   }
 
   Widget _buildLogoPreview(BuildContext context, CompanyProfile profile) {

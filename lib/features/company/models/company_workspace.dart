@@ -13,6 +13,8 @@ class CompanyWorkspace {
     required this.role,
     required this.accountType,
     required this.joinedAt,
+    this.invitedBy,
+    this.status = 'accepted',
   });
 
   final String id;
@@ -26,8 +28,48 @@ class CompanyWorkspace {
   final String role;
   final String accountType;
   final DateTime? joinedAt;
+  final String? invitedBy;
+  final String status;
 
   bool get isComplete => companyName.trim().isNotEmpty;
+  bool get isDemoMode => settings['demoMode'] == true;
+  bool get isSharedDemo => settings['sharedDemo'] == true;
+  String get workspaceType {
+    final raw =
+        (settings['workspaceType'] ?? settings['accountType'] ?? accountType)
+            .toString()
+            .trim()
+            .toLowerCase();
+    switch (raw) {
+      case 'personal':
+      case 'person':
+        return 'personal';
+      case 'business':
+      case 'negocio':
+        return 'business';
+      case 'company':
+      case 'empresa':
+        return 'company';
+      default:
+        return normalizedAccountType == 'person' ? 'personal' : 'business';
+    }
+  }
+  String get normalizedAccountType {
+    return accountType.trim().toLowerCase() == 'business'
+        ? 'business'
+        : 'person';
+  }
+  bool get isPersonalWorkspace => workspaceType == 'personal';
+  String get workspaceBadgeLabel {
+    switch (workspaceType) {
+      case 'personal':
+        return 'Personal';
+      case 'company':
+        return 'Empresa';
+      default:
+        return 'Negocio';
+    }
+  }
 
   CompanyWorkspace copyWith({
     String? id,
@@ -41,6 +83,8 @@ class CompanyWorkspace {
     String? role,
     String? accountType,
     DateTime? joinedAt,
+    String? invitedBy,
+    String? status,
   }) {
     return CompanyWorkspace(
       id: id ?? this.id,
@@ -54,6 +98,8 @@ class CompanyWorkspace {
       role: role ?? this.role,
       accountType: accountType ?? this.accountType,
       joinedAt: joinedAt ?? this.joinedAt,
+      invitedBy: invitedBy ?? this.invitedBy,
+      status: status ?? this.status,
     );
   }
 
@@ -79,6 +125,10 @@ class CompanyWorkspace {
       role: (membershipData['role'] ?? 'viewer') as String,
       accountType: (membershipData['accountType'] ?? 'person') as String,
       joinedAt: _toDate(membershipData['joinedAt']),
+      invitedBy: (membershipData['invitedBy'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : membershipData['invitedBy'] as String,
+      status: (membershipData['status'] ?? 'accepted') as String,
     );
   }
 
