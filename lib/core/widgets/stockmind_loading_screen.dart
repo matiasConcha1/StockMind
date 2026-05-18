@@ -5,7 +5,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
+import 'package:stockmind/core/i18n/app_strings.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
+import 'package:stockmind/core/widgets/language_selector.dart';
 import 'package:stockmind/features/auth/providers/auth_provider.dart';
 
 class StockMindLoadingScreen extends StatefulWidget {
@@ -16,12 +18,6 @@ class StockMindLoadingScreen extends StatefulWidget {
 }
 
 class _StockMindLoadingScreenState extends State<StockMindLoadingScreen> {
-  static const _statusMessages = [
-    'Verificando sesion...',
-    'Conectando con Firebase...',
-    'Preparando tu inventario...',
-  ];
-
   Timer? _fallbackTimer;
   Timer? _messageTimer;
   bool _showFallback = false;
@@ -37,7 +33,7 @@ class _StockMindLoadingScreenState extends State<StockMindLoadingScreen> {
     _messageTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (!mounted) return;
       setState(() {
-        _messageIndex = (_messageIndex + 1) % _statusMessages.length;
+        _messageIndex = (_messageIndex + 1) % 3;
       });
     });
   }
@@ -52,12 +48,18 @@ class _StockMindLoadingScreenState extends State<StockMindLoadingScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final strings = context.strings;
+    final statusMessages = [
+      strings.checkingSession,
+      strings.connectingFirebase,
+      strings.preparingInventory,
+    ];
     final statusMessage = authProvider.error ??
         (!authProvider.isLoading
             ? authProvider.isAuthenticated
-                ? 'Redirigiendo...'
-                : 'Preparando acceso...'
-            : _statusMessages[_messageIndex]);
+                ? strings.redirecting
+                : strings.preparingAccess
+            : statusMessages[_messageIndex]);
 
     return Scaffold(
       body: Container(
@@ -97,13 +99,25 @@ class _StockMindLoadingScreenState extends State<StockMindLoadingScreen> {
               child: Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: StockMindLoadingPanel(
-                    statusMessage: statusMessage,
-                    showFallback: _showFallback,
-                    onFallbackPressed: () {
-                      context.read<AuthProvider>().completeLoadingFallback();
-                      context.go(AppRoutePaths.login);
-                    },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Align(
+                        alignment: Alignment.centerRight,
+                        child: LanguageSelector(compact: true),
+                      ),
+                      const SizedBox(height: 12),
+                      StockMindLoadingPanel(
+                        statusMessage: statusMessage,
+                        primaryMessage: strings.preparingInventoryWorkspace,
+                        secondaryMessage: strings.syncingSessionAndTheme,
+                        showFallback: _showFallback,
+                        onFallbackPressed: () {
+                          context.read<AuthProvider>().completeLoadingFallback();
+                          context.go(AppRoutePaths.login);
+                        },
+                      ),
+                    ],
                   ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.04, end: 0),
                 ),
               ),
@@ -118,9 +132,9 @@ class _StockMindLoadingScreenState extends State<StockMindLoadingScreen> {
 class StockMindLoadingPanel extends StatelessWidget {
   const StockMindLoadingPanel({
     required this.statusMessage,
-    this.primaryMessage = 'Preparando tu inventario...',
+    this.primaryMessage = 'Preparando tu espacio de inventario...',
     this.secondaryMessage =
-        'Sincronizando acceso, tema y sesion para abrir tu panel.',
+        'Sincronizando acceso, tema y sesión para abrir tu panel.',
     this.showFallback = false,
     this.onFallbackPressed,
     this.compact = false,
@@ -262,7 +276,7 @@ class StockMindLoadingPanel extends StatelessWidget {
           if (showFallback) ...[
             const SizedBox(height: 24),
             Text(
-              'Esto esta tardando mas de lo normal',
+              context.strings.thisIsTakingLonger,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.white.withValues(alpha: 0.84),
@@ -275,7 +289,7 @@ class StockMindLoadingPanel extends StatelessWidget {
                 foregroundColor: Colors.white,
                 backgroundColor: Colors.white.withValues(alpha: 0.12),
               ),
-              child: const Text('Ir al login'),
+              child: Text(context.strings.goToLogin),
             ),
           ],
         ],

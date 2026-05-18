@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:stockmind/app/routes.dart';
+import 'package:stockmind/core/i18n/app_strings.dart';
 import 'package:stockmind/core/services/storage_service.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
@@ -54,15 +55,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final strings = context.strings;
     final isBusiness = _selectedType == _RegisterAccountType.business;
 
     return AuthShell(
-      title: _selectedType == null ? '¿Cómo usarás StockMind?' : 'Crea tu espacio',
+      title: _selectedType == null ? strings.chooseUsageTitle : strings.createYourWorkspace,
       subtitle: _selectedType == null
-          ? 'Elige el tipo de cuenta para mostrar un registro más claro y rápido.'
+          ? strings.chooseUsageSubtitle
           : isBusiness
-              ? 'Configura tu usuario y deja listo el perfil base de tu negocio.'
-              : 'Crea tu cuenta personal y completa la empresa más adelante si la necesitas.',
+              ? strings.businessRegisterSubtitle
+              : strings.personalRegisterSubtitle,
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 260),
         switchInCurve: Curves.easeOutCubic,
@@ -75,23 +77,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildAccountTypeSelector(BuildContext context, AuthProvider auth) {
+    final strings = context.strings;
     return Column(
       key: const ValueKey('register-selector'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _AccountTypeCard(
           icon: Icons.business_center_outlined,
-          title: 'Empresa / Negocio',
-          description:
-              'Para equipos, bodegas o negocios con inventario compartido.',
+          title: strings.businessAccount,
+          description: strings.businessAccountDescription,
           onTap: () => setState(() => _selectedType = _RegisterAccountType.business),
         ),
         const SizedBox(height: 16),
         _AccountTypeCard(
           icon: Icons.person_outline_rounded,
-          title: 'Persona',
-          description:
-              'Para controlar tu inventario personal o proyectos pequeños.',
+          title: strings.personalAccount,
+          description: strings.personalAccountDescription,
           onTap: () => setState(() => _selectedType = _RegisterAccountType.person),
         ),
         const SizedBox(height: 20),
@@ -138,8 +139,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(width: 12),
                 Text(
                   auth.isLoading
-                      ? 'Conectando con Google...'
-                      : 'Continuar con Google',
+                      ? strings.connectingGoogle
+                      : strings.continueWithGoogle,
                 ),
               ],
             ),
@@ -149,10 +150,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('¿Ya tienes cuenta?'),
+            Text(strings.alreadyHaveAccount),
             TextButton(
-              onPressed: () => context.go(AppRoutePaths.login),
-              child: const Text('Ingresar'),
+              onPressed: () => context.go(_loginPath(context)),
+              child: Text(strings.signIn),
             ),
           ],
         ),
@@ -165,6 +166,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     AuthProvider auth,
     bool isBusiness,
   ) {
+    final strings = context.strings;
     return Form(
       key: _formKey,
       child: Column(
@@ -176,23 +178,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ? null
                 : () => setState(() => _selectedType = null),
             icon: const Icon(Icons.arrow_back_rounded),
-            label: const Text('Volver'),
+            label: Text(strings.back),
           ),
           const SizedBox(height: 8),
           Text(
-            'Datos personales',
+            strings.personalDetails,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Nombre',
-              prefixIcon: Icon(Icons.person_outline_rounded),
+            decoration: InputDecoration(
+              labelText: strings.name,
+              prefixIcon: const Icon(Icons.person_outline_rounded),
             ),
             validator: (value) {
               if (value == null || value.trim().length < 3) {
-                return 'Ingresa un nombre válido.';
+                return strings.enterValidName;
               }
               return null;
             },
@@ -201,13 +203,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'Correo',
-              prefixIcon: Icon(Icons.email_outlined),
+            decoration: InputDecoration(
+              labelText: strings.emailLabel,
+              prefixIcon: const Icon(Icons.email_outlined),
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Ingresa tu correo.';
+                return strings.enterEmail;
               }
               return null;
             },
@@ -217,7 +219,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             controller: _passwordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
-              labelText: 'Contraseña',
+              labelText: strings.passwordLabel,
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
                 onPressed: () {
@@ -234,7 +236,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             validator: (value) {
               if (value == null || value.length < 6) {
-                return 'La contraseña debe tener al menos 6 caracteres.';
+                return strings.passwordMinLength;
               }
               return null;
             },
@@ -244,7 +246,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             controller: _confirmPasswordController,
             obscureText: _obscureConfirmPassword,
             decoration: InputDecoration(
-              labelText: 'Confirmar contraseña',
+              labelText: strings.confirmPassword,
               prefixIcon: const Icon(Icons.verified_user_outlined),
               suffixIcon: IconButton(
                 onPressed: () {
@@ -261,10 +263,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Confirma tu contraseña.';
+                return strings.confirmYourPassword;
               }
               if (value != _passwordController.text) {
-                return 'Las contraseñas no coinciden.';
+                return strings.passwordsDoNotMatch;
               }
               return null;
             },
@@ -272,20 +274,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
           if (isBusiness) ...[
             const SizedBox(height: 24),
             Text(
-              'Datos de empresa',
+              strings.businessDetails,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _companyNameController,
-              decoration: const InputDecoration(
-                labelText: 'Nombre del negocio / empresa',
-                prefixIcon: Icon(Icons.business_outlined),
+              decoration: InputDecoration(
+                labelText: strings.businessName,
+                prefixIcon: const Icon(Icons.business_outlined),
               ),
               validator: (value) {
                 if (!isBusiness) return null;
                 if (value == null || value.trim().isEmpty) {
-                  return 'Ingresa el nombre del negocio.';
+                  return strings.enterBusinessName;
                 }
                 return null;
               },
@@ -293,42 +295,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _industryController,
-              decoration: const InputDecoration(
-                labelText: 'Rubro',
-                prefixIcon: Icon(Icons.category_outlined),
+              decoration: InputDecoration(
+                labelText: strings.industry,
+                prefixIcon: const Icon(Icons.category_outlined),
               ),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _companyPhoneController,
-              decoration: const InputDecoration(
-                labelText: 'Teléfono',
-                prefixIcon: Icon(Icons.phone_outlined),
+              decoration: InputDecoration(
+                labelText: strings.phone,
+                prefixIcon: const Icon(Icons.phone_outlined),
               ),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _companyEmailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Correo empresa',
-                prefixIcon: Icon(Icons.alternate_email_rounded),
+              decoration: InputDecoration(
+                labelText: strings.companyEmail,
+                prefixIcon: const Icon(Icons.alternate_email_rounded),
               ),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _addressController,
-              decoration: const InputDecoration(
-                labelText: 'Dirección opcional',
-                prefixIcon: Icon(Icons.place_outlined),
+              decoration: InputDecoration(
+                labelText: strings.optionalAddress,
+                prefixIcon: const Icon(Icons.place_outlined),
               ),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _websiteController,
-              decoration: const InputDecoration(
-                labelText: 'Sitio web opcional',
-                prefixIcon: Icon(Icons.language_outlined),
+              decoration: InputDecoration(
+                labelText: strings.optionalWebsite,
+                prefixIcon: const Icon(Icons.language_outlined),
               ),
             ),
             const SizedBox(height: 12),
@@ -342,13 +344,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
               icon: const Icon(Icons.image_outlined),
               label: Text(
-                _logoFile == null ? 'Logo opcional' : 'Logo seleccionado',
+                _logoFile == null ? strings.optionalLogo : strings.logoSelected,
               ),
             ),
           ],
           const SizedBox(height: 20),
           _GradientActionButton(
-            label: auth.isLoading ? 'Creando cuenta...' : 'Crear cuenta',
+            label: auth.isLoading
+                ? strings.creatingAccount
+                : strings.createAccountAction,
             onPressed: auth.isLoading ? null : _handleRegister,
           ),
           const SizedBox(height: 14),
@@ -395,8 +399,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(width: 12),
                   Text(
                     auth.isLoading
-                        ? 'Conectando con Google...'
-                        : 'Registrarme con Google',
+                        ? strings.connectingGoogle
+                        : strings.signUpWithGoogle,
                   ),
                 ],
               ),
@@ -406,10 +410,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('¿Ya tienes cuenta?'),
+              Text(strings.alreadyHaveAccount),
               TextButton(
-                onPressed: () => context.go(AppRoutePaths.login),
-                child: const Text('Ingresar'),
+                onPressed: () => context.go(_loginPath(context)),
+                child: Text(strings.signIn),
               ),
             ],
           ),
@@ -419,12 +423,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
+    final strings = context.strings;
     if (_selectedType == null) {
       await showAppAlertDialog(
         context,
         type: AppAlertType.info,
-        title: 'Elige un tipo de cuenta',
-        message: 'Selecciona si usarás StockMind como persona o como empresa.',
+        title: strings.chooseAccountTypeTitle,
+        message: strings.chooseAccountTypeMessage,
       );
       return;
     }
@@ -432,9 +437,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await showAppAlertDialog(
         context,
         type: AppAlertType.warning,
-        title: 'Registro incompleto',
-        message:
-            'Debes ingresar nombre, correo y una contraseña válida antes de crear la cuenta.',
+        title: strings.incompleteRegisterTitle,
+        message: strings.incompleteRegisterMessage,
       );
       return;
     }
@@ -453,9 +457,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await showAppAlertDialog(
         context,
         type: AppAlertType.error,
-        title: 'No se pudo crear la cuenta',
-        message:
-            auth.error ?? 'No pudimos completar la operación. Inténtalo nuevamente.',
+        title: strings.accountCreateFailedTitle,
+        message: auth.error ?? strings.genericTryAgain,
       );
       return;
     }
@@ -484,9 +487,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           await showAppAlertDialog(
             context,
             type: AppAlertType.warning,
-            title: 'Cuenta creada con observaciones',
-            message:
-                'La cuenta se creó correctamente, pero no pudimos guardar el perfil de empresa: ${companyProvider.error}',
+            title: strings.businessProfileWarningTitle,
+            message: strings.businessProfileWarningMessage(
+              companyProvider.error!,
+            ),
           );
           return;
         }
@@ -496,19 +500,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     await showAppAlertDialog(
       context,
       type: AppAlertType.success,
-      title: 'Cuenta creada',
-      message: 'Tu cuenta fue creada correctamente.',
+      title: strings.accountCreatedTitle,
+      message: strings.accountCreatedMessage,
     );
   }
 
   Future<void> _handleGoogleLogin() async {
+    final strings = context.strings;
     if (_selectedType == null) {
       await showAppAlertDialog(
         context,
         type: AppAlertType.info,
-        title: 'Selecciona tu tipo de cuenta',
-        message:
-            'Antes de continuar con Google, elige si usarás StockMind como persona o como empresa.',
+        title: strings.chooseAccountTypeBeforeGoogleTitle,
+        message: strings.chooseAccountTypeBeforeGoogleMessage,
       );
       return;
     }
@@ -549,10 +553,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     await showAppAlertDialog(
       context,
       type: AppAlertType.error,
-      title: 'No se pudo crear la cuenta',
-      message:
-          auth.error ?? 'No pudimos completar la operación. Inténtalo nuevamente.',
+      title: strings.accountCreateFailedTitle,
+      message: auth.error ?? strings.genericTryAgain,
     );
+  }
+
+  String _loginPath(BuildContext context) {
+    final redirectTarget =
+        GoRouterState.of(context).uri.queryParameters['redirect'];
+    if (redirectTarget == null || redirectTarget.isEmpty) {
+      return AppRoutePaths.login;
+    }
+    return '${AppRoutePaths.login}?redirect=${Uri.encodeComponent(redirectTarget)}';
   }
 }
 

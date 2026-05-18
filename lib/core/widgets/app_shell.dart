@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:stockmind/core/i18n/app_strings.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
 import 'package:stockmind/core/widgets/app_alert_dialog.dart';
 import 'package:stockmind/core/widgets/section_card.dart';
@@ -21,6 +22,7 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = context.strings;
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < 768;
     final authUser = context.watch<AuthProvider>().user;
@@ -28,34 +30,34 @@ class AppShell extends StatelessWidget {
     final user = userProvider.currentUser ?? authUser;
 
     final destinations = [
-      const _ShellDestination(
+      _ShellDestination(
         branchIndex: 0,
-        label: 'Centro de inventario',
-        mobileLabel: 'Inicio',
+        label: strings.inventoryCenter,
+        mobileLabel: strings.home,
         icon: Icons.space_dashboard_rounded,
       ),
-      const _ShellDestination(
+      _ShellDestination(
         branchIndex: 1,
-        label: 'Productos',
-        mobileLabel: 'Productos',
+        label: strings.products,
+        mobileLabel: strings.products,
         icon: Icons.inventory_2_outlined,
       ),
-      const _ShellDestination(
+      _ShellDestination(
         branchIndex: 2,
-        label: 'Alertas',
-        mobileLabel: 'Alertas',
+        label: strings.alerts,
+        mobileLabel: strings.alerts,
         icon: Icons.warning_amber_rounded,
       ),
-      const _ShellDestination(
+      _ShellDestination(
         branchIndex: 3,
-        label: 'Ubicaciones',
-        mobileLabel: 'Ubic.',
+        label: strings.locations,
+        mobileLabel: strings.shortLocations,
         icon: Icons.location_on_outlined,
       ),
-      const _ShellDestination(
+      _ShellDestination(
         branchIndex: 4,
-        label: 'Configuración',
-        mobileLabel: 'Ajustes',
+        label: strings.settings,
+        mobileLabel: strings.preferences,
         icon: Icons.settings_outlined,
       ),
     ];
@@ -180,6 +182,7 @@ class _DesktopSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = context.strings;
 
     return SizedBox(
       width: width,
@@ -224,7 +227,7 @@ class _DesktopSidebar extends StatelessWidget {
                     const Divider(),
                     const SizedBox(height: 14),
                     SidebarItem(
-                      label: 'Cerrar sesión',
+                      label: strings.signOut,
                       icon: Icons.logout_rounded,
                       selected: false,
                       isDestructive: true,
@@ -255,7 +258,7 @@ class _DesktopSidebar extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          user?.displayName ?? 'Sin sesión',
+                          user?.displayName ?? strings.noSession,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.titleMedium,
@@ -338,7 +341,7 @@ class _BrandBlock extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Smart inventory platform',
+                  context.strings.smartInventoryPlatform,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -371,10 +374,10 @@ class _ShellDestination {
 Future<void> _handleSidebarSignOut(BuildContext context) async {
   final confirmed = await showAppConfirmDialog(
     context,
-    title: '¿Seguro que quieres cerrar sesión?',
-    message: 'Tu sesión actual se cerrará en este dispositivo.',
-    confirmLabel: 'Cerrar sesión',
-    cancelLabel: 'Cancelar',
+    title: context.strings.confirmSignOutTitle,
+    message: context.strings.confirmSignOutMessage,
+    confirmLabel: context.strings.signOut,
+    cancelLabel: context.strings.cancel,
   );
   if (!confirmed || !context.mounted) return;
 
@@ -387,7 +390,7 @@ Future<void> _handleSidebarSignOut(BuildContext context) async {
   await showAppAlertDialog(
     context,
     type: AppAlertType.error,
-    title: 'No se pudo cerrar sesión',
+    title: context.strings.signOutFailedTitle,
     message: auth.error!,
   );
 }

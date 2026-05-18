@@ -2,7 +2,9 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:stockmind/core/i18n/app_strings.dart';
 import 'package:stockmind/core/theme/app_theme.dart';
+import 'package:stockmind/core/widgets/language_selector.dart';
 import 'package:stockmind/core/widgets/stockmind_brand.dart';
 
 class AuthShell extends StatelessWidget {
@@ -108,6 +110,11 @@ class AuthShell extends StatelessWidget {
                           return SingleChildScrollView(
                             child: Column(
                               children: [
+                                const Align(
+                                  alignment: Alignment.centerRight,
+                                  child: LanguageSelector(compact: true),
+                                ),
+                                const SizedBox(height: 12),
                                 const _MobileBranding(),
                                 const SizedBox(height: 14),
                                 formPanel,
@@ -127,7 +134,19 @@ class AuthShell extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 18),
-                            Expanded(flex: 5, child: formPanel),
+                            Expanded(
+                              flex: 5,
+                              child: Column(
+                                children: [
+                                  const Align(
+                                    alignment: Alignment.centerRight,
+                                    child: LanguageSelector(),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Expanded(child: formPanel),
+                                ],
+                              ),
+                            ),
                           ],
                         );
                       },
@@ -155,6 +174,7 @@ class _HeroPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = context.strings;
 
     final isLowHeight = availableHeight < 850;
     final isVeryLowHeight = availableHeight < 720;
@@ -221,7 +241,7 @@ class _HeroPanel extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Smart inventory platform',
+                    strings.smartInventoryPlatform,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: Colors.white.withValues(alpha: 0.78),
                     ),
@@ -235,15 +255,15 @@ class _HeroPanel extends StatelessWidget {
         Wrap(
           spacing: 10,
           runSpacing: 10,
-          children: const [
-            _HeaderTag(label: 'Tiempo real'),
+          children: [
+            _HeaderTag(label: strings.realtime),
             _HeaderTag(label: 'Firebase Auth'),
-            _HeaderTag(label: 'Responsive'),
+            _HeaderTag(label: strings.responsive),
           ],
         ),
         SizedBox(height: primarySpacing),
         Text(
-          'Inventario claro.\nOperación veloz.\nDecisiones reales.',
+          strings.clearInventoryFastOpsRealDecisions,
           style: theme.textTheme.headlineLarge?.copyWith(
             color: Colors.white,
             height: 1.02,
@@ -255,7 +275,7 @@ class _HeroPanel extends StatelessWidget {
           ConstrainedBox(
             constraints: BoxConstraints(maxWidth: isVeryLowHeight ? 460 : 520),
             child: Text(
-              'Controla productos, alertas y rendimiento operativo desde un panel visualmente sólido, diseñado para equipos modernos.',
+              strings.heroDescription,
               style: theme.textTheme.bodyLarge?.copyWith(
                 color: Colors.white.withValues(alpha: 0.82),
                 fontSize: isVeryLowHeight ? 14 : null,
@@ -269,19 +289,19 @@ class _HeroPanel extends StatelessWidget {
           runSpacing: metricSpacing,
           children: [
             _FloatingMetric(
-              label: 'Productos',
+              label: strings.productsMetric,
               value: '+245',
               icon: Icons.inventory_2_rounded,
               compact: isVeryLowHeight,
             ),
             _FloatingMetric(
-              label: 'Alertas',
+              label: strings.alertsMetric,
               value: '23',
               icon: Icons.warning_amber_rounded,
               compact: isVeryLowHeight,
             ),
             _FloatingMetric(
-              label: 'Inventario',
+              label: strings.inventoryMetric,
               value: '\$45.231',
               icon: Icons.attach_money_rounded,
               compact: isVeryLowHeight,
@@ -432,7 +452,7 @@ class _FormPanel extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    'Acceso seguro',
+                    context.strings.secureAccess,
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: theme.colorScheme.primary,
                     ),
@@ -468,7 +488,7 @@ class _MobileBranding extends StatelessWidget {
         const StockMindLogo(width: 170, centered: true),
         const SizedBox(height: 14),
         Text(
-          'Inventario claro. Operación veloz. Decisiones reales.',
+          context.strings.clearInventoryFastOpsRealDecisions,
           style: theme.textTheme.bodyMedium,
           textAlign: TextAlign.center,
         ),
@@ -584,8 +604,8 @@ class _InventoryIllustration extends StatelessWidget {
             top: 24,
             child: _MiniPanel(
               width: 160,
-              title: 'Stock',
-              subtitle: '98% estable',
+              title: context.strings.stock,
+              subtitle: context.strings.stablePercent,
               bars: const [0.48, 0.72, 0.58, 0.84],
             ),
           ),
@@ -594,8 +614,8 @@ class _InventoryIllustration extends StatelessWidget {
             top: 0,
             child: _MiniPanel(
               width: 240,
-              title: 'Control center',
-              subtitle: 'Weekly inventory performance',
+              title: context.strings.controlCenter,
+              subtitle: context.strings.weeklyInventoryPerformance,
               bars: const [0.30, 0.44, 0.62, 0.52, 0.78, 0.90],
             ),
           ),
@@ -612,17 +632,17 @@ class _InventoryIllustration extends StatelessWidget {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.notifications_active_rounded,
                         color: Colors.white,
                         size: 18,
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
-                        'Alertas críticas',
+                        context.strings.criticalAlerts,
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -630,10 +650,10 @@ class _InventoryIllustration extends StatelessWidget {
                       ),
                     ],
                   ),
-                  SizedBox(height: 14),
-                  _AlertRow(label: 'Dock USB-C Studio', value: '5'),
-                  SizedBox(height: 10),
-                  _AlertRow(label: 'Pulse Headset X', value: '9'),
+                  const SizedBox(height: 14),
+                  const _AlertRow(label: 'Dock USB-C Studio', value: '5'),
+                  const SizedBox(height: 10),
+                  const _AlertRow(label: 'Pulse Headset X', value: '9'),
                 ],
               ),
             ),

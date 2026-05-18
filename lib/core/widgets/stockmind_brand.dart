@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stockmind/core/i18n/app_strings.dart';
 
 final class StockMindBrandAssets {
   static const fullLogo = 'assets/images/logo_Stockmind.png';
@@ -198,6 +199,7 @@ class StockMindBrandRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = context.strings;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -224,7 +226,9 @@ class StockMindBrandRow extends StatelessWidget {
                 ),
               ),
               Text(
-                subtitle,
+                subtitle == 'Smart inventory platform'
+                    ? strings.smartInventoryPlatform
+                    : subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
